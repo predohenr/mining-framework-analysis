@@ -19,16 +19,39 @@ fn build_lib_for_foo() {
 }
 
 #[cargo_test]
-fn lib() {
+fn build_with_crate_type_for_foo_with_deps() {
     let p = project()
-        .file("src/main.rs", "fn main() {}")
-        .file("src/lib.rs", r#" "#)
+        .file(
+            "src/lib.rs",
+            r#"
+            extern crate a;
+            pub fn foo() { a::hello(); }
+            "#,
+        )
+        .file(
+            "Cargo.toml",
+            r#"
+            [package]
+            name = "foo"
+            version = "0.0.1"
+            edition = "2015"
+            authors = []
+
+            [dependencies]
+            a = { path = "a" }
+            "#,
+        )
+        .file("a/Cargo.toml", &basic_manifest("a", "0.1.0"))
+        .file("a/src/lib.rs", "pub fn hello() {}")
         .build();
 
-    p.cargo("rustc --lib -v -- -C debug-assertions=off")
+    p.cargo("rustc -v --crate-type cdylib")
         .with_stderr_data(str![[r#"
+[LOCKING] 1 package to latest compatible version
+[COMPILING] a v0.1.0 ([ROOT]/foo/a)
+[RUNNING] `rustc --crate-name a --edition=2015 a/src/lib.rs [..]--crate-type lib [..]`
 [COMPILING] foo v0.0.1 ([ROOT]/foo)
-[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib --emit=[..]link[..]-C debuginfo=2 [..]-C metadata=[..] [..]--out-dir [ROOT]/foo/target/debug/deps -L dependency=[ROOT]/foo/target/debug/deps[..]-C debug-assertions=off[..]`
+[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type cdylib [..]`
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
 
 "#]])
@@ -36,20 +59,50 @@ fn lib() {
 }
 
 #[cargo_test]
-fn build_main_and_allow_unstable_options() {
+fn rustc_with_print_cfg_config_toml_env() {
     let p = project()
-        .file("src/main.rs", "fn main() {}")
-        .file("src/lib.rs", r#" "#)
+        .file("Cargo.toml", &basic_bin_manifest("foo"))
+        .file(
+            "targets/best-target.json",
+            r#"{
+  "llvm-target": "x86_64-unknown-none",
+  "target-pointer-width": "64",
+  "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+  "arch": "x86_64"
+}"#,
+        )
+        .file(
+            ".cargo/config.toml",
+            r#"
+[build]
+target = "best-target"
+[env]
+RUST_TARGET_PATH = { value = "./targets", relative = true }
+"#,
+        )
+        .file("src/main.rs", r#"fn main() {} "#)
         .build();
 
-    p.cargo("rustc -v --bin foo -- -C debug-assertions")
-        .with_stderr_data(str![[r#"
+    p.cargo("rustc -Z unstable-options --print cfg")
+        .masquerade_as_nightly_cargo(&["print"])
+        .with_stdout_data(str!["..."].unordered())
+        .run();
+}
+
+#[cargo_test]
+fn targets_selected_all() {
+    let p = project().file("src/main.rs", "fn main() {}").build();
+    p.cargo("rustc -v --all-targets")
+        // bin and unit test
+        .with_stderr_data(
+            str![[r#"
 [COMPILING] foo v0.0.1 ([ROOT]/foo)
-[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib --emit=[..]link[..]-C debuginfo=2 [..]-C metadata=[..] --out-dir [ROOT]/foo/target/debug/deps -L dependency=[ROOT]/foo/target/debug/deps`
-[RUNNING] `rustc --crate-name foo --edition=2015 src/main.rs [..]--crate-type bin --emit=[..]link[..]-C debuginfo=2 [..]-C metadata=[..] --out-dir [ROOT]/foo/target/debug/deps -L dependency=[ROOT]/foo/target/debug/deps --extern foo=[ROOT]/foo/target/debug/deps/libfoo-[HASH].rlib[..]-C debug-assertions[..]`
+[RUNNING] `rustc --crate-name foo --edition=2015 src/main.rs [..]--crate-type bin --emit=[..]link[..]`
+[RUNNING] `rustc --crate-name foo --edition=2015 src/main.rs [..]--emit[..]link[..] -C debuginfo=2 [..]--test [..]`
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
 
-"#]])
+"#]].unordered()
+        )
         .run();
 }
 
@@ -71,19 +124,13 @@ the package by passing, e.g., `--lib` or `--bin NAME` to specify a single target
 }
 
 #[cargo_test]
-fn build_with_args_to_one_of_multiple_binaries() {
-    let p = project()
-        .file("src/bin/foo.rs", "fn main() {}")
-        .file("src/bin/bar.rs", "fn main() {}")
-        .file("src/bin/baz.rs", "fn main() {}")
-        .file("src/lib.rs", r#" "#)
-        .build();
+fn build_with_crate_types_for_foo() {
+    let p = project().file("src/lib.rs", "").build();
 
-    p.cargo("rustc -v --bin bar -- -C debug-assertions")
+    p.cargo("rustc -v --crate-type lib,cdylib")
         .with_stderr_data(str![[r#"
 [COMPILING] foo v0.0.1 ([ROOT]/foo)
-[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib --emit=[..]link[..]-C debuginfo=2 [..]-C metadata=[..] --out-dir [..]`
-[RUNNING] `rustc --crate-name bar --edition=2015 src/bin/bar.rs [..]--crate-type bin --emit=[..]link[..]-C debuginfo=2 [..]-C debug-assertions[..]`
+[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib --crate-type cdylib [..]`
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
 
 "#]])
@@ -104,25 +151,6 @@ fn fails_with_args_to_all_binaries() {
         .with_stderr_data(str![[r#"
 [ERROR] extra arguments to `rustc` can only be passed to one target, consider filtering
 the package by passing, e.g., `--lib` or `--bin NAME` to specify a single target
-
-"#]])
-        .run();
-}
-
-#[cargo_test]
-fn fails_with_crate_type_to_multi_binaries() {
-    let p = project()
-        .file("src/bin/foo.rs", "fn main() {}")
-        .file("src/bin/bar.rs", "fn main() {}")
-        .file("src/bin/baz.rs", "fn main() {}")
-        .file("src/lib.rs", r#" "#)
-        .build();
-
-    p.cargo("rustc --crate-type lib")
-        .with_status(101)
-        .with_stderr_data(str![[r#"
-[ERROR] crate types to rustc can only be passed to one target, consider filtering
-the package by passing, e.g., `--lib` or `--example` to specify a single target
 
 "#]])
         .run();
@@ -164,148 +192,104 @@ the package by passing, e.g., `--lib` or `--example` to specify a single target
 }
 
 #[cargo_test]
-fn fails_with_crate_type_to_binary() {
-    let p = project().file("src/bin/foo.rs", "fn main() {}").build();
+fn fails_with_crate_type_to_multi_binaries() {
+    let p = project()
+        .file("src/bin/foo.rs", "fn main() {}")
+        .file("src/bin/bar.rs", "fn main() {}")
+        .file("src/bin/baz.rs", "fn main() {}")
+        .file("src/lib.rs", r#" "#)
+        .build();
 
     p.cargo("rustc --crate-type lib")
         .with_status(101)
         .with_stderr_data(str![[r#"
-[ERROR] crate types can only be specified for libraries and example libraries.
-Binaries, tests, and benchmarks are always the `bin` crate type
+[ERROR] crate types to rustc can only be passed to one target, consider filtering
+the package by passing, e.g., `--lib` or `--example` to specify a single target
 
 "#]])
         .run();
 }
 
 #[cargo_test]
-fn build_with_crate_type_for_foo() {
-    let p = project().file("src/lib.rs", "").build();
-
-    p.cargo("rustc -v --crate-type cdylib")
-        .with_stderr_data(str![[r#"
-[COMPILING] foo v0.0.1 ([ROOT]/foo)
-[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type cdylib [..]`
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
-
-"#]])
-        .run();
-}
-
-#[cargo_test]
-fn build_with_crate_type_for_foo_with_deps() {
+fn rustc_with_other_profile() {
     let p = project()
-        .file(
-            "src/lib.rs",
-            r#"
-            extern crate a;
-            pub fn foo() { a::hello(); }
-            "#,
-        )
         .file(
             "Cargo.toml",
             r#"
-            [package]
-            name = "foo"
-            version = "0.0.1"
-            edition = "2015"
-            authors = []
+                [package]
+                name = "foo"
+                version = "0.0.1"
+                edition = "2015"
+                authors = []
 
-            [dependencies]
-            a = { path = "a" }
+                [dev-dependencies]
+                a = { path = "a" }
+            "#,
+        )
+        .file(
+            "src/main.rs",
+            r#"
+                #[cfg(test)] extern crate a;
+
+                #[test]
+                fn foo() {}
             "#,
         )
         .file("a/Cargo.toml", &basic_manifest("a", "0.1.0"))
-        .file("a/src/lib.rs", "pub fn hello() {}")
+        .file("a/src/lib.rs", "")
         .build();
 
-    p.cargo("rustc -v --crate-type cdylib")
-        .with_stderr_data(str![[r#"
-[LOCKING] 1 package to latest compatible version
-[COMPILING] a v0.1.0 ([ROOT]/foo/a)
-[RUNNING] `rustc --crate-name a --edition=2015 a/src/lib.rs [..]--crate-type lib [..]`
-[COMPILING] foo v0.0.1 ([ROOT]/foo)
-[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type cdylib [..]`
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
-
-"#]])
-        .run();
+    p.cargo("rustc --profile test").run();
 }
 
 #[cargo_test]
-fn build_with_crate_types_for_foo() {
-    let p = project().file("src/lib.rs", "").build();
-
-    p.cargo("rustc -v --crate-type lib,cdylib")
-        .with_stderr_data(str![[r#"
-[COMPILING] foo v0.0.1 ([ROOT]/foo)
-[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib --crate-type cdylib [..]`
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
-
-"#]])
-        .run();
-}
-
-#[cargo_test]
-fn build_with_crate_type_to_example() {
+fn rustc_with_print_cfg_rustflags_env_var() {
     let p = project()
-        .file(
-            "Cargo.toml",
-            r#"
-            [package]
-            name = "foo"
-            version = "0.0.1"
-            edition = "2015"
-            authors = []
-
-            [[example]]
-            name = "ex"
-            crate-type = ["rlib"]
-        "#,
-        )
-        .file("src/lib.rs", "")
-        .file("examples/ex.rs", "")
+        .file("Cargo.toml", &basic_bin_manifest("foo"))
+        .file("src/main.rs", r#"fn main() {} "#)
         .build();
 
-    p.cargo("rustc -v --example ex --crate-type cdylib")
-        .with_stderr_data(str![[r#"
-[COMPILING] foo v0.0.1 ([ROOT]/foo)
-[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib [..]`
-[RUNNING] `rustc --crate-name ex --edition=2015 examples/ex.rs [..]--crate-type cdylib [..]`
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
-
-"#]])
+    p.cargo("rustc -Z unstable-options --target x86_64-pc-windows-msvc --print cfg")
+        .masquerade_as_nightly_cargo(&["print"])
+        .env("RUSTFLAGS", "-C target-feature=+crt-static")
+        .with_stdout_data(
+            str![[r#"
+debug_assertions
+target_arch="x86_64"
+target_endian="little"
+target_env="msvc"
+target_family="windows"
+target_feature="crt-static"
+target_os="windows"
+target_pointer_width="64"
+target_vendor="pc"
+windows
+...
+"#]]
+            .unordered(),
+        )
         .run();
 }
 
 #[cargo_test]
-fn build_with_crate_types_to_example() {
-    let p = project()
-        .file(
-            "Cargo.toml",
-            r#"
-            [package]
-            name = "foo"
-            version = "0.0.1"
-            edition = "2015"
-            authors = []
-
-            [[example]]
-            name = "ex"
-            crate-type = ["rlib"]
-        "#,
+fn targets_selected_default() {
+    let p = project().file("src/main.rs", "fn main() {}").build();
+    p.cargo("rustc -v")
+        // bin
+        .with_stderr_contains(
+            "[RUNNING] `rustc --crate-name foo --edition=2015 src/main.rs [..]--crate-type bin \
+             --emit=[..]link[..]",
         )
-        .file("src/lib.rs", "")
-        .file("examples/ex.rs", "")
-        .build();
-
-    p.cargo("rustc -v --example ex --crate-type lib,cdylib")
-        .with_stderr_data(str![[r#"
-[COMPILING] foo v0.0.1 ([ROOT]/foo)
-[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib [..]`
-[RUNNING] `rustc --crate-name ex --edition=2015 examples/ex.rs [..]--crate-type lib --crate-type cdylib [..]`
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
-
-"#]])
+        // bench
+        .with_stderr_does_not_contain(
+            "[RUNNING] `rustc --crate-name foo --edition=2015 src/main.rs [..]--emit=[..]link \
+             -C opt-level=3 --test [..]",
+        )
+        // unit test
+        .with_stderr_does_not_contain(
+            "[RUNNING] `rustc --crate-name foo --edition=2015 src/main.rs [..]--emit=[..]link \
+             -C debuginfo=2 [..]--test [..]",
+        )
         .run();
 }
 
@@ -346,56 +330,31 @@ fn build_with_crate_types_to_one_of_multi_examples() {
 }
 
 #[cargo_test]
-fn build_with_args_to_one_of_multiple_tests() {
+fn build_with_crate_type_to_example() {
     let p = project()
-        .file("tests/foo.rs", r#" "#)
-        .file("tests/bar.rs", r#" "#)
-        .file("tests/baz.rs", r#" "#)
-        .file("src/lib.rs", r#" "#)
-        .build();
-
-    p.cargo("rustc -v --test bar -- -C debug-assertions")
-        .with_stderr_data(str![[r#"
-[COMPILING] foo v0.0.1 ([ROOT]/foo)
-[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib --emit=[..]link[..]-C debuginfo=2 [..]-C metadata=[..] --out-dir [..]`
-[RUNNING] `rustc --crate-name bar --edition=2015 tests/bar.rs [..]--emit=[..]link[..]-C debuginfo=2 [..]--test[..]-C debug-assertions[..]`
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
-
-"#]])
-        .run();
-}
-
-#[cargo_test]
-fn build_foo_with_bar_dependency() {
-    let foo = project()
         .file(
             "Cargo.toml",
             r#"
-                [package]
-                name = "foo"
-                version = "0.0.1"
-                edition = "2015"
-                authors = []
+            [package]
+            name = "foo"
+            version = "0.0.1"
+            edition = "2015"
+            authors = []
 
-                [dependencies.bar]
-                path = "../bar"
-            "#,
+            [[example]]
+            name = "ex"
+            crate-type = ["rlib"]
+        "#,
         )
-        .file("src/main.rs", "extern crate bar; fn main() { bar::baz() }")
-        .build();
-    let _bar = project()
-        .at("bar")
-        .file("Cargo.toml", &basic_manifest("bar", "0.1.0"))
-        .file("src/lib.rs", "pub fn baz() {}")
+        .file("src/lib.rs", "")
+        .file("examples/ex.rs", "")
         .build();
 
-    foo.cargo("rustc -v -- -C debug-assertions")
+    p.cargo("rustc -v --example ex --crate-type cdylib")
         .with_stderr_data(str![[r#"
-[LOCKING] 1 package to latest compatible version
-[COMPILING] bar v0.1.0 ([ROOT]/bar)
-[RUNNING] `rustc --crate-name bar [..] -C debuginfo=2[..]`
 [COMPILING] foo v0.0.1 ([ROOT]/foo)
-[RUNNING] `rustc --crate-name foo [..] -C debuginfo=2 [..]-C debug-assertions[..]`
+[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib [..]`
+[RUNNING] `rustc --crate-name ex --edition=2015 examples/ex.rs [..]--crate-type cdylib [..]`
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
 
 "#]])
@@ -403,76 +362,16 @@ fn build_foo_with_bar_dependency() {
 }
 
 #[cargo_test]
-fn build_only_bar_dependency() {
-    let foo = project()
-        .file(
-            "Cargo.toml",
-            r#"
-                [package]
-                name = "foo"
-                version = "0.0.1"
-                edition = "2015"
-                authors = []
+fn build_with_crate_type_for_foo() {
+    let p = project().file("src/lib.rs", "").build();
 
-                [dependencies.bar]
-                path = "../bar"
-            "#,
-        )
-        .file("src/main.rs", "extern crate bar; fn main() { bar::baz() }")
-        .build();
-    let _bar = project()
-        .at("bar")
-        .file("Cargo.toml", &basic_manifest("bar", "0.1.0"))
-        .file("src/lib.rs", "pub fn baz() {}")
-        .build();
-
-    foo.cargo("rustc -v -p bar -- -C debug-assertions")
+    p.cargo("rustc -v --crate-type cdylib")
         .with_stderr_data(str![[r#"
-[LOCKING] 1 package to latest compatible version
-[COMPILING] bar v0.1.0 ([ROOT]/bar)
-[RUNNING] `rustc --crate-name bar [..]--crate-type lib [..] -C debug-assertions[..]`
+[COMPILING] foo v0.0.1 ([ROOT]/foo)
+[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type cdylib [..]`
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
 
 "#]])
-        .run();
-}
-
-#[cargo_test]
-fn targets_selected_default() {
-    let p = project().file("src/main.rs", "fn main() {}").build();
-    p.cargo("rustc -v")
-        // bin
-        .with_stderr_contains(
-            "[RUNNING] `rustc --crate-name foo --edition=2015 src/main.rs [..]--crate-type bin \
-             --emit=[..]link[..]",
-        )
-        // bench
-        .with_stderr_does_not_contain(
-            "[RUNNING] `rustc --crate-name foo --edition=2015 src/main.rs [..]--emit=[..]link \
-             -C opt-level=3 --test [..]",
-        )
-        // unit test
-        .with_stderr_does_not_contain(
-            "[RUNNING] `rustc --crate-name foo --edition=2015 src/main.rs [..]--emit=[..]link \
-             -C debuginfo=2 [..]--test [..]",
-        )
-        .run();
-}
-
-#[cargo_test]
-fn targets_selected_all() {
-    let p = project().file("src/main.rs", "fn main() {}").build();
-    p.cargo("rustc -v --all-targets")
-        // bin and unit test
-        .with_stderr_data(
-            str![[r#"
-[COMPILING] foo v0.0.1 ([ROOT]/foo)
-[RUNNING] `rustc --crate-name foo --edition=2015 src/main.rs [..]--crate-type bin --emit=[..]link[..]`
-[RUNNING] `rustc --crate-name foo --edition=2015 src/main.rs [..]--emit[..]link[..] -C debuginfo=2 [..]--test [..]`
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
-
-"#]].unordered()
-        )
         .run();
 }
 
@@ -534,6 +433,69 @@ fn fail_with_multiple_packages() {
 }
 
 #[cargo_test]
+fn rustc_with_print_cfg_single_target() {
+    let p = project()
+        .file("Cargo.toml", &basic_bin_manifest("foo"))
+        .file("src/main.rs", r#"fn main() {} "#)
+        .build();
+
+    p.cargo("rustc -Z unstable-options --target x86_64-pc-windows-msvc --print cfg")
+        .masquerade_as_nightly_cargo(&["print"])
+        .with_stdout_data(
+            str![[r#"
+debug_assertions
+target_arch="x86_64"
+target_endian="little"
+target_env="msvc"
+target_family="windows"
+target_os="windows"
+target_pointer_width="64"
+target_vendor="pc"
+windows
+...
+"#]]
+            .unordered(),
+        )
+        .run();
+}
+
+#[cargo_test]
+fn rustc_with_print_cfg_config_toml() {
+    let p = project()
+        .file("Cargo.toml", &basic_bin_manifest("foo"))
+        .file(
+            ".cargo/config.toml",
+            r#"
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+"#,
+        )
+        .file("src/main.rs", r#"fn main() {} "#)
+        .build();
+
+    p.cargo("rustc -Z unstable-options --target x86_64-pc-windows-msvc --print cfg")
+        .masquerade_as_nightly_cargo(&["print"])
+        .env("RUSTFLAGS", "-C target-feature=+crt-static")
+        .with_stdout_data(
+            str![[r#"
+debug_assertions
+target_arch="x86_64"
+target_endian="little"
+target_env="msvc"
+target_family="windows"
+target_feature="crt-static"
+target_os="windows"
+target_pointer_width="64"
+target_vendor="pc"
+windows
+...
+"#]]
+            .unordered(),
+        )
+        .run();
+}
+
+#[cargo_test]
 fn fail_with_glob() {
     let p = project()
         .file(
@@ -557,8 +519,87 @@ fn fail_with_glob() {
 }
 
 #[cargo_test]
-fn rustc_with_other_profile() {
+fn build_with_crate_types_to_example() {
     let p = project()
+        .file(
+            "Cargo.toml",
+            r#"
+            [package]
+            name = "foo"
+            version = "0.0.1"
+            edition = "2015"
+            authors = []
+
+            [[example]]
+            name = "ex"
+            crate-type = ["rlib"]
+        "#,
+        )
+        .file("src/lib.rs", "")
+        .file("examples/ex.rs", "")
+        .build();
+
+    p.cargo("rustc -v --example ex --crate-type lib,cdylib")
+        .with_stderr_data(str![[r#"
+[COMPILING] foo v0.0.1 ([ROOT]/foo)
+[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib [..]`
+[RUNNING] `rustc --crate-name ex --edition=2015 examples/ex.rs [..]--crate-type lib --crate-type cdylib [..]`
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+
+"#]])
+        .run();
+}
+
+#[cargo_test]
+fn rustc_with_print_cfg_multiple_targets() {
+    let p = project()
+        .file("Cargo.toml", &basic_bin_manifest("foo"))
+        .file("src/main.rs", r#"fn main() {} "#)
+        .build();
+
+    p.cargo("rustc -Z unstable-options --target x86_64-pc-windows-msvc --target i686-unknown-linux-gnu --print cfg")
+        .masquerade_as_nightly_cargo(&["print"])
+        .with_stdout_data(str![[r#"
+debug_assertions
+target_arch="x86"
+target_endian="little"
+target_env="gnu"
+target_family="unix"
+target_os="linux"
+target_pointer_width="32"
+target_vendor="unknown"
+unix
+debug_assertions
+target_arch="x86_64"
+target_endian="little"
+target_env="msvc"
+target_family="windows"
+target_os="windows"
+target_pointer_width="64"
+target_vendor="pc"
+windows
+...
+"#]].unordered())
+        .run();
+}
+
+#[cargo_test]
+fn fails_with_crate_type_to_binary() {
+    let p = project().file("src/bin/foo.rs", "fn main() {}").build();
+
+    p.cargo("rustc --crate-type lib")
+        .with_status(101)
+        .with_stderr_data(str![[r#"
+[ERROR] crate types can only be specified for libraries and example libraries.
+Binaries, tests, and benchmarks are always the `bin` crate type
+
+"#]])
+        .run();
+}
+
+#[cargo_test]
+fn build_foo_with_bar_dependency() {
+    let foo = project()
         .file(
             "Cargo.toml",
             r#"
@@ -568,24 +609,139 @@ fn rustc_with_other_profile() {
                 edition = "2015"
                 authors = []
 
-                [dev-dependencies]
-                a = { path = "a" }
+                [dependencies.bar]
+                path = "../bar"
             "#,
         )
-        .file(
-            "src/main.rs",
-            r#"
-                #[cfg(test)] extern crate a;
-
-                #[test]
-                fn foo() {}
-            "#,
-        )
-        .file("a/Cargo.toml", &basic_manifest("a", "0.1.0"))
-        .file("a/src/lib.rs", "")
+        .file("src/main.rs", "extern crate bar; fn main() { bar::baz() }")
+        .build();
+    let _bar = project()
+        .at("bar")
+        .file("Cargo.toml", &basic_manifest("bar", "0.1.0"))
+        .file("src/lib.rs", "pub fn baz() {}")
         .build();
 
-    p.cargo("rustc --profile test").run();
+    foo.cargo("rustc -v -- -C debug-assertions")
+        .with_stderr_data(str![[r#"
+[LOCKING] 1 package to latest compatible version
+[COMPILING] bar v0.1.0 ([ROOT]/bar)
+[RUNNING] `rustc --crate-name bar [..] -C debuginfo=2[..]`
+[COMPILING] foo v0.0.1 ([ROOT]/foo)
+[RUNNING] `rustc --crate-name foo [..] -C debuginfo=2 [..]-C debug-assertions[..]`
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+
+"#]])
+        .run();
+}
+
+#[cargo_test]
+fn build_with_args_to_one_of_multiple_tests() {
+    let p = project()
+        .file("tests/foo.rs", r#" "#)
+        .file("tests/bar.rs", r#" "#)
+        .file("tests/baz.rs", r#" "#)
+        .file("src/lib.rs", r#" "#)
+        .build();
+
+    p.cargo("rustc -v --test bar -- -C debug-assertions")
+        .with_stderr_data(str![[r#"
+[COMPILING] foo v0.0.1 ([ROOT]/foo)
+[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib --emit=[..]link[..]-C debuginfo=2 [..]-C metadata=[..] --out-dir [..]`
+[RUNNING] `rustc --crate-name bar --edition=2015 tests/bar.rs [..]--emit=[..]link[..]-C debuginfo=2 [..]--test[..]-C debug-assertions[..]`
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+
+"#]])
+        .run();
+}
+
+#[cargo_test]
+fn build_with_args_to_one_of_multiple_binaries() {
+    let p = project()
+        .file("src/bin/foo.rs", "fn main() {}")
+        .file("src/bin/bar.rs", "fn main() {}")
+        .file("src/bin/baz.rs", "fn main() {}")
+        .file("src/lib.rs", r#" "#)
+        .build();
+
+    p.cargo("rustc -v --bin bar -- -C debug-assertions")
+        .with_stderr_data(str![[r#"
+[COMPILING] foo v0.0.1 ([ROOT]/foo)
+[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib --emit=[..]link[..]-C debuginfo=2 [..]-C metadata=[..] --out-dir [..]`
+[RUNNING] `rustc --crate-name bar --edition=2015 src/bin/bar.rs [..]--crate-type bin --emit=[..]link[..]-C debuginfo=2 [..]-C debug-assertions[..]`
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+
+"#]])
+        .run();
+}
+
+#[cargo_test]
+fn build_main_and_allow_unstable_options() {
+    let p = project()
+        .file("src/main.rs", "fn main() {}")
+        .file("src/lib.rs", r#" "#)
+        .build();
+
+    p.cargo("rustc -v --bin foo -- -C debug-assertions")
+        .with_stderr_data(str![[r#"
+[COMPILING] foo v0.0.1 ([ROOT]/foo)
+[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib --emit=[..]link[..]-C debuginfo=2 [..]-C metadata=[..] --out-dir [ROOT]/foo/target/debug/deps -L dependency=[ROOT]/foo/target/debug/deps`
+[RUNNING] `rustc --crate-name foo --edition=2015 src/main.rs [..]--crate-type bin --emit=[..]link[..]-C debuginfo=2 [..]-C metadata=[..] --out-dir [ROOT]/foo/target/debug/deps -L dependency=[ROOT]/foo/target/debug/deps --extern foo=[ROOT]/foo/target/debug/deps/libfoo-[HASH].rlib[..]-C debug-assertions[..]`
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+
+"#]])
+        .run();
+}
+
+#[cargo_test]
+fn lib() {
+    let p = project()
+        .file("src/main.rs", "fn main() {}")
+        .file("src/lib.rs", r#" "#)
+        .build();
+
+    p.cargo("rustc --lib -v -- -C debug-assertions=off")
+        .with_stderr_data(str![[r#"
+[COMPILING] foo v0.0.1 ([ROOT]/foo)
+[RUNNING] `rustc --crate-name foo --edition=2015 src/lib.rs [..]--crate-type lib --emit=[..]link[..]-C debuginfo=2 [..]-C metadata=[..] [..]--out-dir [ROOT]/foo/target/debug/deps -L dependency=[ROOT]/foo/target/debug/deps[..]-C debug-assertions=off[..]`
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+
+"#]])
+        .run();
+}
+
+#[cargo_test]
+fn build_only_bar_dependency() {
+    let foo = project()
+        .file(
+            "Cargo.toml",
+            r#"
+                [package]
+                name = "foo"
+                version = "0.0.1"
+                edition = "2015"
+                authors = []
+
+                [dependencies.bar]
+                path = "../bar"
+            "#,
+        )
+        .file("src/main.rs", "extern crate bar; fn main() { bar::baz() }")
+        .build();
+    let _bar = project()
+        .at("bar")
+        .file("Cargo.toml", &basic_manifest("bar", "0.1.0"))
+        .file("src/lib.rs", "pub fn baz() {}")
+        .build();
+
+    foo.cargo("rustc -v -p bar -- -C debug-assertions")
+        .with_stderr_data(str![[r#"
+[LOCKING] 1 package to latest compatible version
+[COMPILING] bar v0.1.0 ([ROOT]/bar)
+[RUNNING] `rustc --crate-name bar [..]--crate-type lib [..] -C debug-assertions[..]`
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+
+"#]])
+        .run();
 }
 
 #[cargo_test]
@@ -665,162 +821,6 @@ fn rustc_test_with_implicit_bin() {
 "#]]
             .unordered(),
         )
-        .run();
-}
-
-#[cargo_test]
-fn rustc_with_print_cfg_single_target() {
-    let p = project()
-        .file("Cargo.toml", &basic_bin_manifest("foo"))
-        .file("src/main.rs", r#"fn main() {} "#)
-        .build();
-
-    p.cargo("rustc -Z unstable-options --target x86_64-pc-windows-msvc --print cfg")
-        .masquerade_as_nightly_cargo(&["print"])
-        .with_stdout_data(
-            str![[r#"
-debug_assertions
-target_arch="x86_64"
-target_endian="little"
-target_env="msvc"
-target_family="windows"
-target_os="windows"
-target_pointer_width="64"
-target_vendor="pc"
-windows
-...
-"#]]
-            .unordered(),
-        )
-        .run();
-}
-
-#[cargo_test]
-fn rustc_with_print_cfg_multiple_targets() {
-    let p = project()
-        .file("Cargo.toml", &basic_bin_manifest("foo"))
-        .file("src/main.rs", r#"fn main() {} "#)
-        .build();
-
-    p.cargo("rustc -Z unstable-options --target x86_64-pc-windows-msvc --target i686-unknown-linux-gnu --print cfg")
-        .masquerade_as_nightly_cargo(&["print"])
-        .with_stdout_data(str![[r#"
-debug_assertions
-target_arch="x86"
-target_endian="little"
-target_env="gnu"
-target_family="unix"
-target_os="linux"
-target_pointer_width="32"
-target_vendor="unknown"
-unix
-debug_assertions
-target_arch="x86_64"
-target_endian="little"
-target_env="msvc"
-target_family="windows"
-target_os="windows"
-target_pointer_width="64"
-target_vendor="pc"
-windows
-...
-"#]].unordered())
-        .run();
-}
-
-#[cargo_test]
-fn rustc_with_print_cfg_rustflags_env_var() {
-    let p = project()
-        .file("Cargo.toml", &basic_bin_manifest("foo"))
-        .file("src/main.rs", r#"fn main() {} "#)
-        .build();
-
-    p.cargo("rustc -Z unstable-options --target x86_64-pc-windows-msvc --print cfg")
-        .masquerade_as_nightly_cargo(&["print"])
-        .env("RUSTFLAGS", "-C target-feature=+crt-static")
-        .with_stdout_data(
-            str![[r#"
-debug_assertions
-target_arch="x86_64"
-target_endian="little"
-target_env="msvc"
-target_family="windows"
-target_feature="crt-static"
-target_os="windows"
-target_pointer_width="64"
-target_vendor="pc"
-windows
-...
-"#]]
-            .unordered(),
-        )
-        .run();
-}
-
-#[cargo_test]
-fn rustc_with_print_cfg_config_toml() {
-    let p = project()
-        .file("Cargo.toml", &basic_bin_manifest("foo"))
-        .file(
-            ".cargo/config.toml",
-            r#"
-[target.x86_64-pc-windows-msvc]
-rustflags = ["-C", "target-feature=+crt-static"]
-"#,
-        )
-        .file("src/main.rs", r#"fn main() {} "#)
-        .build();
-
-    p.cargo("rustc -Z unstable-options --target x86_64-pc-windows-msvc --print cfg")
-        .masquerade_as_nightly_cargo(&["print"])
-        .env("RUSTFLAGS", "-C target-feature=+crt-static")
-        .with_stdout_data(
-            str![[r#"
-debug_assertions
-target_arch="x86_64"
-target_endian="little"
-target_env="msvc"
-target_family="windows"
-target_feature="crt-static"
-target_os="windows"
-target_pointer_width="64"
-target_vendor="pc"
-windows
-...
-"#]]
-            .unordered(),
-        )
-        .run();
-}
-
-#[cargo_test]
-fn rustc_with_print_cfg_config_toml_env() {
-    let p = project()
-        .file("Cargo.toml", &basic_bin_manifest("foo"))
-        .file(
-            "targets/best-target.json",
-            r#"{
-  "llvm-target": "x86_64-unknown-none",
-  "target-pointer-width": "64",
-  "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
-  "arch": "x86_64"
-}"#,
-        )
-        .file(
-            ".cargo/config.toml",
-            r#"
-[build]
-target = "best-target"
-[env]
-RUST_TARGET_PATH = { value = "./targets", relative = true }
-"#,
-        )
-        .file("src/main.rs", r#"fn main() {} "#)
-        .build();
-
-    p.cargo("rustc -Z unstable-options --print cfg")
-        .masquerade_as_nightly_cargo(&["print"])
-        .with_stdout_data(str!["..."].unordered())
         .run();
 }
 
