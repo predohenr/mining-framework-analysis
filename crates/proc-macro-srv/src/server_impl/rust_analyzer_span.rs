@@ -178,39 +178,27 @@ impl server::Server for RaSpanServer<'_> {
         // FIXME requires db, returns the top level call site
         span
     }
-    fn span_byte_range(&mut self, span: Self::Span) -> Range<usize> {
-        if let Some(cb) = self.callback.as_mut() {
-            return cb.byte_range(span);
-        }
-        Range { start: span.range.start().into(), end: span.range.end().into() }
+
+    fn span_resolved_at(&mut self, span: Self::Span, at: Self::Span) -> Self::Span {
+        Span { ctx: at.ctx, ..span }
     }
-    fn span_join(&mut self, first: Self::Span, second: Self::Span) -> Option<Self::Span> {
-        // We can't modify the span range for fixup spans, those are meaningful to fixup, so just
-        // prefer the non-fixup span.
-        if first.anchor.ast_id == FIXUP_ERASED_FILE_AST_ID_MARKER {
-            return Some(second);
+    fn span_start(&mut self, span: Self::Span) -> Self::Span {
+        // We can't modify the span range for fixup spans, those are meaningful to fixup.
+        if span.anchor.ast_id == FIXUP_ERASED_FILE_AST_ID_MARKER {
+            return span;
         }
-        if second.anchor.ast_id == FIXUP_ERASED_FILE_AST_ID_MARKER {
-            return Some(first);
+        Span { range: TextRange::empty(span.range.start()), ..span }
+    }
+    fn span_line(&mut self, _span: Self::Span) -> usize {
+        // FIXME requires db to resolve line index, THIS IS NOT INCREMENTAL
+        1
+    }
+    fn span_end(&mut self, span: Self::Span) -> Self::Span {
+        // We can't modify the span range for fixup spans, those are meaningful to fixup.
+        if span.anchor.ast_id == FIXUP_ERASED_FILE_AST_ID_MARKER {
+            return span;
         }
-        // FIXME: Once we can talk back to the client, implement a "long join" request for anchors
-        // that differ in [AstId]s as joining those spans requires resolving the AstIds.
-        if first.anchor != second.anchor {
-            return None;
-        }
-        // Differing context, we can't merge these so prefer the one that's root
-        if first.ctx != second.ctx {
-            if first.ctx.is_root() {
-                return Some(second);
-            } else if second.ctx.is_root() {
-                return Some(first);
-            }
-        }
-        Some(Span {
-            range: first.range.cover(second.range),
-            anchor: second.anchor,
-            ctx: second.ctx,
-        })
+        Span { range: TextRange::empty(span.range.end()), ..span }
     }
     fn span_subspan(
         &mut self,
@@ -255,32 +243,53 @@ impl server::Server for RaSpanServer<'_> {
             ..span
         })
     }
-
-    fn span_resolved_at(&mut self, span: Self::Span, at: Self::Span) -> Self::Span {
-        Span { ctx: at.ctx, ..span }
+    fn span_column(&mut self, _span: Self::Span) -> usize {
+        // FIXME requires db to resolve line index, THIS IS NOT INCREMENTAL
+        1
     }
-
-    fn span_end(&mut self, span: Self::Span) -> Self::Span {
-        // We can't modify the span range for fixup spans, those are meaningful to fixup.
-        if span.anchor.ast_id == FIXUP_ERASED_FILE_AST_ID_MARKER {
-            return span;
+    fn span_byte_range(&mut self, span: Self::Span) -> Range<usize> {
+        // FIXME requires db to resolve the ast id, THIS IS NOT INCREMENTAL
+        Range { start: span.range.start().into(), end: span.range.end().into() }
+    }
+    fn span_join(&mut self, first: Self::Span, second: Self::Span) -> Option<Self::Span> {
+        // We can't modify the span range for fixup spans, those are meaningful to fixup, so just
+        // prefer the non-fixup span.
+        if first.anchor.ast_id == FIXUP_ERASED_FILE_AST_ID_MARKER {
+            return Some(second);
         }
-        Span { range: TextRange::empty(span.range.end()), ..span }
-    }
-
-    fn span_start(&mut self, span: Self::Span) -> Self::Span {
-        // We can't modify the span range for fixup spans, those are meaningful to fixup.
-        if span.anchor.ast_id == FIXUP_ERASED_FILE_AST_ID_MARKER {
-            return span;
+        if second.anchor.ast_id == FIXUP_ERASED_FILE_AST_ID_MARKER {
+            return Some(first);
         }
-        Span { range: TextRange::empty(span.range.start()), ..span }
+        // FIXME: Once we can talk back to the client, implement a "long join" request for anchors
+        // that differ in [AstId]s as joining those spans requires resolving the AstIds.
+        if first.anchor != second.anchor {
+            return None;
+        }
+        // Differing context, we can't merge these so prefer the one that's root
+        if first.ctx != second.ctx {
+            if first.ctx.is_root() {
+                return Some(second);
+            } else if second.ctx.is_root() {
+                return Some(first);
+            }
+        }
+        Some(Span {
+            range: first.range.cover(second.range),
+            anchor: second.anchor,
+            ctx: second.ctx,
+        })
     }
-
-    fn span_line(&mut self, span: Self::Span) -> usize {
+    fn line(&mut self, span: Self::Span) -> usize {
         self.callback.as_mut().and_then(|cb| cb.line_column(span)).map_or(1, |(l, _)| l as usize)
     }
+    fn byte_range(&mut self, span: Self::Span) -> Range<usize> {
+        if let Some(cb) = self.callback.as_mut() {
+            return cb.byte_range(span);
+        }
 
-    fn span_column(&mut self, span: Self::Span) -> usize {
+        Range { start: span.range.start().into(), end: span.range.end().into() }
+    }
+    fn column(&mut self, span: Self::Span) -> usize {
         self.callback.as_mut().and_then(|cb| cb.line_column(span)).map_or(1, |(_, c)| c as usize)
     }
 
