@@ -132,94 +132,48 @@ impl Renderer {
         self.image_cache.borrow_mut().trim();
     }
 
-    fn prepare(
+    fn draw_overlay(
         &mut self,
-        engine: &mut Engine,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        _format: wgpu::TextureFormat,
-        encoder: &mut wgpu::CommandEncoder,
+        overlay: &[impl AsRef<str>],
         viewport: &Viewport,
     ) {
-        let scale_factor = viewport.scale_factor() as f32;
+        use crate::core::alignment;
+        use crate::core::text::Renderer as _;
+        use crate::core::Renderer as _;
 
-        self.text_viewport.update(queue, viewport.physical_size());
+        self.with_layer(
+            Rectangle::with_size(viewport.logical_size()),
+            |renderer| {
+                for (i, line) in overlay.iter().enumerate() {
+                    let text = crate::core::Text {
+                        content: line.as_ref().to_owned(),
+                        bounds: viewport.logical_size(),
+                        size: Pixels(20.0),
+                        line_height: core::text::LineHeight::default(),
+                        font: Font::MONOSPACE,
+                        horizontal_alignment: alignment::Horizontal::Left,
+                        vertical_alignment: alignment::Vertical::Top,
+                        shaping: core::text::Shaping::Basic,
+                        wrapping: core::text::Wrapping::Word,
+                    };
 
-        let physical_bounds = Rectangle::<f32>::from(Rectangle::with_size(
-            viewport.physical_size(),
-        ));
+                    renderer.fill_text(
+                        text.clone(),
+                        Point::new(11.0, 11.0 + 25.0 * i as f32),
+                        Color::from_rgba(0.9, 0.9, 0.9, 1.0),
+                        Rectangle::with_size(Size::INFINITY),
+                    );
 
-        for layer in self.layers.iter_mut() {
-            if physical_bounds
-                .intersection(&(layer.bounds * scale_factor))
-                .and_then(Rectangle::snap)
-                .is_none()
-            {
-                continue;
-            }
-
-            if !layer.quads.is_empty() {
-                engine.quad_pipeline.prepare(
-                    device,
-                    encoder,
-                    &mut engine.staging_belt,
-                    &layer.quads,
-                    viewport.projection(),
-                    scale_factor,
-                );
-            }
-
-            if !layer.triangles.is_empty() {
-                engine.triangle_pipeline.prepare(
-                    device,
-                    encoder,
-                    &mut engine.staging_belt,
-                    &mut self.triangle_storage,
-                    &layer.triangles,
-                    Transformation::scale(scale_factor),
-                    viewport.physical_size(),
-                );
-            }
-
-            if !layer.primitives.is_empty() {
-                for instance in &layer.primitives {
-                    instance.primitive.prepare(
-                        device,
-                        queue,
-                        engine.format,
-                        &mut engine.primitive_storage,
-                        &instance.bounds,
-                        viewport,
+                    renderer.fill_text(
+                        text,
+                        Point::new(11.0, 11.0 + 25.0 * i as f32)
+                            + Vector::new(-1.0, -1.0),
+                        Color::BLACK,
+                        Rectangle::with_size(Size::INFINITY),
                     );
                 }
-            }
-
-            #[cfg(any(feature = "svg", feature = "image"))]
-            if !layer.images.is_empty() {
-                engine.image_pipeline.prepare(
-                    device,
-                    encoder,
-                    &mut engine.staging_belt,
-                    &mut self.image_cache.borrow_mut(),
-                    &layer.images,
-                    viewport.projection(),
-                    scale_factor,
-                );
-            }
-
-            if !layer.text.is_empty() {
-                engine.text_pipeline.prepare(
-                    device,
-                    queue,
-                    &self.text_viewport,
-                    encoder,
-                    &mut self.text_storage,
-                    &layer.text,
-                    layer.bounds,
-                    Transformation::scale(scale_factor),
-                );
-            }
-        }
+            },
+        );
     }
 
     fn render(
@@ -423,7 +377,7 @@ impl Renderer {
                     renderer.fill_text(
                         text.clone(),
                         Point::new(11.0, 11.0 + 25.0 * i as f32),
-                        Color::from_rgba(0.9, 0.9, 0.9, 1.0),
+                        Color::new(0.9, 0.9, 0.9, 1.0),
                         Rectangle::with_size(Size::INFINITY),
                     );
 
@@ -437,6 +391,96 @@ impl Renderer {
                 }
             },
         );
+    }
+
+    fn prepare(
+        &mut self,
+        engine: &mut Engine,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        _format: wgpu::TextureFormat,
+        encoder: &mut wgpu::CommandEncoder,
+        viewport: &Viewport,
+    ) {
+        let scale_factor = viewport.scale_factor() as f32;
+
+        self.text_viewport.update(queue, viewport.physical_size());
+
+        let physical_bounds = Rectangle::<f32>::from(Rectangle::with_size(
+            viewport.physical_size(),
+        ));
+
+        for layer in self.layers.iter_mut() {
+            if physical_bounds
+                .intersection(&(layer.bounds * scale_factor))
+                .and_then(Rectangle::snap)
+                .is_none()
+            {
+                continue;
+            }
+
+            if !layer.quads.is_empty() {
+                engine.quad_pipeline.prepare(
+                    device,
+                    encoder,
+                    &mut engine.staging_belt,
+                    &layer.quads,
+                    viewport.projection(),
+                    scale_factor,
+                );
+            }
+
+            if !layer.triangles.is_empty() {
+                engine.triangle_pipeline.prepare(
+                    device,
+                    encoder,
+                    &mut engine.staging_belt,
+                    &mut self.triangle_storage,
+                    &layer.triangles,
+                    Transformation::scale(scale_factor),
+                    viewport.physical_size(),
+                );
+            }
+
+            if !layer.primitives.is_empty() {
+                for instance in &layer.primitives {
+                    instance.primitive.prepare(
+                        device,
+                        queue,
+                        engine.format,
+                        &mut engine.primitive_storage,
+                        &instance.bounds,
+                        viewport,
+                    );
+                }
+            }
+
+            #[cfg(any(feature = "svg", feature = "image"))]
+            if !layer.images.is_empty() {
+                engine.image_pipeline.prepare(
+                    device,
+                    encoder,
+                    &mut engine.staging_belt,
+                    &mut self.image_cache.borrow_mut(),
+                    &layer.images,
+                    viewport.projection(),
+                    scale_factor,
+                );
+            }
+
+            if !layer.text.is_empty() {
+                engine.text_pipeline.prepare(
+                    device,
+                    queue,
+                    &self.text_viewport,
+                    encoder,
+                    &mut self.text_storage,
+                    &layer.text,
+                    layer.bounds,
+                    Transformation::scale(scale_factor),
+                );
+            }
+        }
     }
 }
 
