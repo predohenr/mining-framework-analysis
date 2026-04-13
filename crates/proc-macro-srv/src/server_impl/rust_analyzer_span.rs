@@ -37,94 +37,10 @@ impl server::Types for RaSpanServer<'_> {
 }
 
 impl server::Server for RaSpanServer<'_> {
-    fn globals(&mut self) -> ExpnGlobals<Self::Span> {
-        ExpnGlobals {
-            def_site: self.def_site,
-            call_site: self.call_site,
-            mixed_site: self.mixed_site,
-        }
-    }
-
-    fn intern_symbol(ident: &str) -> Self::Symbol {
-        Symbol::intern(ident)
-    }
-
-    fn with_symbol_string(symbol: &Self::Symbol, f: impl FnOnce(&str)) {
-        f(symbol.as_str())
-    }
-
-    fn injected_env_var(&mut self, _: &str) -> Option<std::string::String> {
-        None
-    }
 
     fn track_env_var(&mut self, var: &str, value: Option<&str>) {
         self.tracked_env_vars.insert(var.into(), value.map(Into::into));
     }
-    fn track_path(&mut self, path: &str) {
-        self.tracked_paths.insert(path.into());
-    }
-
-    fn literal_from_str(&mut self, s: &str) -> Result<Literal<Self::Span>, ()> {
-        literal_from_str(s, self.call_site)
-    }
-
-    fn emit_diagnostic(&mut self, _: Diagnostic<Self::Span>) {
-        // FIXME handle diagnostic
-    }
-
-    fn ts_drop(&mut self, stream: Self::TokenStream) {
-        drop(stream);
-    }
-
-    fn ts_clone(&mut self, stream: &Self::TokenStream) -> Self::TokenStream {
-        stream.clone()
-    }
-
-    fn ts_is_empty(&mut self, stream: &Self::TokenStream) -> bool {
-        stream.is_empty()
-    }
-    fn ts_from_str(&mut self, src: &str) -> Self::TokenStream {
-        Self::TokenStream::from_str(src, self.call_site).unwrap_or_else(|e| {
-            Self::TokenStream::from_str(
-                &format!("compile_error!(\"failed to parse str to token stream: {e}\")"),
-                self.call_site,
-            )
-            .unwrap()
-        })
-    }
-    fn ts_to_string(&mut self, stream: &Self::TokenStream) -> String {
-        stream.to_string()
-    }
-
-    fn ts_from_token_tree(&mut self, tree: TokenTree<Self::Span>) -> Self::TokenStream {
-        Self::TokenStream::new(vec![tree])
-    }
-
-    fn ts_expand_expr(&mut self, self_: &Self::TokenStream) -> Result<Self::TokenStream, ()> {
-        // FIXME: requires db, more importantly this requires name resolution so we would need to
-        // eagerly expand this proc-macro, but we can't know that this proc-macro is eager until we
-        // expand it ...
-        // This calls for some kind of marker that a proc-macro wants to access this eager API,
-        // otherwise we need to treat every proc-macro eagerly / or not support this.
-        Ok(self_.clone())
-    }
-
-    fn ts_concat_trees(
-        &mut self,
-        base: Option<Self::TokenStream>,
-        trees: Vec<TokenTree<Self::Span>>,
-    ) -> Self::TokenStream {
-        match base {
-            Some(mut base) => {
-                for tt in trees {
-                    base.push_tree(tt);
-                }
-                base
-            }
-            None => Self::TokenStream::new(trees),
-        }
-    }
-
     fn ts_concat_streams(
         &mut self,
         base: Option<Self::TokenStream>,
@@ -136,19 +52,14 @@ impl server::Server for RaSpanServer<'_> {
         }
         stream
     }
-
-    fn ts_into_trees(&mut self, stream: Self::TokenStream) -> Vec<TokenTree<Self::Span>> {
-        (*stream.0).clone()
+    fn emit_diagnostic(&mut self, _: Diagnostic<Self::Span>) {
+        // FIXME handle diagnostic
     }
-
-    fn span_debug(&mut self, span: Self::Span) -> String {
-        format!("{:?}", span)
+    fn ts_clone(&mut self, stream: &Self::TokenStream) -> Self::TokenStream {
+        stream.clone()
     }
-    fn span_file(&mut self, span: Self::Span) -> String {
-        self.callback.as_mut().map(|cb| cb.file(span.anchor.file_id.file_id())).unwrap_or_default()
-    }
-    fn span_local_file(&mut self, span: Self::Span) -> Option<String> {
-        self.callback.as_mut().and_then(|cb| cb.local_file(span.anchor.file_id.file_id()))
+    fn with_symbol_string(symbol: &Self::Symbol, f: impl FnOnce(&str)) {
+        f(symbol.as_str())
     }
     fn span_save_span(&mut self, _span: Self::Span) -> usize {
         // FIXME, quote is incompatible with third-party tools
@@ -156,33 +67,82 @@ impl server::Server for RaSpanServer<'_> {
         // As such, r-a will never observe this
         0
     }
+    fn source(&mut self, span: Self::Span) -> Self::Span {
+        // FIXME requires db, returns the top level call site
+        span
+    }
+    fn span_column(&mut self, _span: Self::Span) -> usize {
+        // FIXME requires db to resolve line index, THIS IS NOT INCREMENTAL
+        1
+    }
+    fn line(&mut self, span: Self::Span) -> usize {
+        self.callback.as_mut().and_then(|cb| cb.line_column(span)).map_or(1, |(l, _)| l as usize)
+    }
+    fn parent(&mut self, _span: Self::Span) -> Option<Self::Span> {
+        // FIXME requires db, looks up the parent call site
+        None
+    }
+    fn ts_from_str(&mut self, src: &str) -> Self::TokenStream {
+        Self::TokenStream::from_str(src, self.call_site).unwrap_or_else(|e| {
+            Self::TokenStream::from_str(
+                &format!("compile_error!(\"failed to parse str to token stream: {e}\")"),
+                self.call_site,
+            )
+            .unwrap()
+        })
+    }
+    fn ts_expand_expr(&mut self, self_: &Self::TokenStream) -> Result<Self::TokenStream, ()> {
+        // FIXME: requires db, more importantly this requires name resolution so we would need to
+        // eagerly expand this proc-macro, but we can't know that this proc-macro is eager until we
+        // expand it ...
+        // This calls for some kind of marker that a proc-macro wants to access this eager API,
+        // otherwise we need to treat every proc-macro eagerly / or not support this.
+        Ok(self_.clone())
+    }
     fn span_recover_proc_macro_span(&mut self, _id: usize) -> Self::Span {
         // FIXME, quote is incompatible with third-party tools
         // This is called by the expansion of quote!, r-a will observe this, but we don't have
         // access to the spans that were encoded
         self.call_site
     }
-    /// Recent feature, not yet in the proc_macro
-    ///
-    /// See PR:
-    /// https://github.com/rust-lang/rust/pull/55780
-    fn span_source_text(&mut self, span: Self::Span) -> Option<String> {
-        self.callback.as_mut()?.source_text(span)
+    fn ts_to_string(&mut self, stream: &Self::TokenStream) -> String {
+        stream.to_string()
     }
-
-    fn span_parent(&mut self, _span: Self::Span) -> Option<Self::Span> {
-        // FIXME requires db, looks up the parent call site
-        None
+    fn track_path(&mut self, path: &str) {
+        self.tracked_paths.insert(path.into());
     }
-    fn span_source(&mut self, span: Self::Span) -> Self::Span {
-        // FIXME requires db, returns the top level call site
-        span
+    fn symbol_normalize_and_validate_ident(&mut self, string: &str) -> Result<Self::Symbol, ()> {
+        // FIXME: nfc-normalize and validate idents
+        Ok(<Self as server::Server>::intern_symbol(string))
     }
-    fn span_byte_range(&mut self, span: Self::Span) -> Range<usize> {
-        if let Some(cb) = self.callback.as_mut() {
-            return cb.byte_range(span);
+    fn save_span(&mut self, _span: Self::Span) -> usize {
+        // FIXME, quote is incompatible with third-party tools
+        // This is called by the quote proc-macro which is expanded when the proc-macro is compiled
+        // As such, r-a will never observe this
+        0
+    }
+    fn literal_from_str(&mut self, s: &str) -> Result<Literal<Self::Span>, ()> {
+        literal_from_str(s, self.call_site)
+    }
+    fn span_line(&mut self, _span: Self::Span) -> usize {
+        // FIXME requires db to resolve line index, THIS IS NOT INCREMENTAL
+        1
+    }
+    fn column(&mut self, span: Self::Span) -> usize {
+        self.callback.as_mut().and_then(|cb| cb.line_column(span)).map_or(1, |(_, c)| c as usize)
+    }
+    fn span_debug(&mut self, span: Self::Span) -> String {
+        format!("{:?}", span)
+    }
+    fn span_resolved_at(&mut self, span: Self::Span, at: Self::Span) -> Self::Span {
+        Span { ctx: at.ctx, ..span }
+    }
+    fn globals(&mut self) -> ExpnGlobals<Self::Span> {
+        ExpnGlobals {
+            def_site: self.def_site,
+            call_site: self.call_site,
+            mixed_site: self.mixed_site,
         }
-        Range { start: span.range.start().into(), end: span.range.end().into() }
     }
     fn span_join(&mut self, first: Self::Span, second: Self::Span) -> Option<Self::Span> {
         // We can't modify the span range for fixup spans, those are meaningful to fixup, so just
@@ -255,19 +215,16 @@ impl server::Server for RaSpanServer<'_> {
             ..span
         })
     }
-
-    fn span_resolved_at(&mut self, span: Self::Span, at: Self::Span) -> Self::Span {
-        Span { ctx: at.ctx, ..span }
+    fn span_source(&mut self, span: Self::Span) -> Self::Span {
+        // FIXME requires db, returns the top level call site
+        span
     }
-
-    fn span_end(&mut self, span: Self::Span) -> Self::Span {
-        // We can't modify the span range for fixup spans, those are meaningful to fixup.
-        if span.anchor.ast_id == FIXUP_ERASED_FILE_AST_ID_MARKER {
-            return span;
-        }
-        Span { range: TextRange::empty(span.range.end()), ..span }
+    fn span_file(&mut self, span: Self::Span) -> String {
+        self.callback.as_mut().map(|cb| cb.file(span.anchor.file_id.file_id())).unwrap_or_default()
     }
-
+    fn ts_drop(&mut self, stream: Self::TokenStream) {
+        drop(stream);
+    }
     fn span_start(&mut self, span: Self::Span) -> Self::Span {
         // We can't modify the span range for fixup spans, those are meaningful to fixup.
         if span.anchor.ast_id == FIXUP_ERASED_FILE_AST_ID_MARKER {
@@ -275,17 +232,62 @@ impl server::Server for RaSpanServer<'_> {
         }
         Span { range: TextRange::empty(span.range.start()), ..span }
     }
-
-    fn span_line(&mut self, span: Self::Span) -> usize {
-        self.callback.as_mut().and_then(|cb| cb.line_column(span)).map_or(1, |(l, _)| l as usize)
+    fn intern_symbol(ident: &str) -> Self::Symbol {
+        Symbol::intern(ident)
     }
-
-    fn span_column(&mut self, span: Self::Span) -> usize {
-        self.callback.as_mut().and_then(|cb| cb.line_column(span)).map_or(1, |(_, c)| c as usize)
+    fn ts_from_token_tree(&mut self, tree: TokenTree<Self::Span>) -> Self::TokenStream {
+        Self::TokenStream::new(vec![tree])
     }
+    /// Recent feature, not yet in the proc_macro
+    ///
+    /// See PR:
+    /// https://github.com/rust-lang/rust/pull/55780
+    fn span_source_text(&mut self, span: Self::Span) -> Option<String> {
+        self.callback.as_mut()?.source_text(span)
+    }
+    fn span_local_file(&mut self, span: Self::Span) -> Option<String> {
+        self.callback.as_mut().and_then(|cb| cb.local_file(span.anchor.file_id.file_id()))
+    }
+    fn ts_concat_trees(
+        &mut self,
+        base: Option<Self::TokenStream>,
+        trees: Vec<TokenTree<Self::Span>>,
+    ) -> Self::TokenStream {
+        match base {
+            Some(mut base) => {
+                for tt in trees {
+                    base.push_tree(tt);
+                }
+                base
+            }
+            None => Self::TokenStream::new(trees),
+        }
+    }
+    fn ts_is_empty(&mut self, stream: &Self::TokenStream) -> bool {
+        stream.is_empty()
+    }
+    fn ts_into_trees(&mut self, stream: Self::TokenStream) -> Vec<TokenTree<Self::Span>> {
+        (*stream.0).clone()
+    }
+    fn span_byte_range(&mut self, span: Self::Span) -> Range<usize> {
+        if let Some(cb) = self.callback.as_mut() {
+            return cb.byte_range(span);
+        }
 
-    fn symbol_normalize_and_validate_ident(&mut self, string: &str) -> Result<Self::Symbol, ()> {
-        // FIXME: nfc-normalize and validate idents
-        Ok(<Self as server::Server>::intern_symbol(string))
+        Range { start: span.range.start().into(), end: span.range.end().into() }
+    }
+    fn span_end(&mut self, span: Self::Span) -> Self::Span {
+        // We can't modify the span range for fixup spans, those are meaningful to fixup.
+        if span.anchor.ast_id == FIXUP_ERASED_FILE_AST_ID_MARKER {
+            return span;
+        }
+        Span { range: TextRange::empty(span.range.end()), ..span }
+    }
+    fn injected_env_var(&mut self, _: &str) -> Option<std::string::String> {
+        None
+    }
+    fn span_parent(&mut self, _span: Self::Span) -> Option<Self::Span> {
+        // FIXME requires db, looks up the parent call site
+        None
     }
 }
