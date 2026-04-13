@@ -253,7 +253,7 @@ pub fn add_trait_assoc_items_to_impl(
                 let fn_ = fn_.clone_subtree();
                 let new_body = make::block_expr(None, Some(expr_fill_default(config)));
                 let mut fn_editor = SyntaxEditor::new(fn_.syntax().clone());
-                fn_.replace_or_insert_body(&mut fn_editor, new_body.clone_for_update());
+                fn_.replace_or_insert_body(&mut fn_editor, new_body);
                 let new_fn_ = fn_editor.finish().new_root().clone();
                 ast::AssocItem::cast(new_fn_)
             }
@@ -326,7 +326,7 @@ pub fn add_trait_assoc_items_to_impl_with_factory(
                 let new_body = make.block_expr(None::<ast::Stmt>, Some(fill_expr));
                 let new_body = AstNodeEdit::indent(&new_body, IndentLevel::single());
                 let mut fn_editor = SyntaxEditor::new(fn_.syntax().clone());
-                fn_.replace_or_insert_body(&mut fn_editor, new_body);
+                fn_.replace_or_insert_body(&mut fn_editor, new_body.clone_for_update());
                 let new_fn_ = fn_editor.finish().new_root().clone();
                 ast::AssocItem::cast(new_fn_)
             }
