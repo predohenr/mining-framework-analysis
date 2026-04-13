@@ -279,11 +279,11 @@ impl IntervalOrOwned {
 
 #[cfg(target_pointer_width = "64")]
 const STACK_OFFSET: usize = 1 << 60;
-#[cfg(target_pointer_width = "64")]
-const HEAP_OFFSET: usize = 1 << 59;
 
 #[cfg(target_pointer_width = "32")]
 const STACK_OFFSET: usize = 1 << 30;
+#[cfg(target_pointer_width = "64")]
+const HEAP_OFFSET: usize = 1 << 59;
 #[cfg(target_pointer_width = "32")]
 const HEAP_OFFSET: usize = 1 << 29;
 
