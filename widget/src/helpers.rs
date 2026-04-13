@@ -66,6 +66,34 @@ macro_rules! column {
     );
 }
 
+/// Creates a new [`Column`] with the given children.
+///
+/// Columns distribute their children vertically.
+///
+/// # Example
+/// ```no_run
+/// # mod iced { pub mod widget { pub use iced_widget::*; } }
+/// # pub type State = ();
+/// # pub type Element<'a, Message> = iced_widget::core::Element<'a, Message, iced_widget::Theme, iced_widget::Renderer>;
+/// use iced::widget::{column, text};
+///
+/// enum Message {
+///     // ...
+/// }
+///
+/// fn view(state: &State) -> Element<'_, Message> {
+///     column((0..5).map(|i| text!("Item {i}").into())).into()
+/// }
+/// ```
+pub fn column<'a, Message, Theme, Renderer>(
+    children: impl IntoIterator<Item = Element<'a, Message, Theme, Renderer>>,
+) -> Column<'a, Message, Theme, Renderer>
+where
+    Renderer: core::Renderer,
+{
+    Column::with_children(children)
+}
+
 /// Creates a [`Row`] with the given children.
 ///
 /// Rows distribute their children horizontally.
@@ -100,6 +128,34 @@ macro_rules! row {
     );
 }
 
+/// Creates a new [`Row`] from an iterator.
+///
+/// Rows distribute their children horizontally.
+///
+/// # Example
+/// ```no_run
+/// # mod iced { pub mod widget { pub use iced_widget::*; } }
+/// # pub type State = ();
+/// # pub type Element<'a, Message> = iced_widget::core::Element<'a, Message, iced_widget::Theme, iced_widget::Renderer>;
+/// use iced::widget::{row, text};
+///
+/// enum Message {
+///     // ...
+/// }
+///
+/// fn view(state: &State) -> Element<'_, Message> {
+///     row((0..5).map(|i| text!("Item {i}").into())).into()
+/// }
+/// ```
+pub fn row<'a, Message, Theme, Renderer>(
+    children: impl IntoIterator<Item = Element<'a, Message, Theme, Renderer>>,
+) -> Row<'a, Message, Theme, Renderer>
+where
+    Renderer: core::Renderer,
+{
+    Row::with_children(children)
+}
+
 /// Creates a [`Stack`] with the given children.
 ///
 /// [`Stack`]: crate::Stack
@@ -111,6 +167,18 @@ macro_rules! stack {
     ($($x:expr),+ $(,)?) => (
         $crate::Stack::with_children([$($crate::core::Element::from($x)),+])
     );
+}
+
+/// Creates a new [`Stack`] with the given children.
+///
+/// [`Stack`]: crate::Stack
+pub fn stack<'a, Message, Theme, Renderer>(
+    children: impl IntoIterator<Item = Element<'a, Message, Theme, Renderer>>,
+) -> Stack<'a, Message, Theme, Renderer>
+where
+    Renderer: core::Renderer,
+{
+    Stack::with_children(children)
 }
 
 /// Creates a new [`Text`] widget with the provided content.
@@ -159,6 +227,37 @@ macro_rules! text {
     };
 }
 
+/// Creates a new [`Text`] widget with the provided content.
+///
+/// # Example
+/// ```no_run
+/// # mod iced { pub mod widget { pub use iced_widget::*; } pub use iced_widget::Renderer; pub use iced_widget::core::*; }
+/// # pub type State = ();
+/// # pub type Element<'a, Message> = iced_widget::core::Element<'a, Message, iced_widget::core::Theme, ()>;
+/// use iced::widget::text;
+/// use iced::color;
+///
+/// enum Message {
+///     // ...
+/// }
+///
+/// fn view(state: &State) -> Element<'_, Message> {
+///     text("Hello, this is iced!")
+///         .size(20)
+///         .color(color!(0x0000ff))
+///         .into()
+/// }
+/// ```
+pub fn text<'a, Theme, Renderer>(
+    text: impl text::IntoFragment<'a>,
+) -> Text<'a, Theme, Renderer>
+where
+    Theme: text::Catalog + 'a,
+    Renderer: core::text::Renderer,
+{
+    Text::new(text)
+}
+
 /// Creates some [`Rich`] text with the given spans.
 ///
 /// [`Rich`]: text::Rich
@@ -196,6 +295,48 @@ macro_rules! rich_text {
     ($($x:expr),+ $(,)?) => (
         $crate::text::Rich::from_iter([$($crate::text::Span::from($x)),+])
     );
+}
+
+/// Creates a new [`Rich`] text widget with the provided spans.
+///
+/// [`Rich`]: text::Rich
+///
+/// # Example
+/// ```no_run
+/// # mod iced { pub mod widget { pub use iced_widget::*; } pub use iced_widget::core::*; }
+/// # pub type State = ();
+/// # pub type Element<'a, Message> = iced_widget::core::Element<'a, Message, iced_widget::Theme, iced_widget::Renderer>;
+/// use iced::font;
+/// use iced::widget::{rich_text, span};
+/// use iced::{color, never, Font};
+///
+/// #[derive(Debug, Clone)]
+/// enum Message {
+///     LinkClicked(&'static str),
+///     // ...
+/// }
+///
+/// fn view(state: &State) -> Element<'_, Message> {
+///     rich_text([
+///         span("I am red!").color(color!(0xff0000)),
+///         span(" "),
+///         span("And I am bold!").font(Font { weight: font::Weight::Bold, ..Font::default() }),
+///     ])
+///     .on_link_click(never)
+///     .size(20)
+///     .into()
+/// }
+/// ```
+pub fn rich_text<'a, Link, Message, Theme, Renderer>(
+    spans: impl AsRef<[text::Span<'a, Link, Renderer::Font>]> + 'a,
+) -> text::Rich<'a, Link, Message, Theme, Renderer>
+where
+    Link: Clone + 'static,
+    Theme: text::Catalog + 'a,
+    Renderer: core::text::Renderer,
+    Renderer::Font: 'a,
+{
+    text::Rich::with_spans(spans)
 }
 
 /// Creates a new [`Container`] with the provided content.
@@ -445,34 +586,6 @@ where
     Pin::new(content)
 }
 
-/// Creates a new [`Column`] with the given children.
-///
-/// Columns distribute their children vertically.
-///
-/// # Example
-/// ```no_run
-/// # mod iced { pub mod widget { pub use iced_widget::*; } }
-/// # pub type State = ();
-/// # pub type Element<'a, Message> = iced_widget::core::Element<'a, Message, iced_widget::Theme, iced_widget::Renderer>;
-/// use iced::widget::{column, text};
-///
-/// enum Message {
-///     // ...
-/// }
-///
-/// fn view(state: &State) -> Element<'_, Message> {
-///     column((0..5).map(|i| text!("Item {i}").into())).into()
-/// }
-/// ```
-pub fn column<'a, Message, Theme, Renderer>(
-    children: impl IntoIterator<Item = Element<'a, Message, Theme, Renderer>>,
-) -> Column<'a, Message, Theme, Renderer>
-where
-    Renderer: core::Renderer,
-{
-    Column::with_children(children)
-}
-
 /// Creates a new [`keyed::Column`] from an iterator of elements.
 ///
 /// Keyed columns distribute content vertically while keeping continuity.
@@ -504,34 +617,6 @@ where
     keyed::Column::with_children(children)
 }
 
-/// Creates a new [`Row`] from an iterator.
-///
-/// Rows distribute their children horizontally.
-///
-/// # Example
-/// ```no_run
-/// # mod iced { pub mod widget { pub use iced_widget::*; } }
-/// # pub type State = ();
-/// # pub type Element<'a, Message> = iced_widget::core::Element<'a, Message, iced_widget::Theme, iced_widget::Renderer>;
-/// use iced::widget::{row, text};
-///
-/// enum Message {
-///     // ...
-/// }
-///
-/// fn view(state: &State) -> Element<'_, Message> {
-///     row((0..5).map(|i| text!("Item {i}").into())).into()
-/// }
-/// ```
-pub fn row<'a, Message, Theme, Renderer>(
-    children: impl IntoIterator<Item = Element<'a, Message, Theme, Renderer>>,
-) -> Row<'a, Message, Theme, Renderer>
-where
-    Renderer: core::Renderer,
-{
-    Row::with_children(children)
-}
-
 /// Creates a new [`Grid`] from an iterator.
 pub fn grid<'a, Message, Theme, Renderer>(
     children: impl IntoIterator<Item = Element<'a, Message, Theme, Renderer>>,
@@ -540,18 +625,6 @@ where
     Renderer: core::Renderer,
 {
     Grid::with_children(children)
-}
-
-/// Creates a new [`Stack`] with the given children.
-///
-/// [`Stack`]: crate::Stack
-pub fn stack<'a, Message, Theme, Renderer>(
-    children: impl IntoIterator<Item = Element<'a, Message, Theme, Renderer>>,
-) -> Stack<'a, Message, Theme, Renderer>
-where
-    Renderer: core::Renderer,
-{
-    Stack::with_children(children)
 }
 
 /// Wraps the given widget and captures any mouse button presses inside the bounds of
@@ -1104,37 +1177,6 @@ where
     Tooltip::new(content, tooltip, position)
 }
 
-/// Creates a new [`Text`] widget with the provided content.
-///
-/// # Example
-/// ```no_run
-/// # mod iced { pub mod widget { pub use iced_widget::*; } pub use iced_widget::Renderer; pub use iced_widget::core::*; }
-/// # pub type State = ();
-/// # pub type Element<'a, Message> = iced_widget::core::Element<'a, Message, iced_widget::core::Theme, ()>;
-/// use iced::widget::text;
-/// use iced::color;
-///
-/// enum Message {
-///     // ...
-/// }
-///
-/// fn view(state: &State) -> Element<'_, Message> {
-///     text("Hello, this is iced!")
-///         .size(20)
-///         .color(color!(0x0000ff))
-///         .into()
-/// }
-/// ```
-pub fn text<'a, Theme, Renderer>(
-    text: impl text::IntoFragment<'a>,
-) -> Text<'a, Theme, Renderer>
-where
-    Theme: text::Catalog + 'a,
-    Renderer: core::text::Renderer,
-{
-    Text::new(text)
-}
-
 /// Creates a new [`Text`] widget that displays the provided value.
 pub fn value<'a, Theme, Renderer>(
     value: impl ToString,
@@ -1144,48 +1186,6 @@ where
     Renderer: core::text::Renderer,
 {
     Text::new(value.to_string())
-}
-
-/// Creates a new [`Rich`] text widget with the provided spans.
-///
-/// [`Rich`]: text::Rich
-///
-/// # Example
-/// ```no_run
-/// # mod iced { pub mod widget { pub use iced_widget::*; } pub use iced_widget::core::*; }
-/// # pub type State = ();
-/// # pub type Element<'a, Message> = iced_widget::core::Element<'a, Message, iced_widget::Theme, iced_widget::Renderer>;
-/// use iced::font;
-/// use iced::widget::{rich_text, span};
-/// use iced::{color, never, Font};
-///
-/// #[derive(Debug, Clone)]
-/// enum Message {
-///     LinkClicked(&'static str),
-///     // ...
-/// }
-///
-/// fn view(state: &State) -> Element<'_, Message> {
-///     rich_text([
-///         span("I am red!").color(color!(0xff0000)),
-///         span(" "),
-///         span("And I am bold!").font(Font { weight: font::Weight::Bold, ..Font::default() }),
-///     ])
-///     .on_link_click(never)
-///     .size(20)
-///     .into()
-/// }
-/// ```
-pub fn rich_text<'a, Link, Message, Theme, Renderer>(
-    spans: impl AsRef<[text::Span<'a, Link, Renderer::Font>]> + 'a,
-) -> text::Rich<'a, Link, Message, Theme, Renderer>
-where
-    Link: Clone + 'static,
-    Theme: text::Catalog + 'a,
-    Renderer: core::text::Renderer,
-    Renderer::Font: 'a,
-{
-    text::Rich::with_spans(spans)
 }
 
 /// Creates a new [`Span`] of text with the provided content.
