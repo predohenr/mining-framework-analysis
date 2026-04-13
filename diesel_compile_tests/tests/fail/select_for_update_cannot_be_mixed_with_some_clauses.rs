@@ -16,7 +16,7 @@ fn main() {
     //~| ERROR: the trait bound `SelectStatement<..., ..., ..., ..., ..., ..., ..., ..., ...>: DistinctDsl`
     //~| ERROR: the trait bound `SelectStatement<FromClause<...>>: DistinctDsl` is not satisfied
     users.distinct().for_update();
-    //~^ ERROR: the trait bound `SelectStatement<..., ..., ...>: QueryRelation` is not satisfied
+    //~^ ERROR: the trait bound `SelectStatement<FromClause<...>, ..., ...>: Table` is not satisfied
     //~| ERROR: the trait bound `SelectStatement<..., ..., ...>: LockingDsl<...>` is not satisfied
     //~| ERROR: the trait bound `SelectStatement<FromClause<...>>: LockingDsl<...>` is not satisfied
     users.for_update().distinct_on(id);
@@ -25,7 +25,7 @@ fn main() {
     //~| ERROR: the trait bound `SelectStatement<..., ..., ..., ..., ..., ..., ..., ..., ...>: DistinctOnDsl<_>` is not satisfied
     //~| ERROR: the trait bound `SelectStatement<..., ..., ..., ..., ..., ..., ..., ..., ...>: QueryRelation` is not satisfied
     users.distinct_on(id).for_update();
-    //~^ ERROR: the trait bound `SelectStatement<..., ..., ...>: QueryRelation` is not satisfied
+    //~^ ERROR: the trait bound `SelectStatement<FromClause<...>, ..., ...>: Table` is not satisfied
     //~| ERROR: the trait bound `SelectStatement<..., ..., ...>: LockingDsl<...>` is not satisfied
     //~| ERROR: SelectStatement<FromClause<...>>: LockingDsl<...>
     users.for_update().group_by(id);
@@ -33,11 +33,11 @@ fn main() {
     //~| ERROR: the trait bound `SelectStatement<FromClause<...>>: GroupByDsl<_>` is not satisfied
     //~| ERROR: the trait bound `SelectStatement<..., ..., ..., ..., ..., ..., ..., ..., ...>: GroupByDsl<_>` is not satisfied
     users.group_by(id).for_update();
-    //~^ ERROR: the trait bound `SelectStatement<..., ..., ..., ..., ..., ..., ...>: QueryRelation` is not satisfied
+    //~^ ERROR: the trait bound `SelectStatement<..., ..., ..., ..., ..., ..., ...>: Table` is not satisfied
     //~| ERROR: the trait bound `SelectStatement<FromClause<...>>: LockingDsl<...>` is not satisfied
     //~| ERROR: the trait bound `SelectStatement<..., ..., ..., ..., ..., ..., ...>: LockingDsl<...>` is not satisfied
     users.into_boxed().for_update();
-    //~^ ERROR: the trait bound `BoxedSelectStatement<'_, ..., ..., _>: QueryRelation` is not satisfied
+    //~^ ERROR: the trait bound `BoxedSelectStatement<'_, (...,), ..., _>: Table` is not satisfied
     //~| ERROR: the trait bound `SelectStatement<FromClause<...>>: LockingDsl<...>` is not satisfied
     //~| ERROR: the trait bound `BoxedSelectStatement<'_, ..., ..., _>: LockingDsl<...>` is not satisfied
     users.for_update().into_boxed();
