@@ -117,7 +117,7 @@ pub fn could_unify<'db>(
     env: Arc<TraitEnvironment<'db>>,
     tys: &Canonical<'db, (Ty<'db>, Ty<'db>)>,
 ) -> bool {
-    could_unify_impl(db, env, tys, |ctxt| ctxt.try_evaluate_obligations())
+    could_unify_impl(db, env, tys, |ctxt| ctxt.select_where_possible())
 }
 
 /// Check if types unify eagerly making sure there are no unresolved goals.
@@ -129,7 +129,7 @@ pub fn could_unify_deeply<'db>(
     env: Arc<TraitEnvironment<'db>>,
     tys: &Canonical<'db, (Ty<'db>, Ty<'db>)>,
 ) -> bool {
-    could_unify_impl(db, env, tys, |ctxt| ctxt.evaluate_obligations_error_on_ambiguity())
+    could_unify_impl(db, env, tys, |ctxt| ctxt.select_all_or_error())
 }
 
 fn could_unify_impl<'db>(

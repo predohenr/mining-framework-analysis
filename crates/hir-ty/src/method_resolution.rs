@@ -822,7 +822,7 @@ pub(crate) fn find_matching_impl<'db>(
     let mut ocx = ObligationCtxt::new(infcx);
     let impl_source = selection.map(|obligation| ocx.register_obligation(obligation));
 
-    let errors = ocx.evaluate_obligations_error_on_ambiguity();
+    let errors = ocx.select_all_or_error();
     if !errors.is_empty() {
         return None;
     }
