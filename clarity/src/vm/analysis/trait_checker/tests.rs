@@ -22,6 +22,7 @@ use stacks_common::types::StacksEpochId;
 
 use crate::vm::analysis::errors::CheckErrors;
 use crate::vm::analysis::{type_check, StaticCheckError};
+use crate::vm::analysis::{type_check, CheckError};
 use crate::vm::ast::errors::ParseErrorKind;
 use crate::vm::ast::{build_ast, parse};
 use crate::vm::database::MemoryBackingStore;
