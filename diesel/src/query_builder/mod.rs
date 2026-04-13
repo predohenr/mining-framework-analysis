@@ -14,6 +14,61 @@ pub mod bind_collector;
 mod collected_query;
 pub(crate) mod combination_clause;
 mod debug_query;
+
+/// Takes a query `QueryFragment` expression as an argument and returns a type
+/// that implements `fmt::Display` and `fmt::Debug` to show the query.
+///
+/// The `Display` implementation will show the exact query being sent to the
+/// server, with a comment showing the values of the bind parameters. The
+/// `Debug` implementation will include the same information in a more
+/// structured form, and respects pretty printing.
+///
+/// # Example
+///
+/// ### Returning SQL from a count statement:
+///
+/// ```rust
+/// # include!("../doctest_setup.rs");
+/// #
+/// # use diesel::*;
+/// # use schema::*;
+/// #
+/// # fn main() {
+/// #   use schema::users::dsl::*;
+/// let sql = debug_query::<DB, _>(&users.count()).to_string();
+/// # if cfg!(feature = "postgres") {
+/// #     assert_eq!(sql, r#"SELECT COUNT(*) FROM "users" -- binds: []"#);
+/// # } else {
+/// assert_eq!(sql, "SELECT COUNT(*) FROM `users` -- binds: []");
+/// # }
+///
+/// let query = users.find(1);
+/// let debug = debug_query::<DB, _>(&query);
+/// # if cfg!(feature = "postgres") {
+/// #     assert_eq!(debug.to_string(), "SELECT \"users\".\"id\", \"users\".\"name\" \
+/// #         FROM \"users\" WHERE (\"users\".\"id\" = $1) -- binds: [1]");
+/// # } else {
+/// assert_eq!(
+///     debug.to_string(),
+///     "SELECT `users`.`id`, `users`.`name` FROM `users` \
+///     WHERE (`users`.`id` = ?) -- binds: [1]"
+/// );
+/// # }
+///
+/// let debug = format!("{:?}", debug);
+/// # if !cfg!(feature = "postgres") { // Escaping that string is a pain
+/// let expected = "Query { \
+///     sql: \"SELECT `users`.`id`, `users`.`name` FROM `users` WHERE \
+///         (`users`.`id` = ?)\", \
+///     binds: [1] \
+/// }";
+/// assert_eq!(debug, expected);
+/// # }
+/// # }
+/// ```
+pub fn debug_query<DB, T>(query: &T) -> DebugQuery<'_, T, DB> {
+    DebugQuery::new(query)
+}
 mod delete_statement;
 mod distinct_clause;
 pub(crate) mod from_clause;
@@ -384,61 +439,6 @@ impl<T: Query> AsQuery for T {
     fn as_query(self) -> <T as AsQuery>::Query {
         self
     }
-}
-
-/// Takes a query `QueryFragment` expression as an argument and returns a type
-/// that implements `fmt::Display` and `fmt::Debug` to show the query.
-///
-/// The `Display` implementation will show the exact query being sent to the
-/// server, with a comment showing the values of the bind parameters. The
-/// `Debug` implementation will include the same information in a more
-/// structured form, and respects pretty printing.
-///
-/// # Example
-///
-/// ### Returning SQL from a count statement:
-///
-/// ```rust
-/// # include!("../doctest_setup.rs");
-/// #
-/// # use diesel::*;
-/// # use schema::*;
-/// #
-/// # fn main() {
-/// #   use schema::users::dsl::*;
-/// let sql = debug_query::<DB, _>(&users.count()).to_string();
-/// # if cfg!(feature = "postgres") {
-/// #     assert_eq!(sql, r#"SELECT COUNT(*) FROM "users" -- binds: []"#);
-/// # } else {
-/// assert_eq!(sql, "SELECT COUNT(*) FROM `users` -- binds: []");
-/// # }
-///
-/// let query = users.find(1);
-/// let debug = debug_query::<DB, _>(&query);
-/// # if cfg!(feature = "postgres") {
-/// #     assert_eq!(debug.to_string(), "SELECT \"users\".\"id\", \"users\".\"name\" \
-/// #         FROM \"users\" WHERE (\"users\".\"id\" = $1) -- binds: [1]");
-/// # } else {
-/// assert_eq!(
-///     debug.to_string(),
-///     "SELECT `users`.`id`, `users`.`name` FROM `users` \
-///     WHERE (`users`.`id` = ?) -- binds: [1]"
-/// );
-/// # }
-///
-/// let debug = format!("{:?}", debug);
-/// # if !cfg!(feature = "postgres") { // Escaping that string is a pain
-/// let expected = "Query { \
-///     sql: \"SELECT `users`.`id`, `users`.`name` FROM `users` WHERE \
-///         (`users`.`id` = ?)\", \
-///     binds: [1] \
-/// }";
-/// assert_eq!(debug, expected);
-/// # }
-/// # }
-/// ```
-pub fn debug_query<DB, T>(query: &T) -> DebugQuery<'_, T, DB> {
-    DebugQuery::new(query)
 }
 
 mod private {
