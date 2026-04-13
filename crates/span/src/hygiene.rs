@@ -32,6 +32,9 @@ pub struct SyntaxContext(
     u32,
     std::marker::PhantomData<&'static salsa::plumbing::interned::Value<SyntaxContext>>,
 );
+#[cfg(not(feature = "salsa"))]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub struct SyntaxContext(u32);
 
 #[cfg(feature = "salsa")]
 const _: () = {
@@ -332,6 +335,8 @@ const _: () = {
         }
     }
 };
+#[cfg(feature = "salsa")]
+const _: () = assert!(salsa::Id::MAX_U32 == SALSA_MAX_ID_MIRROR);
 
 impl SyntaxContext {
     #[inline]
@@ -444,14 +449,9 @@ impl<'db> SyntaxContext {
             })
     }
 }
-#[cfg(not(feature = "salsa"))]
-#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub struct SyntaxContext(u32);
 
 #[allow(dead_code)]
 const SALSA_MAX_ID_MIRROR: u32 = u32::MAX - 0xFF;
-#[cfg(feature = "salsa")]
-const _: () = assert!(salsa::Id::MAX_U32 == SALSA_MAX_ID_MIRROR);
 
 #[cfg(not(feature = "salsa"))]
 impl SyntaxContext {
