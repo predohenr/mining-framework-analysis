@@ -391,6 +391,11 @@ fn print_schema_column_named_table() {
 }
 
 #[test]
+fn print_schema_column_named_table() {
+    test_print_schema("print_schema_column_named_table", vec![])
+}
+
+#[test]
 #[cfg(feature = "postgres")]
 fn print_schema_regression_3446_ignore_compound_foreign_keys() {
     test_print_schema("print_schema_regression_3446_compound_keys", vec![])
