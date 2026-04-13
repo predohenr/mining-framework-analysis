@@ -206,89 +206,6 @@ fn static_check_error_expected_optional_type() {
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::BadTraitImplementation`]
-/// Caused by: trying to implement a trait with a bad implementation.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_bad_trait_implementation() {
-    let setup_contract = SetupContract::new(
-        "trait-contract",
-        "(define-trait trait-1 ((get-1 ((list 10 uint)) (response uint uint))))",
-    );
-
-    contract_deploy_consensus_test!(
-        contract_name: "contract-name",
-        contract_code: &format!("
-            (impl-trait .trait-contract.trait-1)
-            (define-public (get-1 (x (list 5 uint))) (ok u1))",
-        ),
-        setup_contracts: &[setup_contract],
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::NameAlreadyUsed`]
-/// Caused by: redefining constant `foo` a second time.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_name_already_used() {
-    contract_deploy_consensus_test!(
-        contract_name: "name-already-used",
-        contract_code: "
-        (define-constant foo 10)
-        (define-constant foo 20)",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::ReturnTypesMustMatch`]
-/// Caused by: `unwrap!` default returns `err 1` while the function returns `err false`, so response types diverge.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_return_types_must_match() {
-    contract_deploy_consensus_test!(
-        contract_name: "return-types-must",
-        contract_code: "
-        (define-map tokens { id: int } { balance: int })
-        (define-private (my-get-token-balance)
-            (let ((balance (unwrap!
-                              (get balance (map-get? tokens (tuple (id 0))))
-                              (err 1))))
-              (err false)))",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::TypeError`]
-/// Caused by: initializing `define-data-var cursor int` with the boolean `true`.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_type_error() {
-    contract_deploy_consensus_test!(
-        contract_name: "type-error",
-        contract_code: "(define-data-var cursor int true)",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::DefineVariableBadSignature`]
-/// Caused by: `define-data-var` is provided only a name and value, missing the required type.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_define_variable_bad_signature() {
-    contract_deploy_consensus_test!(
-        contract_name: "define-variable-bad",
-        contract_code: "(define-data-var cursor 0x00)",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::InvalidTypeDescription`]
-/// Caused by: `define-data-var` uses `0x00` where a valid type description is required.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_invalid_type_description() {
-    contract_deploy_consensus_test!(
-        contract_name: "invalid-type-desc",
-        contract_code: "(define-data-var cursor 0x00 true)",
-    );
-}
-
 /// CheckErrorKind: [`CheckErrorKind::TypeSignatureTooDeep`]
 /// Caused by: parameter type nests `optional` wrappers deeper than [`MAX_TYPE_DEPTH`].
 /// Outcome: block accepted.
@@ -312,63 +229,32 @@ fn static_check_error_type_signature_too_deep() {
     );
 }
 
-/// CheckErrorKind: [`CheckErrorKind::SupertypeTooLarge`]
-/// Caused by: combining tuples with `buff 600000` and `buff 10` forces a supertype beyond the size limit.
-/// Outcome: block rejected.
-#[test]
-fn static_check_error_supertype_too_large() {
-    contract_deploy_consensus_test!(
-        contract_name: "supertype-too-large",
-        contract_code: "
-        (define-data-var big (buff 600000) 0x00)
-        (define-data-var small (buff 10) 0x00)
-        (define-public (trigger)
-            (let ((initial (list (tuple (a (var-get big)) (b (var-get small))))))
-                (ok (append initial (tuple (a (var-get small)) (b (var-get big)))))))",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::ConstructedListTooLarge`]
-/// Caused by: mapping `sha512` over a list capped at 65,535 elements constructs a list past [`MAX_VALUE_SIZE`].
+/// CheckErrorKind: [`CheckErrorKind::ExpectedSequence`]
+/// Caused by: passing integer `3` as the sequence argument to `index-of` instead of a list or string.
 /// Outcome: block accepted.
 #[test]
-fn static_check_error_constructed_list_too_large() {
+fn static_check_error_expected_sequence() {
     contract_deploy_consensus_test!(
-        contract_name: "constructed-list-large",
-        contract_code: "
-        (define-data-var ints (list 65535 int) (list 0))
-        (define-public (trigger)
-            (let ((mapped (map sha512 (var-get ints))))
-                (ok mapped)
-            )
-        )",
+        contract_name: "expected-sequence",
+        contract_code: r#"(index-of 3 "a")"#,
     );
 }
 
-/// CheckErrorKind: [`CheckErrorKind::UnknownTypeName`]
-/// Caused by: `from-consensus-buff?` references an undefined type named `foo`.
+/// CheckErrorKind: [`CheckErrorKind::CouldNotDetermineSerializationType`]
+/// Caused by: `to-consensus-buff?` over a list of trait references lacks a serialization type.
 /// Outcome: block accepted.
 /// Note: during analysis, this error can only be triggered by `from-consensus-buff?`
 ///       which is only available in Clarity 2 and later. So Clarity 1 will not trigger
 ///       this error.
 #[test]
-fn static_check_error_unknown_type_name() {
+fn static_check_error_could_not_determine_serialization_type() {
     contract_deploy_consensus_test!(
-        contract_name: "unknown-type-name",
+        contract_name: "serialization-type",
         contract_code: "
-        (define-public (trigger)
-            (ok (from-consensus-buff? foo 0x00)))",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::UnionTypeError`]
-/// Caused by: `map` applies subtraction to booleans.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_union_type_error() {
-    contract_deploy_consensus_test!(
-        contract_name: "union-type-error",
-        contract_code: "(map - (list true false true false))",
+        (define-trait trait-a ((ping () (response bool bool))))
+        (define-trait trait-b ((pong () (response bool bool))))
+        (define-public (trigger (first <trait-a>) (second <trait-b>))
+            (ok (to-consensus-buff? (list first second))))",
     );
 }
 
@@ -405,31 +291,145 @@ fn static_check_error_could_not_determine_type() {
     );
 }
 
-/// CheckErrorKind: [`CheckErrorKind::ExpectedSequence`]
-/// Caused by: passing integer `3` as the sequence argument to `index-of` instead of a list or string.
+/// CheckErrorKind: [`CheckErrorKind::TypeError`]
+/// Caused by: initializing `define-data-var cursor int` with the boolean `true`.
 /// Outcome: block accepted.
 #[test]
-fn static_check_error_expected_sequence() {
+fn static_check_error_type_error() {
     contract_deploy_consensus_test!(
-        contract_name: "expected-sequence",
-        contract_code: r#"(index-of 3 "a")"#,
+        contract_name: "type-error",
+        contract_code: "(define-data-var cursor int true)",
     );
 }
 
-/// CheckErrorKind: [`CheckErrorKind::CouldNotDetermineSerializationType`]
-/// Caused by: `to-consensus-buff?` over a list of trait references lacks a serialization type.
+/// CheckErrorKind: [`CheckErrorKind::UnionTypeError`]
+/// Caused by: `map` applies subtraction to booleans.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_union_type_error() {
+    contract_deploy_consensus_test!(
+        contract_name: "union-type-error",
+        contract_code: "(map - (list true false true false))",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::InvalidTypeDescription`]
+/// Caused by: `define-data-var` uses `0x00` where a valid type description is required.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_invalid_type_description() {
+    contract_deploy_consensus_test!(
+        contract_name: "invalid-type-desc",
+        contract_code: "(define-data-var cursor 0x00 true)",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::NameAlreadyUsed`]
+/// Caused by: redefining constant `foo` a second time.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_name_already_used() {
+    contract_deploy_consensus_test!(
+        contract_name: "name-already-used",
+        contract_code: "
+        (define-constant foo 10)
+        (define-constant foo 20)",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::ReturnTypesMustMatch`]
+/// Caused by: `unwrap!` default returns `err 1` while the function returns `err false`, so response types diverge.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_return_types_must_match() {
+    contract_deploy_consensus_test!(
+        contract_name: "return-types-must",
+        contract_code: "
+        (define-map tokens { id: int } { balance: int })
+        (define-private (my-get-token-balance)
+            (let ((balance (unwrap!
+                              (get balance (map-get? tokens (tuple (id 0))))
+                              (err 1))))
+              (err false)))",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::ConstructedListTooLarge`]
+/// Caused by: mapping `sha512` over a list capped at 65,535 elements constructs a list past [`MAX_VALUE_SIZE`].
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_constructed_list_too_large() {
+    contract_deploy_consensus_test!(
+        contract_name: "constructed-list-large",
+        contract_code: "
+        (define-data-var ints (list 65535 int) (list 0))
+        (define-public (trigger)
+            (let ((mapped (map sha512 (var-get ints))))
+                (ok mapped)
+            )
+        )",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::UnknownTypeName`]
+/// Caused by: `from-consensus-buff?` references an undefined type named `foo`.
 /// Outcome: block accepted.
 /// Note: during analysis, this error can only be triggered by `from-consensus-buff?`
 ///       which is only available in Clarity 2 and later. So Clarity 1 will not trigger
 ///       this error.
 #[test]
-fn static_check_error_could_not_determine_serialization_type() {
+fn static_check_error_unknown_type_name() {
     contract_deploy_consensus_test!(
-        contract_name: "serialization-type",
+        contract_name: "unknown-type-name",
         contract_code: "
-        (define-trait trait-a ((ping () (response bool bool))))
-        (define-trait trait-b ((pong () (response bool bool))))
-        (define-public (trigger (first <trait-a>) (second <trait-b>))
-            (ok (to-consensus-buff? (list first second))))",
+        (define-public (trigger)
+            (ok (from-consensus-buff? foo 0x00)))",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::DefineVariableBadSignature`]
+/// Caused by: `define-data-var` is provided only a name and value, missing the required type.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_define_variable_bad_signature() {
+    contract_deploy_consensus_test!(
+        contract_name: "define-variable-bad",
+        contract_code: "(define-data-var cursor 0x00)",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::SupertypeTooLarge`]
+/// Caused by: combining tuples with `buff 600000` and `buff 10` forces a supertype beyond the size limit.
+/// Outcome: block rejected.
+#[test]
+fn static_check_error_supertype_too_large() {
+    contract_deploy_consensus_test!(
+        contract_name: "supertype-too-large",
+        contract_code: "
+        (define-data-var big (buff 600000) 0x00)
+        (define-data-var small (buff 10) 0x00)
+        (define-public (trigger)
+            (let ((initial (list (tuple (a (var-get big)) (b (var-get small))))))
+                (ok (append initial (tuple (a (var-get small)) (b (var-get big)))))))",
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::BadTraitImplementation`]
+/// Caused by: trying to implement a trait with a bad implementation.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_bad_trait_implementation() {
+    let setup_contract = SetupContract::new(
+        "trait-contract",
+        "(define-trait trait-1 ((get-1 ((list 10 uint)) (response uint uint))))",
+    );
+
+    contract_deploy_consensus_test!(
+        contract_name: "contract-name",
+        contract_code: &format!("
+            (impl-trait .trait-contract.trait-1)
+            (define-public (get-1 (x (list 5 uint))) (ok u1))",
+        ),
+        setup_contracts: &[setup_contract],
     );
 }
