@@ -712,11 +712,9 @@ async fn broadcast_sender_new_must_be_closed() {
     let capacity = 1;
     let tx: broadcast::Sender<()> = broadcast::Sender::new(capacity);
 
-    let mut task = task::spawn(tx.closed());
-    assert_ready!(task.poll());
+    tx.send(()).unwrap_err();
 
     let _rx = tx.subscribe();
 
-    let mut task2 = task::spawn(tx.closed());
-    assert_pending!(task2.poll());
+    tx.send(()).unwrap();
 }
