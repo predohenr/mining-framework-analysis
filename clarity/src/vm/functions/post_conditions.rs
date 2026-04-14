@@ -22,9 +22,7 @@ use crate::vm::analysis::type_checker::v2_1::natives::post_conditions::MAX_ALLOW
 use crate::vm::contexts::AssetMap;
 use crate::vm::costs::cost_functions::ClarityCostFunction;
 use crate::vm::costs::{CostTracker, MemoryConsumer, constants as cost_constants, runtime_cost};
-use crate::vm::errors::{
-    RuntimeCheckErrorKind, RuntimeError, VmExecutionError, VmInternalError,
-    check_arguments_at_least,
+use crate::vm::errors::{ RuntimeError, RuntimeCheckErrorKind, VmExecutionError, VmInternalError, check_arguments_at_least,
 };
 use crate::vm::functions::NativeFunctions;
 use crate::vm::representations::SymbolicExpression;

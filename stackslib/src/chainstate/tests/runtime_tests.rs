@@ -101,11 +101,11 @@ fn variant_coverage_report(variant: RuntimeError) {
             validation, so negative supply is impossible without manual database corruption."
             ),
         DivisionByZero => Tested(vec![
-            division_by_zero_mod_cdeploy,
-            division_by_zero_mod_ccall,
-            division_by_zero_cdeploy,
-            division_by_zero_ccall,
-        ]),
+                division_by_zero_mod_cdeploy,
+                division_by_zero_mod_ccall,
+                division_by_zero_cdeploy,
+                division_by_zero_ccall,
+            ]),
         MaxStackDepthReached => Tested(vec![
                 stack_depth_too_deep_call_chain_ccall,
                 stack_depth_too_deep_call_chain_cdeploy
