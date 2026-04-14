@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use blockstack_lib::chainstate::stacks::StacksTransaction;
 use clarity::types::chainstate::StacksAddress;
@@ -23,7 +23,9 @@ use serde::{Deserialize, Serialize};
 use stacks_common::types::chainstate::{ConsensusHash, StacksBlockId};
 use stacks_common::util::hash::Hash160;
 
-use crate::v0::messages::{StateMachineUpdate, StateMachineUpdateMinerState};
+use crate::v0::messages::{
+    StateMachineUpdate, StateMachineUpdateContent, StateMachineUpdateMinerState,
+};
 
 /// A struct used to determine the current global state
 #[derive(Debug)]
