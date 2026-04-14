@@ -30,8 +30,8 @@ use libsigner::{
     BlockProposal, BlockProposalData, SignerSession, StackerDBSession, VERSION_STRING,
 };
 use madhouse::{execute_commands, prop_allof, scenario, Command};
-use pinny::tag;
 use proptest::prelude::Strategy;
+use pinny::tag;
 use rand::{thread_rng, Rng};
 use rusqlite::Connection;
 use stacks::address::AddressHashMode;
