@@ -406,11 +406,11 @@ fn check_proposal_tenure_extend() {
 fn check_proposal_with_extend_during_replay() {
     let (stacks_client, mut signer_db, block_sk, mut block, cur_sortition, _, mut sortitions_view) =
         setup_test_environment(function_name!());
-    block.header.consensus_hash = cur_sortition.data.consensus_hash.clone();
+    block.header.consensus_hash = cur_sortition.data.consensus_hash;
     let mut extend_payload = make_tenure_change_payload();
-    extend_payload.burn_view_consensus_hash = cur_sortition.data.consensus_hash.clone();
-    extend_payload.tenure_consensus_hash = block.header.consensus_hash.clone();
-    extend_payload.prev_tenure_consensus_hash = block.header.consensus_hash.clone();
+    extend_payload.burn_view_consensus_hash = cur_sortition.data.consensus_hash;
+    extend_payload.tenure_consensus_hash = block.header.consensus_hash;
+    extend_payload.prev_tenure_consensus_hash = block.header.consensus_hash;
     let tx = make_tenure_change_tx(extend_payload);
     block.txs = vec![tx];
     block.header.sign_miner(&block_sk).unwrap();
