@@ -470,7 +470,7 @@ mod test {
         .unwrap_err();
 
         assert!(
-            matches!(*err.err, ParseErrorKind::CostBalanceExceeded(_, _)),
+            matches!(*err.err, ParseErrors::CostBalanceExceeded(_, _)),
             "Instead found: {err}"
         );
     }
@@ -500,7 +500,7 @@ mod test {
         .expect_err("Expected parse error, but found success!");
 
         let total = match *err.err {
-            ParseErrorKind::CostBalanceExceeded(total, _) => total,
+            ParseErrors::CostBalanceExceeded(total, _) => total,
             _ => panic!("Expected CostBalanceExceeded, but found: {err}"),
         };
 
@@ -532,7 +532,7 @@ mod test {
         .expect_err("Expected parse error, but found success!");
 
         let total = match *err.err {
-            ParseErrorKind::CostBalanceExceeded(total, _) => total,
+            ParseErrors::CostBalanceExceeded(total, _) => total,
             _ => panic!("Expected CostBalanceExceeded, but found: {err}"),
         };
 
@@ -559,7 +559,7 @@ mod test {
         .expect_err("Expected parse error, but found success!");
 
         assert!(
-            matches!(*err.err, ParseErrorKind::VaryExpressionStackDepthTooDeep),
+            matches!(*err.err, ParseErrors::VaryExpressionStackDepthTooDeep),
             "Instead found: {err}"
         );
     }
@@ -581,7 +581,7 @@ mod test {
         .expect_err("Expected parse error, but found success!");
 
         assert!(
-            matches!(*err.err, ParseErrorKind::IllegalASCIIString(_)),
+            matches!(*err.err, ParseErrors::IllegalASCIIString(_)),
             "Instead found: {err}"
         );
     }
