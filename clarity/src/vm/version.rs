@@ -83,7 +83,6 @@ impl ClarityVersion {
             ClarityVersion::Clarity5 => false,
         }
     }
-
     /// Beginning in Clarity 5, cost functions that call `logn` are ensured to
     /// always pass an argument greater than zero, to avoid hitting a runtime
     /// error during cost computation. After reviewing the usage, the only
