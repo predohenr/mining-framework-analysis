@@ -38,8 +38,7 @@ pub use self::signatures::{
     TypeSignature,
 };
 use crate::errors::{
-    CheckErrorKind, InterpreterResult as Result, RuntimeErrorType, VmInternalError,
-};
+    CheckErrorKind, InterpreterResult as Result, RuntimeErrorType, VmInternalError, };
 use crate::representations::{ClarityName, ContractName, SymbolicExpression};
 // use crate::vm::ClarityVersion;
 
