@@ -21,6 +21,7 @@ use crate::chainstate::stacks::db::blocks::MINIMUM_TX_FEE_RATE_PER_BYTE;
 use crate::net::api::*;
 use crate::net::connection::ConnectionOptions;
 use crate::net::httpcore::{StacksHttp, StacksHttpRequest};
+use crate::net::httpcore::{HttpPreambleExtensions as _, StacksHttp, StacksHttpRequest};
 use crate::net::ProtocolFamily;
 
 #[test]
