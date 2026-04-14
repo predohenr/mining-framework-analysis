@@ -663,6 +663,14 @@ impl MultipleMinerTest {
         }
     }
 
+    pub fn get_primary_proposals_submitted(&self) -> RunLoopCounter {
+        self.signer_test
+            .running_nodes
+            .counters
+            .naka_proposed_blocks
+            .clone()
+    }
+
     pub fn get_counters_for_miner(&self, miner_index: usize) -> Counters {
         match miner_index {
             1 => self.signer_test.running_nodes.counters.clone(),
