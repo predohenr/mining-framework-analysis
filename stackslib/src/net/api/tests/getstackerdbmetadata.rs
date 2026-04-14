@@ -23,7 +23,7 @@ use stacks_common::util::secp256k1::MessageSignature;
 use super::test_rpc;
 use crate::net::api::*;
 use crate::net::connection::ConnectionOptions;
-use crate::net::httpcore::{RPCRequestHandler, StacksHttp, StacksHttpRequest};
+use crate::net::httpcore::{ StacksHttpRequest, RPCRequestHandler, StacksHttp, HttpPreambleExtensions as _, };
 use crate::net::ProtocolFamily;
 
 #[test]

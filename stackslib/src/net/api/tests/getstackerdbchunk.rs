@@ -21,7 +21,8 @@ use clarity::vm::types::QualifiedContractIdentifier;
 use super::test_rpc;
 use crate::net::api::*;
 use crate::net::connection::ConnectionOptions;
-use crate::net::httpcore::{RPCRequestHandler, StacksHttp, StacksHttpRequest};
+use crate::net::httpcore::{
+    HttpPreambleExtensions as _, RPCRequestHandler, StacksHttpRequest, StacksHttp, };
 use crate::net::ProtocolFamily;
 
 #[test]
