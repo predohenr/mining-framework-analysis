@@ -952,6 +952,45 @@ fn static_check_error_get_tenure_info_expect_property_name() {
     );
 }
 
+/// Error: [`Error::InvalidStacksTransaction("Duplicate contract")`]
+/// Caused by: trying to deploy a contract that already exists.
+/// Outcome: block rejected.
+#[test]
+fn error_invalid_stacks_transaction_duplicate_contract() {
+    let contract_code = "(define-constant buff-0 0x00)";
+    let mut nonce = 0;
+
+    let tx_fee = (contract_code.len() * 100) as u64;
+    let mut epochs_blocks: HashMap<StacksEpochId, Vec<TestBlock>> = HashMap::new();
+    let contract_name = "contract-name";
+    let deploy_tx = ConsensusUtils::new_deploy_tx(nonce, contract_name, contract_code, None);
+    nonce += 1;
+    epochs_blocks
+        .entry(*EPOCHS_TO_TEST.first().unwrap())
+        .or_insert(vec![])
+        .push(TestBlock {
+            transactions: vec![deploy_tx],
+        });
+
+    for epoch in EPOCHS_TO_TEST {
+        for version in clarity_versions_for_epoch(*epoch) {
+            let deploy_tx =
+                ConsensusUtils::new_deploy_tx(nonce, contract_name, contract_code, Some(*version));
+
+            let entry = epochs_blocks
+                .entry(*epoch)
+                .or_insert(vec![])
+                .push(TestBlock {
+                    transactions: vec![deploy_tx],
+                });
+        }
+    }
+
+    let result = ConsensusTest::new(function_name!(), vec![], epochs_blocks).run();
+
+    insta::assert_ron_snapshot!(result);
+}
+
 /// CheckErrorKind: [`CheckErrorKind::NoSuchTenureInfoProperty`]
 /// Caused by: referenced an unknown property of a tenure
 /// Outcome: block accepted.
@@ -1163,43 +1202,4 @@ fn static_check_error_bad_tuple_construction() {
         contract_name: "bad-tuple-constr",
         contract_code: "(tuple (name 1) (name 2))",
     );
-}
-
-/// Error: [`Error::InvalidStacksTransaction("Duplicate contract")`]
-/// Caused by: trying to deploy a contract that already exists.
-/// Outcome: block rejected.
-#[test]
-fn error_invalid_stacks_transaction_duplicate_contract() {
-    let contract_code = "(define-constant buff-0 0x00)";
-    let mut nonce = 0;
-
-    let tx_fee = (contract_code.len() * 100) as u64;
-    let mut epochs_blocks: HashMap<StacksEpochId, Vec<TestBlock>> = HashMap::new();
-    let contract_name = "contract-name";
-    let deploy_tx = ConsensusUtils::new_deploy_tx(nonce, contract_name, contract_code, None);
-    nonce += 1;
-    epochs_blocks
-        .entry(*EPOCHS_TO_TEST.first().unwrap())
-        .or_insert(vec![])
-        .push(TestBlock {
-            transactions: vec![deploy_tx],
-        });
-
-    for epoch in EPOCHS_TO_TEST {
-        for version in clarity_versions_for_epoch(*epoch) {
-            let deploy_tx =
-                ConsensusUtils::new_deploy_tx(nonce, contract_name, contract_code, Some(*version));
-
-            let entry = epochs_blocks
-                .entry(*epoch)
-                .or_insert(vec![])
-                .push(TestBlock {
-                    transactions: vec![deploy_tx],
-                });
-        }
-    }
-
-    let result = ConsensusTest::new(function_name!(), vec![], epochs_blocks).run();
-
-    insta::assert_ron_snapshot!(result);
 }
