@@ -72,12 +72,14 @@ impl Display for ErrorKind {
         match self {
             ErrorKind::Subprocess { cmd, msg, shell } => match msg {
                 Message::None => write!(f, "Failed to execute {cmd} using {shell}."),
-                Message::Error(e) => {
-                    write!(f, "Failed to execute {cmd} using {shell}. Error: {e}",)
-                }
-                Message::String(s) => {
-                    write!(f, "Failed to execute {cmd} using {shell}. Error: {s}",)
-                }
+                Message::Error(e) => write!(
+                    f,
+                    "Failed to execute {cmd} using {shell}. Error: {e}",
+                ),
+                Message::String(s) => write!(
+                    f,
+                    "Failed to execute {cmd} using {shell}. Error: {s}",
+                ),
             },
             ErrorKind::NormalisationPregainInvalid => write!(
                 f,

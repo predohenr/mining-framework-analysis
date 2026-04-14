@@ -222,78 +222,78 @@ impl CurrentStateInner {
         debug!("handling event {event:?}");
         match event {
             PlayerEvent::VolumeChanged { volume } => {
-                self.volume = volume;
-                insert_attr(&mut changed, "Volume", self.mpris_volume());
-            }
+                        self.volume = volume;
+                        insert_attr(&mut changed, "Volume", self.mpris_volume());
+                    }
             PlayerEvent::Stopped { .. } => {
-                self.status = PlaybackStatus::Stopped;
-                self.audio_item = None;
-                insert_attr(
-                    &mut changed,
-                    "PlaybackStatus",
-                    self.status.to_mpris().to_string(),
-                );
-                insert_attr(&mut changed, "Metadata", self.to_metadata());
-            }
+                        self.status = PlaybackStatus::Stopped;
+                        self.audio_item = None;
+                        insert_attr(
+                            &mut changed,
+                            "PlaybackStatus",
+                            self.status.to_mpris().to_string(),
+                        );
+                        insert_attr(&mut changed, "Metadata", self.to_metadata());
+                    }
             PlayerEvent::Playing { position_ms, .. } => {
-                if self.status != PlaybackStatus::Playing {
-                    self.status = PlaybackStatus::Playing;
-                    insert_attr(
-                        &mut changed,
-                        "PlaybackStatus",
-                        self.status.to_mpris().to_string(),
-                    );
-                }
-                self.update_position(Duration::milliseconds(position_ms as i64));
-                seeked = true;
-            }
+                        if self.status != PlaybackStatus::Playing {
+                            self.status = PlaybackStatus::Playing;
+                            insert_attr(
+                                &mut changed,
+                                "PlaybackStatus",
+                                self.status.to_mpris().to_string(),
+                            );
+                        }
+                        self.update_position(Duration::milliseconds(position_ms as i64));
+                        seeked = true;
+                    }
             PlayerEvent::Paused { position_ms, .. } => {
-                if self.status != PlaybackStatus::Paused {
-                    self.status = PlaybackStatus::Paused;
-                    insert_attr(
-                        &mut changed,
-                        "PlaybackStatus",
-                        self.status.to_mpris().to_string(),
-                    )
-                }
-                self.update_position(Duration::milliseconds(position_ms as i64));
-                seeked = true;
-            }
+                        if self.status != PlaybackStatus::Paused {
+                            self.status = PlaybackStatus::Paused;
+                            insert_attr(
+                                &mut changed,
+                                "PlaybackStatus",
+                                self.status.to_mpris().to_string(),
+                            )
+                        }
+                        self.update_position(Duration::milliseconds(position_ms as i64));
+                        seeked = true;
+                    }
             PlayerEvent::TrackChanged { audio_item } => {
-                self.audio_item = Some(audio_item);
-                insert_attr(&mut changed, "Metadata", self.to_metadata());
-            }
+                        self.audio_item = Some(audio_item);
+                        insert_attr(&mut changed, "Metadata", self.to_metadata());
+                    }
             PlayerEvent::PositionCorrection { position_ms, .. }
-            | PlayerEvent::Seeked { position_ms, .. } => {
-                self.update_position(Duration::milliseconds(position_ms as i64));
-                seeked = true;
-            }
+                    | PlayerEvent::Seeked { position_ms, .. } => {
+                        self.update_position(Duration::milliseconds(position_ms as i64));
+                        seeked = true;
+                    }
             PlayerEvent::ShuffleChanged { shuffle } => {
-                self.shuffle = shuffle;
-                insert_attr(&mut changed, "Shuffle", self.shuffle);
-            }
-            PlayerEvent::RepeatChanged { context: _, track } => {
-                self.repeat = track.into();
-                insert_attr(
-                    &mut changed,
-                    "LoopStatus",
-                    self.repeat.to_mpris().to_string(),
-                )
-            }
+                        self.shuffle = shuffle;
+                        insert_attr(&mut changed, "Shuffle", self.shuffle);
+                    }
+            PlayerEvent::RepeatChanged { context: _, track  } => {
+                        self.repeat = track.into();
+                        insert_attr(
+                            &mut changed,
+                            "LoopStatus",
+                            self.repeat.to_mpris().to_string(),
+                        )
+                    }
             PlayerEvent::PlayRequestIdChanged { play_request_id } => {
-                self.play_request_id = Some(play_request_id);
-            }
+                        self.play_request_id = Some(play_request_id);
+                    }
             PlayerEvent::Preloading { .. }
-            | PlayerEvent::Loading { .. }
-            | PlayerEvent::TimeToPreloadNextTrack { .. }
-            | PlayerEvent::EndOfTrack { .. }
-            | PlayerEvent::Unavailable { .. }
-            | PlayerEvent::AutoPlayChanged { .. }
-            | PlayerEvent::FilterExplicitContentChanged { .. }
-            | PlayerEvent::SessionConnected { .. }
-            | PlayerEvent::SessionDisconnected { .. }
-            | PlayerEvent::SessionClientChanged { .. } => (),
-            PlayerEvent::PositionChanged { .. } => (),
+                    | PlayerEvent::Loading { .. }
+                    | PlayerEvent::TimeToPreloadNextTrack { .. }
+                    | PlayerEvent::EndOfTrack { .. }
+                    | PlayerEvent::Unavailable { .. }
+                    | PlayerEvent::AutoPlayChanged { .. }
+                    | PlayerEvent::FilterExplicitContentChanged { .. }
+                    | PlayerEvent::SessionConnected { .. }
+                    | PlayerEvent::SessionDisconnected { .. }
+                    | PlayerEvent::SessionClientChanged { .. } => (),
+                    | PlayerEvent::PositionChanged { .. } => (),
         }
 
         (changed, seeked)
@@ -639,14 +639,12 @@ fn register_player_interface(
         });
         let local_spirc = spirc.clone();
         b.method("Play", (), (), move |_, _, (): ()| {
-            warn!("Play method called via mpris");
+            warn!("Play method called via mpris");            
             local_spirc.play().map_err(|e| MethodErr::failed(&e))
         });
         let local_spirc = spirc.clone();
         b.method("Stop", (), (), move |_, _, (): ()| {
-            local_spirc
-                .disconnect(false)
-                .map_err(|e| MethodErr::failed(&e))
+            local_spirc.disconnect(false).map_err(|e| MethodErr::failed(&e))
         });
 
         let local_spirc = spirc.clone();
@@ -710,7 +708,9 @@ fn register_player_interface(
         let local_state = current_state.clone();
         b.method("OpenUri", ("uri",), (), move |_, _, (uri,): (String,)| {
             let id = SpotifyId::from_uri(&uri).map_err(|e| MethodErr::invalid_arg(&e))?;
-            let CurrentStateInner { shuffle, .. } = *local_state.read()?;
+            let CurrentStateInner {
+                shuffle, ..
+            } = *local_state.read()?;
 
             let session = session.clone();
 
@@ -718,15 +718,29 @@ fn register_player_interface(
                 .block_on(async move {
                     use librespot_metadata::*;
                     Ok::<_, librespot_core::Error>(match id.item_type {
-                        SpotifyItemType::Album => (0, uri),
-                        SpotifyItemType::Artist => (0, uri),
-                        SpotifyItemType::Playlist => (0, uri),
+                        SpotifyItemType::Album => {
+                            (0, uri)
+                        }
+                        SpotifyItemType::Artist => {
+                            (
+                                0,
+                                uri,
+                            )
+                        }
+                        SpotifyItemType::Playlist => {
+                            (0, uri)
+                        }
                         SpotifyItemType::Track => {
                             let track = Track::get(&session, &id).await?;
-                            (track.number as u32, track.album.id.to_uri()?)
+                            (
+                                track.number as u32,
+                                track.album.id.to_uri()?,
+                            )
                         }
                         SpotifyItemType::Episode => (0, uri),
-                        SpotifyItemType::Show => (0, uri),
+                        SpotifyItemType::Show => {
+                            (0, uri)
+                        }
                         SpotifyItemType::Local | SpotifyItemType::Unknown => {
                             return Err(librespot_core::Error::unimplemented(
                                 "this type of uri is not supported",
@@ -736,28 +750,14 @@ fn register_player_interface(
                 })
                 .map_err(|e| MethodErr::failed(&e))?;
 
-            warn!(
-                "loading context_uri {context_uri} with playing_track_index {playing_track_index}"
-            );
+            warn!("loading context_uri {context_uri} with playing_track_index {playing_track_index}");
 
-            local_spirc
-                .load(LoadRequest::from_context_uri(
-                    context_uri,
-                    LoadRequestOptions {
-                        start_playing: true,
-                        seek_to: 0,
-                        context_options: Some(librespot_connect::LoadContextOptions::Options(
-                            librespot_connect::Options {
-                                shuffle,
-                                repeat: false,
-                                repeat_track: false,
-                            },
-                        )),
-                        playing_track: Some(librespot_connect::PlayingTrack::Index(
-                            playing_track_index,
-                        )),
-                    },
-                ))
+                local_spirc.load(LoadRequest::from_context_uri(context_uri, LoadRequestOptions{
+                    start_playing: true, 
+                    seek_to: 0, 
+                    context_options: Some(librespot_connect::LoadContextOptions::Options(librespot_connect::Options { shuffle, repeat: false, repeat_track: false })),
+                    playing_track: Some(librespot_connect::PlayingTrack::Index(playing_track_index))
+                }))
                 .map_err(|e| MethodErr::failed(&e))
         });
 

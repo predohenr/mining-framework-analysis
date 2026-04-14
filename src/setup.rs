@@ -44,8 +44,7 @@ pub(crate) fn initial_state(
             }
             _ => {
                 info!("Using software volume controller.");
-                let soft_mixer = mixer::softmixer::SoftMixer::open(MixerConfig::default())
-                    .expect("softmixer should initialize");
+                let soft_mixer = mixer::softmixer::SoftMixer::open(MixerConfig::default()).expect("softmixer should initialize");
                 Arc::new(soft_mixer)
             }
         }
