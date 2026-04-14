@@ -1363,6 +1363,7 @@ impl DiagnosableError for StaticCheckErrorKind {
             StaticCheckErrorKind::WithNftExpectedListOfIdentifiers => "with-nft allowance must include a list of asset identifiers".into(),
             StaticCheckErrorKind::MaxIdentifierLengthExceeded(max_len, len) => format!("with-nft allowance identifiers list must not exceed {max_len} elements, got {len}"),
             StaticCheckErrorKind::TooManyAllowances(max_allowed, found) => format!("too many allowances specified, the maximum is {max_allowed}, found {found}"),
+
         }
     }
 

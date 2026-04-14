@@ -59,8 +59,8 @@ fn variant_coverage_report(variant: StaticCheckErrorKind) {
 
     _ = match variant {
         CostOverflow => Unreachable_ExpectLike, // Should exceed u64
-        CostBalanceExceeded(execution_cost, execution_cost1) => Tested(vec![static_check_error_cost_balance_exceeded]),
-        MemoryBalanceExceeded(_, _) => Tested(vec![static_check_error_memory_balance_exceeded]),
+        CostBalanceExceeded(execution_cost, execution_cost1) => todo!(),
+        MemoryBalanceExceeded(_, _) => Tested(vec![static_check_error_cost_balance_exceeded]),
         CostComputationFailed(_) => Unreachable_ExpectLike,
         ExecutionTimeExpired => Unreachable_Functionally("Can only be triggered at runtime."),
         ValueTooLarge => Tested(vec![static_check_error_value_too_large]),
@@ -121,7 +121,7 @@ fn variant_coverage_report(variant: StaticCheckErrorKind) {
         DefineFunctionBadSignature => Tested(vec![static_check_error_define_function_bad_signature]),
         BadFunctionName => Tested(vec![static_check_error_bad_function_name]),
         BadMapTypeDefinition => Tested(vec![static_check_error_bad_map_type_definition]),
-        PublicFunctionMustReturnResponse(type_signature) => Tested(vec![static_check_error_public_function_must_return_response]),
+        PublicFunctionMustReturnResponse(type_signature) => todo!(),
         DefineVariableBadSignature => Tested(vec![static_check_error_define_variable_bad_signature]),
         ReturnTypesMustMatch(type_signature, type_signature1) => Tested(vec![static_check_error_return_types_must_match]),
         NoSuchContract(_) => Tested(vec![static_check_error_no_such_contract]),
@@ -207,7 +207,7 @@ fn static_check_error_cost_balance_exceeded() {
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::MemoryBalanceExceeded`]
+/// CheckErrorKind: [`CheckErrorKind::MemoryBalanceExceeded`]
 /// Caused by: This test creates a contract that fails during analysis phase.
 ///   The contract defines large nested tuple constants that exhaust
 ///   the 100MB memory limit during analysis.
@@ -551,7 +551,7 @@ fn static_check_error_unknown_type_name() {
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::PublicFunctionMustReturnResponse`]
+/// CheckErrorKind: [`CheckErrorKind::PublicFunctionMustReturnResponse`]
 /// Caused by: defining a public function that does not return a response (ok or err).
 /// Outcome: block accepted.
 #[test]
