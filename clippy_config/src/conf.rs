@@ -221,6 +221,63 @@ macro_rules! deserialize {
     }};
 }
 
+fn deserialize(file: &SourceFile) -> TryConf {
+    match toml::de::Deserializer::new(file.src.as_ref().unwrap()).deserialize_map(ConfVisitor(file)) {
+        Ok(mut conf) => {
+            extend_vec_if_indicator_present(&mut conf.conf.disallowed_names, DEFAULT_DISALLOWED_NAMES);
+            extend_vec_if_indicator_present(&mut conf.conf.allowed_prefixes, DEFAULT_ALLOWED_PREFIXES);
+            extend_vec_if_indicator_present(
+                &mut conf.conf.allow_renamed_params_for,
+                DEFAULT_ALLOWED_TRAITS_WITH_RENAMED_PARAMS,
+            );
+
+            // Confirms that the user has not accidentally configured ordering requirements for groups that
+            // aren't configured.
+            if let SourceItemOrderingWithinModuleItemGroupings::Custom(groupings) =
+                &conf.conf.module_items_ordered_within_groupings
+            {
+                for grouping in groupings {
+                    if !conf.conf.module_item_order_groupings.is_grouping(grouping) {
+                        // Since this isn't fixable by rustfix, don't emit a `Suggestion`. This just adds some useful
+                        // info for the user instead.
+
+                        let names = conf.conf.module_item_order_groupings.grouping_names();
+                        let suggestion = suggest_candidate(grouping, names.iter().map(String::as_str))
+                            .map(|s| format!(" perhaps you meant `{s}`?"))
+                            .unwrap_or_default();
+                        let names = names.iter().map(|s| format!("`{s}`")).join(", ");
+                        let message = format!(
+                            "unknown ordering group: `{grouping}` was not specified in `module-items-ordered-within-groupings`,{suggestion} expected one of: {names}"
+                        );
+
+                        let span = conf
+                            .value_spans
+                            .get("module_item_order_groupings")
+                            .cloned()
+                            .unwrap_or_default();
+                        conf.errors.push(ConfError::spanned(file, message, None, span));
+                    }
+                }
+            }
+
+            // TODO: THIS SHOULD BE TESTED, this comment will be gone soon
+            if conf.conf.allowed_idents_below_min_chars.iter().any(|e| e == "..") {
+                conf.conf
+                    .allowed_idents_below_min_chars
+                    .extend(DEFAULT_ALLOWED_IDENTS_BELOW_MIN_CHARS.iter().map(ToString::to_string));
+            }
+            if conf.conf.doc_valid_idents.iter().any(|e| e == "..") {
+                conf.conf
+                    .doc_valid_idents
+                    .extend(DEFAULT_DOC_VALID_IDENTS.iter().map(ToString::to_string));
+            }
+
+            conf
+        },
+        Err(e) => TryConf::from_toml_error(file, &e),
+    }
+}
+
 macro_rules! define_Conf {
     ($(
         $(#[doc = $doc:literal])+
@@ -961,63 +1018,6 @@ pub fn lookup_conf_file() -> io::Result<(Option<PathBuf>, Vec<String>)> {
         if !current.pop() {
             return Ok((None, warnings));
         }
-    }
-}
-
-fn deserialize(file: &SourceFile) -> TryConf {
-    match toml::de::Deserializer::new(file.src.as_ref().unwrap()).deserialize_map(ConfVisitor(file)) {
-        Ok(mut conf) => {
-            extend_vec_if_indicator_present(&mut conf.conf.disallowed_names, DEFAULT_DISALLOWED_NAMES);
-            extend_vec_if_indicator_present(&mut conf.conf.allowed_prefixes, DEFAULT_ALLOWED_PREFIXES);
-            extend_vec_if_indicator_present(
-                &mut conf.conf.allow_renamed_params_for,
-                DEFAULT_ALLOWED_TRAITS_WITH_RENAMED_PARAMS,
-            );
-
-            // Confirms that the user has not accidentally configured ordering requirements for groups that
-            // aren't configured.
-            if let SourceItemOrderingWithinModuleItemGroupings::Custom(groupings) =
-                &conf.conf.module_items_ordered_within_groupings
-            {
-                for grouping in groupings {
-                    if !conf.conf.module_item_order_groupings.is_grouping(grouping) {
-                        // Since this isn't fixable by rustfix, don't emit a `Suggestion`. This just adds some useful
-                        // info for the user instead.
-
-                        let names = conf.conf.module_item_order_groupings.grouping_names();
-                        let suggestion = suggest_candidate(grouping, names.iter().map(String::as_str))
-                            .map(|s| format!(" perhaps you meant `{s}`?"))
-                            .unwrap_or_default();
-                        let names = names.iter().map(|s| format!("`{s}`")).join(", ");
-                        let message = format!(
-                            "unknown ordering group: `{grouping}` was not specified in `module-items-ordered-within-groupings`,{suggestion} expected one of: {names}"
-                        );
-
-                        let span = conf
-                            .value_spans
-                            .get("module_item_order_groupings")
-                            .cloned()
-                            .unwrap_or_default();
-                        conf.errors.push(ConfError::spanned(file, message, None, span));
-                    }
-                }
-            }
-
-            // TODO: THIS SHOULD BE TESTED, this comment will be gone soon
-            if conf.conf.allowed_idents_below_min_chars.iter().any(|e| e == "..") {
-                conf.conf
-                    .allowed_idents_below_min_chars
-                    .extend(DEFAULT_ALLOWED_IDENTS_BELOW_MIN_CHARS.iter().map(ToString::to_string));
-            }
-            if conf.conf.doc_valid_idents.iter().any(|e| e == "..") {
-                conf.conf
-                    .doc_valid_idents
-                    .extend(DEFAULT_DOC_VALID_IDENTS.iter().map(ToString::to_string));
-            }
-
-            conf
-        },
-        Err(e) => TryConf::from_toml_error(file, &e),
     }
 }
 
