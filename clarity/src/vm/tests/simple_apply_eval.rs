@@ -31,7 +31,8 @@ use crate::vm::callables::DefinedFunction;
 use crate::vm::contexts::OwnedEnvironment;
 use crate::vm::costs::LimitedCostTracker;
 use crate::vm::database::MemoryBackingStore;
-use crate::vm::errors::{CheckErrors, EarlyReturnError, Error, RuntimeError};
+use crate::vm::errors::{CheckErrors, EarlyReturnError, Error, RuntimeErrorType};
+use crate::vm::errors::{CheckErrors, Error, RuntimeError, ShortReturnType};
 use crate::vm::tests::{execute, test_clarity_versions};
 use crate::vm::types::signatures::*;
 use crate::vm::types::{
