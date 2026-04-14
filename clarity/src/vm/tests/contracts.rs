@@ -1035,12 +1035,10 @@ fn test_ast_stack_depth() {
                       ";
     assert_eq!(
         vm_execute(program).unwrap_err(),
-        ClarityEvalError::Parse(
-            ParseErrorKind::VaryExpressionStackDepthTooDeep {
-                max_depth: max_call_stack_depth_for_epoch(StacksEpochId::Epoch20)
-            }
-            .into()
-        )
+        ClarityEvalError::Parse(ParseErrorKind::VaryExpressionStackDepthTooDeep {
+            max_depth: max_call_stack_depth_for_epoch(StacksEpochId::Epoch20)
+        }
+        .into())
     );
 }
 
