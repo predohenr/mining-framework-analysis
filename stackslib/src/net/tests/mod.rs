@@ -968,7 +968,7 @@ impl NakamotoBootPlan {
                         // no CheckErrorKind
                         assert!(
                             receipt.vm_error.is_none(),
-                            "Receipt had a CheckErrorKind: {:?}",
+                            "Receipt had a CheckErrors: {:?}",
                             &receipt
                         );
                         // transaction was not aborted post-hoc
