@@ -22,6 +22,7 @@ use std::{error, fmt};
 
 pub use analysis::{CheckErrorKind, StaticCheckError};
 pub use ast::{ParseError, ParseErrorKind, ParseResult};
+pub use analysis::{CheckErrors, StaticCheckError};
 pub use cost::CostErrors;
 pub use lexer::LexerError;
 #[cfg(feature = "rusqlite")]

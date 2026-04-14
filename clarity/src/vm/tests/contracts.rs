@@ -26,8 +26,19 @@ use crate::vm::tests::{test_clarity_versions, test_epochs};
 use crate::vm::types::{PrincipalData, QualifiedContractIdentifier, StandardPrincipalData, Value};
 #[cfg(test)]
 use crate::vm::{
-    ast::{errors::ParseErrorKind, ASTRules},
+    ast::{errors::ParseErrors, ASTRules},
     errors::{CheckErrorKind, Error, RuntimeErrorType},
+    tests::{
+        env_factory, execute, is_committed, is_err_code_i128 as is_err_code, symbols_from_values,
+        tl_env_factory, MemoryEnvironmentGenerator, TopLevelMemoryEnvironmentGenerator,
+    },
+    types::{OptionalData, ResponseData, TypeSignature},
+    {execute as vm_execute, ClarityVersion, ContractContext},
+};
+#[cfg(test)]
+use crate::vm::{
+    ast::{errors::ParseErrorKind, ASTRules},
+    errors::{CheckErrors, Error, RuntimeErrorType},
     tests::{
         env_factory, execute, is_committed, is_err_code_i128 as is_err_code, symbols_from_values,
         tl_env_factory, MemoryEnvironmentGenerator, TopLevelMemoryEnvironmentGenerator,
