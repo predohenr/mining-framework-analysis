@@ -20,6 +20,7 @@ use stacks_common::address::{
 use stacks_common::types::chainstate::StacksAddress;
 use stacks_common::util::hash;
 use stacks_common::util::secp256k1::{Secp256k1PublicKey, secp256k1_recover, secp256k1_verify};
+use stacks_common::util::secp256k1::{secp256k1_recover, secp256k1_verify, Secp256k1PublicKey};
 use stacks_common::util::secp256r1::{secp256r1_verify, secp256r1_verify_digest};
 
 use crate::vm::costs::cost_functions::ClarityCostFunction;
