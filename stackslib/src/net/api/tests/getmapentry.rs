@@ -28,6 +28,10 @@ use crate::net::connection::ConnectionOptions;
 use crate::net::httpcore::{
     HttpRequestContentsExtensions as _, RPCRequestHandler, StacksHttp, StacksHttpRequest,
 };
+use crate::net::httpcore::{
+    HttpPreambleExtensions as _, HttpRequestContentsExtensions as _, RPCRequestHandler, StacksHttp,
+    StacksHttpRequest,
+};
 use crate::net::{ProtocolFamily, TipRequest};
 
 #[test]
