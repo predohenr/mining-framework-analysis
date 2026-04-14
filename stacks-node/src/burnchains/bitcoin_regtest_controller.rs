@@ -3501,7 +3501,7 @@ mod tests {
         let mut config = utils::create_config();
         config.burnchain.local_mining_public_key = Some(miner_pubkey.to_hex());
 
-        let mut btcd_controller = BitcoinCoreController::from_stx_config(&config);
+        let mut btcd_controller = BitcoinCoreController::new(config.clone());
         btcd_controller
             .start_bitcoind()
             .expect("bitcoind should be started!");
