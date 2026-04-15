@@ -64,7 +64,7 @@ func TestLoadIngresses(t *testing.T) {
 							Rule:        "Host(`whoami.localhost`) && Path(`/`)",
 							RuleSyntax:  "default",
 							Middlewares: []string{"default-ingress-with-custom-headers-rule-0-path-0-custom-headers"},
-							Service:     "default-ingress-with-custom-headers-whoami-80",
+							Service:     "default-whoami-80",
 						},
 					},
 					Middlewares: map[string]*dynamic.Middleware{
@@ -75,7 +75,7 @@ func TestLoadIngresses(t *testing.T) {
 						},
 					},
 					Services: map[string]*dynamic.Service{
-						"default-ingress-with-custom-headers-whoami-80": {
+						"default-whoami-80": {
 							LoadBalancer: &dynamic.ServersLoadBalancer{
 								Servers: []dynamic.Server{
 									{
@@ -603,7 +603,7 @@ func TestLoadIngresses(t *testing.T) {
 							Rule:        "Host(`upstream-vhost.localhost`) && Path(`/`)",
 							RuleSyntax:  "default",
 							Middlewares: []string{"default-ingress-with-upstream-vhost-rule-0-path-0-vhost"},
-							Service:     "default-ingress-with-upstream-vhost-whoami-80",
+							Service:     "default-whoami-80",
 						},
 					},
 					Middlewares: map[string]*dynamic.Middleware{
@@ -614,7 +614,7 @@ func TestLoadIngresses(t *testing.T) {
 						},
 					},
 					Services: map[string]*dynamic.Service{
-						"default-ingress-with-upstream-vhost-whoami-80": {
+						"default-whoami-80": {
 							LoadBalancer: &dynamic.ServersLoadBalancer{
 								Servers: []dynamic.Server{
 									{
@@ -708,7 +708,7 @@ func TestLoadIngresses(t *testing.T) {
 							Rule:        "Host(`whitelist-source-range.localhost`) && Path(`/`)",
 							RuleSyntax:  "default",
 							Middlewares: []string{"default-ingress-with-whitelist-single-ip-rule-0-path-0-whitelist-source-range"},
-							Service:     "default-ingress-with-whitelist-single-ip-whoami-80",
+							Service:     "default-whoami-80",
 						},
 					},
 					Middlewares: map[string]*dynamic.Middleware{
@@ -719,7 +719,7 @@ func TestLoadIngresses(t *testing.T) {
 						},
 					},
 					Services: map[string]*dynamic.Service{
-						"default-ingress-with-whitelist-single-ip-whoami-80": {
+						"default-whoami-80": {
 							LoadBalancer: &dynamic.ServersLoadBalancer{
 								Servers: []dynamic.Server{
 									{
@@ -760,7 +760,7 @@ func TestLoadIngresses(t *testing.T) {
 							Rule:        "Host(`whitelist-source-range.localhost`) && Path(`/`)",
 							RuleSyntax:  "default",
 							Middlewares: []string{"default-ingress-with-whitelist-single-cidr-rule-0-path-0-whitelist-source-range"},
-							Service:     "default-ingress-with-whitelist-single-cidr-whoami-80",
+							Service:     "default-whoami-80",
 						},
 					},
 					Middlewares: map[string]*dynamic.Middleware{
@@ -771,7 +771,7 @@ func TestLoadIngresses(t *testing.T) {
 						},
 					},
 					Services: map[string]*dynamic.Service{
-						"default-ingress-with-whitelist-single-cidr-whoami-80": {
+						"default-whoami-80": {
 							LoadBalancer: &dynamic.ServersLoadBalancer{
 								Servers: []dynamic.Server{
 									{
@@ -812,7 +812,7 @@ func TestLoadIngresses(t *testing.T) {
 							Rule:        "Host(`whitelist-source-range.localhost`) && Path(`/`)",
 							RuleSyntax:  "default",
 							Middlewares: []string{"default-ingress-with-whitelist-multiple-ip-and-cidr-rule-0-path-0-whitelist-source-range"},
-							Service:     "default-ingress-with-whitelist-multiple-ip-and-cidr-whoami-80",
+							Service:     "default-whoami-80",
 						},
 					},
 					Middlewares: map[string]*dynamic.Middleware{
@@ -823,7 +823,7 @@ func TestLoadIngresses(t *testing.T) {
 						},
 					},
 					Services: map[string]*dynamic.Service{
-						"default-ingress-with-whitelist-multiple-ip-and-cidr-whoami-80": {
+						"default-whoami-80": {
 							LoadBalancer: &dynamic.ServersLoadBalancer{
 								Servers: []dynamic.Server{
 									{
@@ -864,12 +864,12 @@ func TestLoadIngresses(t *testing.T) {
 							Rule:        "Host(`whitelist-source-range.localhost`) && Path(`/`)",
 							RuleSyntax:  "default",
 							Middlewares: nil,
-							Service:     "default-ingress-with-whitelist-empty-whoami-80",
+							Service:     "default-whoami-80",
 						},
 					},
 					Middlewares: map[string]*dynamic.Middleware{},
 					Services: map[string]*dynamic.Service{
-						"default-ingress-with-whitelist-empty-whoami-80": {
+						"default-whoami-80": {
 							LoadBalancer: &dynamic.ServersLoadBalancer{
 								Servers: []dynamic.Server{
 									{
