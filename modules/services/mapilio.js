@@ -339,27 +339,31 @@ export default {
 
         let wrap = context.container().select('.photoviewer .mapilio-wrapper');
         let attribution = wrap.selectAll('.photo-attribution').text('\u00A0');
-
+      
         getUserData(d.created_by_id).then((username) => {
           if (username) {
             attribution
               .append('span')
               .attr('class', 'captured_by')
               .text('@' + username);
+  
             attribution
               .append('span')
               .text('|');
           }
+  
         }).finally(()=>{
           if (d.capture_time) {
             attribution
               .append('span')
               .attr('class', 'captured_at')
               .text(localeDateString(d.capture_time));
+  
             attribution
               .append('span')
               .text('|');
           }
+  
           attribution
             .append('a')
             .attr('class', 'image-link')
