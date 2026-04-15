@@ -232,7 +232,7 @@ func (r *Router) acmeTLSALPNHandler() tcp.Handler {
 		defer cancel()
 
 		if err := tlsConn.HandshakeContext(ctx); err != nil {
-			log.Debug().Err(err).Msg("Error during ACME-TLS/1 handshake")
+			log.FromContext(ctx).WithError(err).Debug("Error during ACME-TLS/1 handshake")
 		}
 	})
 }
