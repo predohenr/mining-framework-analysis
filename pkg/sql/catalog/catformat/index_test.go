@@ -294,6 +294,24 @@ func TestIndexForDisplay(t *testing.T) {
 			expected:    "CREATE INDEX baz ON foo.public.bar (a DESC) USING HASH STORING (c) WITH (bucket_count=8, shard_columns=(a))",
 			pgExpected:  "CREATE INDEX baz ON foo.public.bar USING btree (a DESC) USING HASH STORING (c) WITH (bucket_count=8, shard_columns=(a))",
 		},
+		// Regression test for #161516: STORING should appear before WITH (bucket_count=...)
+		// so the output is valid SQL.
+		{
+			index:       shardedStoringIndex,
+			tableName:   descpb.AnonymousTable,
+			partition:   "",
+			displayMode: IndexDisplayDefOnly,
+			expected:    "INDEX baz (a DESC) USING HASH STORING (c) WITH (bucket_count=8)",
+			pgExpected:  "INDEX baz USING btree (a DESC) USING HASH STORING (c) WITH (bucket_count=8)",
+		},
+		{
+			index:       shardedStoringIndex,
+			tableName:   tableName,
+			partition:   "",
+			displayMode: IndexDisplayShowCreate,
+			expected:    "CREATE INDEX baz ON foo.public.bar (a DESC) USING HASH STORING (c) WITH (bucket_count=8)",
+			pgExpected:  "CREATE INDEX baz ON foo.public.bar USING btree (a DESC) USING HASH STORING (c) WITH (bucket_count=8)",
+		},
 		{
 			index:       vectorIndex,
 			tableName:   descpb.AnonymousTable,

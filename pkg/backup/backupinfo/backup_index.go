@@ -365,6 +365,10 @@ func ListRestorableBackups(
 		if err != nil {
 			return RestorableBackup{}, err
 		}
+		backupID, err := encodeBackupID(index.fullEnd, index.end)
+		if err != nil {
+			return RestorableBackup{}, err
+		}
 		return RestorableBackup{
 			ID:                backupID,
 			EndTime:           idxMeta.EndTime,
