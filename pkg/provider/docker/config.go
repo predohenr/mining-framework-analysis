@@ -7,7 +7,7 @@ import (
 	"net"
 	"strings"
 
-	containertypes "github.com/docker/docker/api/types/container"
+	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/rs/zerolog/log"
@@ -114,7 +114,7 @@ func (p *DynConfBuilder) buildTCPServiceConfiguration(ctx context.Context, conta
 		}
 	}
 
-	if container.Health != "" && container.Health != containertypes.Healthy {
+	if container.Health != "" && container.Health != dockertypes.Healthy {
 		return nil
 	}
 
@@ -138,7 +138,7 @@ func (p *DynConfBuilder) buildUDPServiceConfiguration(ctx context.Context, conta
 		}
 	}
 
-	if container.Health != "" && container.Health != containertypes.Healthy {
+	if container.Health != "" && container.Health != dockertypes.Healthy {
 		return nil
 	}
 
@@ -164,7 +164,7 @@ func (p *DynConfBuilder) buildServiceConfiguration(ctx context.Context, containe
 		}
 	}
 
-	if container.Health != "" && container.Health != containertypes.Healthy {
+	if container.Health != "" && container.Health != dockertypes.Healthy {
 		return nil
 	}
 
@@ -196,7 +196,7 @@ func (p *DynConfBuilder) keepContainer(ctx context.Context, container dockerData
 		return false
 	}
 
-	if !p.AllowEmptyServices && container.Health != "" && container.Health != containertypes.Healthy {
+	if !p.AllowEmptyServices && container.Health != "" && container.Health != dockertypes.Healthy {
 		logger.Debug().Msg("Filtering unhealthy or starting container")
 		return false
 	}
