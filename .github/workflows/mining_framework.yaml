@@ -1,0 +1,21 @@
+
+name: Mining Framework Check
+on: [push]
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Update Rust Toolchain
+              run: rustup update stable && rustup default stable
+            - name: Build
+              run: cargo build --verbose
+            - name: Run Cargo Tests
+              uses: nick-fields/retry@v3
+              with:
+                timeout_minutes: 30
+                max_attempts: 3
+                command: cargo test --verbose
+        
+        
