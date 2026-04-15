@@ -292,7 +292,7 @@ ResourceCacheKey.getDracoCacheKey = function (options) {
 };
 
 ResourceCacheKey.getSpzCacheKey = function (options) {
-  options = options ?? Frozen.EMPTY_OBJECT;
+  options = defaultValue(options, defaultValue.EMPTY_OBJECT);
   const { gltf, primitive, gltfResource, baseResource } = options;
 
   //>>includeStart('debug', pragmas.debug);
