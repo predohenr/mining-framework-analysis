@@ -57,7 +57,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-custom-headers.yml",
+				"ingresses/11-ingress-with-custom-headers.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -759,7 +759,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-upstream-vhost.yml",
+				"ingresses/10-ingress-with-upstream-vhost.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -874,7 +874,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-rewrite-target.yml",
+				"ingresses/11-ingress-with-rewrite-target.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -936,7 +936,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-app-root.yml",
+				"ingresses/18-ingress-with-app-root.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -998,7 +998,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-app-root-wrong.yml",
+				"ingresses/18-ingress-with-app-root-wrong.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1107,7 +1107,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-whitelist-single-ip.yml",
+				"ingresses/10-ingress-with-whitelist-single-ip.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1168,7 +1168,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-whitelist-single-cidr.yml",
+				"ingresses/11-ingress-with-whitelist-single-cidr.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1229,7 +1229,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-whitelist-multiple-ip-and-cidr.yml",
+				"ingresses/12-ingress-with-whitelist-multiple-ip-and-cidr.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1290,7 +1290,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-whitelist-empty.yml",
+				"ingresses/13-ingress-with-whitelist-empty.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1345,7 +1345,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-permanent-redirect.yml",
+				"ingresses/14-ingress-with-permanent-redirect.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1408,7 +1408,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-permanent-redirect-code-wrong-code.yml",
+				"ingresses/14-ingress-with-permanent-redirect-code-wrong-code.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1471,7 +1471,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-permanent-redirect-code-correct-code.yml",
+				"ingresses/14-ingress-with-permanent-redirect-code-correct-code.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1534,7 +1534,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-temporal-and-permanent-redirect.yml",
+				"ingresses/16-ingress-with-temporal-and-permanent-redirect.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1597,7 +1597,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-temporal-redirect.yml",
+				"ingresses/15-ingress-with-temporal-redirect.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1660,7 +1660,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-temporal-redirect-code-wrong-code.yml",
+				"ingresses/17-ingress-with-temporal-redirect-code-wrong-code.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1723,7 +1723,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-temporal-redirect-code-correct-code.yml",
+				"ingresses/17-ingress-with-temporal-redirect-code-correct-code.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1786,7 +1786,7 @@ func TestLoadIngresses(t *testing.T) {
 			paths: []string{
 				"services.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-proxy-timeout.yml",
+				"ingresses/19-ingress-with-proxy-timeout.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1837,7 +1837,7 @@ func TestLoadIngresses(t *testing.T) {
 				"services.yml",
 				"secrets.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-auth-tls-secret.yml",
+				"ingresses/20-ingress-with-auth-tls-secret.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
@@ -1941,7 +1941,7 @@ func TestLoadIngresses(t *testing.T) {
 				"services.yml",
 				"secrets.yml",
 				"ingressclasses.yml",
-				"ingresses/ingress-with-auth-tls-verify-client.yml",
+				"ingresses/21-ingress-with-auth-tls-verify-client.yml",
 			},
 			expected: &dynamic.Configuration{
 				TCP: &dynamic.TCPConfiguration{
