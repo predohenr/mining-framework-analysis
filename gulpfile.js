@@ -697,7 +697,7 @@ export const makeZip = gulp.series(
     //For now we regenerate the JS glsl to force it to be unminified in the release zip
     //See https://github.com/CesiumGS/cesium/pull/3106#discussion_r42793558 for discussion.
     await glslToJavaScript(false, "Build/minifyShaders.state", "engine");
-
+  
     const packageJsonSrc = await pruneScriptsForZip("package.json");
     const enginePackageJsonSrc = await pruneScriptsForZip(
       "packages/engine/package.json",
@@ -705,7 +705,7 @@ export const makeZip = gulp.series(
     const widgetsPackageJsonSrc = await pruneScriptsForZip(
       "packages/widgets/package.json",
     );
-
+  
     const src = gulp
       .src("index.release.html")
       .pipe(
@@ -799,13 +799,13 @@ export const makeZip = gulp.series(
       )
       .pipe(gulpZip(`Cesium-${version}.zip`))
       .pipe(gulp.dest("."));
-
+  
     await finished(src);
-
+  
     rimraf.sync("./package.noprepare.json");
     rimraf.sync("./packages/engine/package.noprepare.json");
     rimraf.sync("./packages/widgets/package.noprepare.json");
-
+  
     return src;
   },
 );
