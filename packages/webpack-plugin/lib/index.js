@@ -1647,8 +1647,6 @@ class MpxWebpackPlugin {
           if (isReact(mpx.mode)) {
             // 添加 @refresh reset 注释用于在 React HMR 时刷新组件
             source.add('/* @refresh reset */\n')
-            // TODO HUMAN
-            if (isRuntime) source.add('')
             source.add(originalSource)
             compilation.assets[chunkFile] = source
             processedChunk.add(chunk)
