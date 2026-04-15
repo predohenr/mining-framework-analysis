@@ -79,260 +79,104 @@ const SPACE_FOR_DRAG_MARKER_WHEN_NO_NEXT_ELEMENT = 15;
  * Viewer control to display thumbnails for pages in a PDF document.
  */
 class PDFThumbnailViewer {
-  static #draggingScaleFactor = 0;
+  static #draggingScaleFactor = 0
 
-  #enableSplitMerge = false;
+  #dragAC = null
 
-  #dragAC = null;
-
-  #draggedContainer = null;
-
-  #thumbnailsPositions = null;
-
-  #lastDraggedOverIndex = NaN;
-
-  #selectedPages = null;
-
-  #draggedImageX = 0;
-
-  #draggedImageY = 0;
-
-  #draggedImageWidth = 0;
-
-  #draggedImageHeight = 0;
-
-  #draggedImageOffsetX = 0;
-
-  #draggedImageOffsetY = 0;
-
-  #dragMarker = null;
-
-  #pageNumberToRemove = NaN;
-
-  #currentScrollBottom = 0;
-
-  #currentScrollTop = 0;
-
-  #pagesMapper = null;
-
-  #manageSaveAsButton = null;
-
-  #manageDeleteButton = null;
-
-  #manageCopyButton = null;
-
-  #manageCutButton = null;
-
-  #copiedThumbnails = null;
-
-  #savedThumbnails = null;
-
-  #deletedPageNumbers = null;
-
-  #copiedPageNumbers = null;
-
-  #boundPastePages = this.#pastePages.bind(this);
-
-  #isCut = false;
-
-  #isOneColumnView = false;
-
-  #scrollableContainerWidth = 0;
-
-  #scrollableContainerHeight = 0;
-
-  #statusLabel = null;
-
-  #statusBar = null;
-
-  #undoBar = null;
-
-  #undoLabel = null;
-
-  #undoButton = null;
-
-  #undoCloseButton = null;
-
-  #isInPasteMode = false;
-
-  /**
-   * @param {PDFThumbnailViewerOptions} options
-   */
-  constructor({
-    container,
-    eventBus,
-    linkService,
-    renderingQueue,
-    maxCanvasPixels,
-    maxCanvasDim,
-    pageColors,
-    abortSignal,
-    enableSplitMerge,
-    statusBar,
-    undoBar,
-    manageMenu,
-    addFileButton,
-  }) {
-    this.scrollableContainer = container.parentElement;
-    this.container = container;
-    this.eventBus = eventBus;
-    this.linkService = linkService;
-    this.renderingQueue = renderingQueue;
-    this.maxCanvasPixels = maxCanvasPixels;
-    this.maxCanvasDim = maxCanvasDim;
-    this.pageColors = pageColors || null;
-    this.#enableSplitMerge = enableSplitMerge || false;
-    this.#statusLabel = statusBar?.viewsManagerStatusActionLabel || null;
-    this.#statusBar = statusBar?.viewsManagerStatusAction || null;
-    this.#undoBar = undoBar?.viewsManagerStatusUndo || null;
-    this.#undoLabel = undoBar?.viewsManagerStatusUndoLabel || null;
-    this.#undoButton = undoBar?.viewsManagerStatusUndoButton || null;
-    this.#undoCloseButton = undoBar?.viewsManagerStatusUndoCloseButton || null;
-
-    // TODO: uncomment when the "add file" feature is implemented.
-    // this.#addFileButton = addFileButton;
-
-    if (this.#enableSplitMerge && manageMenu) {
-      const { button, menu, copy, cut, delete: del, saveAs } = manageMenu;
-      this.eventBus.on(
-        "pagesloaded",
-        () => {
-          button.disabled = false;
-        },
-        { once: true }
-      );
-
-      this._manageMenu = new Menu(menu, button, [copy, cut, del, saveAs]);
-      this.#manageSaveAsButton = saveAs;
-      saveAs.addEventListener("click", this.#saveExtractedPages.bind(this));
-      this.#manageDeleteButton = del;
-      del.addEventListener("click", this.#deletePages.bind(this, "delete"));
-      this.#manageCopyButton = copy;
-      copy.addEventListener("click", this.#copyPages.bind(this));
-      this.#manageCutButton = cut;
-      cut.addEventListener("click", this.#cutPages.bind(this));
-
-      this.#toggleMenuEntries(false);
-      button.disabled = true;
-
-      this.eventBus.on("editingaction", ({ name }) => {
-        switch (name) {
-          case "copyPage":
-            this.#copyPages();
-            break;
-          case "cutPage":
-            this.#cutPages();
-            break;
-          case "deletePage":
-            this.#deletePages("delete");
-            break;
-          case "savePage":
-            this.#saveExtractedPages();
-            break;
-        }
-      });
-
-      this.container.addEventListener(
-        "contextmenu",
-        e => {
-          this.eventBus.dispatch("editingstateschanged", {
-            source: this,
-            details: {
-              thumbnailId:
-                parseInt(
-                  e.target
-                    .closest(".thumbnailImageContainer")
-                    ?.parentElement.getAttribute("page-number")
-                ) ?? -1,
-              hasSelectedPages: !!this.#selectedPages?.size,
-              canDeletePages: this.#canDelete(),
-            },
-          });
-        },
-        {
-          signal: abortSignal,
-          passive: true,
-        }
-      );
-
-      this.#undoButton?.addEventListener("click", this.#undo.bind(this));
-      this.#undoCloseButton?.addEventListener(
-        "click",
-        this.#dismissUndo.bind(this)
-      );
-    } else {
-      manageMenu.button.hidden = true;
+  #dismissUndo() {
+    this.#copiedThumbnails = null;
+    if (this.#deletedPageNumbers) {
+      for (const pageNumber of this.#deletedPageNumbers) {
+        this.#savedThumbnails[pageNumber - 1].destroy();
+      }
+      this.#deletedPageNumbers = null;
+      this.#savedThumbnails = null;
     }
+    this.#isCut = false;
+    this.#updateStatus("select");
+    this.#togglePasteMode(false);
+    this.#pagesMapper.cleanSavedData();
 
-    this.scroll = watchScroll(
-      this.scrollableContainer,
-      this.#scrollUpdated.bind(this),
-      abortSignal
-    );
-    this.#resetView();
-    this.#addEventListeners();
-  }
-
-  #scrollUpdated() {
-    this.renderingQueue.renderHighestPriority();
-  }
-
-  getThumbnail(index) {
-    return this._thumbnails[index];
-  }
-
-  #getVisibleThumbs() {
-    return getVisibleElements({
-      scrollEl: this.scrollableContainer,
-      views: this._thumbnails,
+    this.eventBus.dispatch("pagesedited", {
+      source: this,
+      pagesMapper: this.#pagesMapper,
+      type: "cleanSavedData",
     });
   }
 
-  #resetCurrentThumbnail(newPageNumber) {
-    if (!this.pdfDocument) {
-      return;
+;
+
+;
+
+  // needed), or [index, space] where space is the gap (in px) between
+
+;
+
+  #copyPages(clearSelection = true) {
+    this.#updateStatus(this.#isCut ? "cut" : "copy");
+    const pageNumbersToCopy = (this.#copiedPageNumbers = Uint32Array.from(
+      this.#selectedPages
+    ).sort((a, b) => a - b));
+    const pagesMapper = this.#pagesMapper;
+    pagesMapper.copyPages(pageNumbersToCopy);
+    this.#copiedThumbnails = new Map();
+    for (const pageNumber of pageNumbersToCopy) {
+      this.#copiedThumbnails.set(pageNumber, this._thumbnails[pageNumber - 1]);
     }
-    const thumbnailView = this._thumbnails[this._currentPageNumber - 1];
-    thumbnailView?.toggleCurrent(/* isCurrent = */ false);
-    this._currentPageNumber = newPageNumber;
+    this.eventBus.dispatch("pagesedited", {
+      source: this,
+      pagesMapper,
+      pageNumbers: pageNumbersToCopy,
+      type: "copy",
+    });
+    if (clearSelection) {
+      this.#clearSelection();
+    }
+    this.#togglePasteMode(true);
+    this.#toggleMenuEntries(false);
   }
 
-  scrollThumbnailIntoView(pageNumber) {
-    if (!this.pdfDocument) {
-      return;
-    }
-    const thumbnailView = this._thumbnails[pageNumber - 1];
+;
 
-    if (!thumbnailView) {
-      console.error('scrollThumbnailIntoView: Invalid "pageNumber" parameter.');
-      return;
-    }
-    if (pageNumber !== this._currentPageNumber) {
-      this.#resetCurrentThumbnail(pageNumber);
-      thumbnailView.toggleCurrent(/* isCurrent = */ true);
-    }
-    const { first, last, views } = this.#getVisibleThumbs();
+;
 
-    // If the thumbnail isn't currently visible, scroll it into view.
-    if (views.length > 0) {
-      let shouldScroll = false;
-      if (pageNumber <= first.id || pageNumber >= last.id) {
-        shouldScroll = true;
-      } else {
-        for (const { id, percent } of views) {
-          if (id !== pageNumber) {
-            continue;
-          }
-          shouldScroll = percent < 100;
-          break;
-        }
-      }
-      if (shouldScroll) {
-        thumbnailView.div.scrollIntoView(SCROLL_OPTIONS);
-      }
-    }
+;
 
-    this._currentPageNumber = pageNumber;
+  //
+
+  #goToPage(e) {
+    const { target } = e;
+    if (target.classList.contains("thumbnailImageContainer")) {
+      const pageNumber = parseInt(
+        target.parentElement.getAttribute("page-number"),
+        10
+      );
+      this.linkService.goToPage(pageNumber);
+      stopEvent(e);
+    }
+  }
+
+;
+
+  #selectPage(pageNumber, checked) {
+    const set = (this.#selectedPages ??= new Set());
+    if (checked) {
+      set.add(pageNumber);
+    } else {
+      set.delete(pageNumber);
+    }
+    this.#updateMenuEntries();
+    this.#updateStatus("select");
+  }
+
+;
+
+  #focusThumbnailElement(thumbnail, focusCheckbox) {
+    if (focusCheckbox && thumbnail.checkbox) {
+      thumbnail.checkbox.focus();
+    } else {
+      thumbnail.imageContainer.focus();
+    }
   }
 
   get pagesRotation() {
@@ -357,78 +201,140 @@ class PDFThumbnailViewer {
     }
   }
 
-  cleanup() {
-    for (const thumbnail of this._thumbnails) {
-      if (thumbnail.renderingState !== RenderingStates.FINISHED) {
-        thumbnail.reset();
-      }
-    }
-  }
+;
 
-  #resetView() {
-    this._thumbnails = [];
-    this._currentPageNumber = 1;
-    this._pageLabels = null;
-    this._pagesRotation = 0;
+  #lastDraggedOverIndex = NaN
 
-    // Remove the thumbnails from the DOM.
-    this.container.textContent = "";
-  }
+;
+
+  // each row. positionsLastX holds the x-centers for an incomplete last row
 
   /**
-   * @param {PDFDocumentProxy} pdfDocument
+   * @param {Array|null} labels
    */
-  setDocument(pdfDocument) {
-    if (this.pdfDocument) {
-      this.#cancelRendering();
-      this.#resetView();
-    }
 
-    this.pdfDocument = pdfDocument;
-    if (!pdfDocument) {
-      return;
-    }
-    this.#pagesMapper = pdfDocument.pagesMapper;
-    const firstPagePromise = pdfDocument.getPage(1);
-    const optionalContentConfigPromise = pdfDocument.getOptionalContentConfig({
-      intent: "display",
-    });
+;
 
-    firstPagePromise
-      .then(firstPdfPage => {
-        const pagesCount = pdfDocument.numPages;
-        const viewport = firstPdfPage.getViewport({ scale: 1 });
-        const fragment = document.createDocumentFragment();
+;
 
-        for (let pageNum = 1; pageNum <= pagesCount; ++pageNum) {
-          const thumbnail = new PDFThumbnailView({
-            container: fragment,
-            eventBus: this.eventBus,
-            id: pageNum,
-            defaultViewport: viewport.clone(),
-            optionalContentConfigPromise,
-            linkService: this.linkService,
-            renderingQueue: this.renderingQueue,
-            maxCanvasPixels: this.maxCanvasPixels,
-            maxCanvasDim: this.maxCanvasDim,
-            pageColors: this.pageColors,
-            enableSplitMerge: this.#enableSplitMerge,
-          });
-          this._thumbnails.push(thumbnail);
+  /**
+   * Go to the next/previous menu item.
+   * @param {HTMLElement} element
+   * @param {boolean} forward
+   * @param {boolean} horizontal
+   * @param {boolean} navigateCheckboxes - If true, focus checkboxes;
+   *   otherwise focus images
+   */
+
+  #manageSaveAsButton = null
+
+  // each row. positionsLastX holds the x-centers for an incomplete last row
+
+  #undoCloseButton = null
+
+;
+
+  #isInPasteMode = false
+
+  #computeThumbnailsPosition() {
+    // Collect the center of each thumbnail.
+    // This is used to determine the closest thumbnail when dragging.
+    // TODO: handle the RTL case.
+    const positionsX = [];
+    const positionsY = [];
+    const positionsLastX = [];
+    const bbox = new Float32Array(this._thumbnails.length * 4);
+    let prevX = -Infinity;
+    let prevY = -Infinity;
+    let reminder = -1;
+    let firstRightX;
+    let lastRightX;
+    let firstBottomY;
+    for (let i = 0, ii = this._thumbnails.length; i < ii; i++) {
+      const { div } = this._thumbnails[i];
+      const {
+        offsetTop: y,
+        offsetLeft: x,
+        offsetWidth: w,
+        offsetHeight: h,
+      } = div;
+      if (w === 0) {
+        // The thumbnail view isn't visible.
+        return;
+      }
+      bbox[i * 4] = x;
+      bbox[i * 4 + 1] = y;
+      bbox[i * 4 + 2] = w;
+      bbox[i * 4 + 3] = h;
+      if (x > prevX) {
+        prevX = x + w / 2;
+        firstRightX ??= prevX + w;
+        positionsX.push(prevX);
+      }
+      if (y > prevY) {
+        if (reminder === -1 && positionsX.length > 1) {
+          reminder = ii % positionsX.length;
         }
-        // Set the first `pdfPage` immediately, since it's already loaded,
-        // rather than having to repeat the `PDFDocumentProxy.getPage` call in
-        // the `this.#ensurePdfPageLoaded` method before rendering can start.
-        this._thumbnails[0]?.setPdfPage(firstPdfPage);
+        prevY = y + h / 2;
+        firstBottomY ??= prevY + h;
+        positionsY.push(prevY);
+      }
+      if (reminder > 0 && i >= ii - reminder) {
+        const cx = x + w / 2;
+        positionsLastX.push(cx);
+        lastRightX ??= cx + w;
+      }
+    }
+    const space =
+      positionsX.length > 1
+        ? (positionsX[1] - firstRightX) / 2
+        : (positionsY[1] - firstBottomY) / 2;
+    this.#thumbnailsPositions = {
+      x: positionsX,
+      y: positionsY,
+      lastX: positionsLastX,
+      space,
+      lastSpace: (positionsLastX.at(-1) - lastRightX) / 2,
+      bbox,
+    };
+    this.#isOneColumnView = positionsX.length === 1;
+    ({
+      clientWidth: this.#scrollableContainerWidth,
+      scrollHeight: this.#scrollableContainerHeight,
+    } = this.scrollableContainer);
+  }
 
-        // Ensure that the current thumbnail is always highlighted on load.
-        const thumbnailView = this._thumbnails[this._currentPageNumber - 1];
-        thumbnailView.toggleCurrent(/* isCurrent = */ true);
-        this.container.append(fragment);
-      })
-      .catch(reason => {
-        console.error("Unable to initialize thumbnail viewer", reason);
+  #toggleMenuEntries(enable) {
+    this.#manageSaveAsButton.disabled =
+      this.#manageDeleteButton.disabled =
+      this.#manageCopyButton.disabled =
+      this.#manageCutButton.disabled =
+        !enable;
+  }
+
+;
+
+;
+
+  hasStructuralChanges() {
+    return this.#pagesMapper?.hasBeenAltered() || false;
+  }
+
+  #draggedImageY = 0
+
+;
+
+  #dispatchUpdateStates(details) {
+    const hasChanged = Object.entries(details).some(
+      ([key, value]) => this.#previousStates[key] !== value
+    );
+
+    if (hasChanged) {
+      this.eventBus.dispatch("editingstateschanged", {
+        source: this,
+        details: Object.assign(this.#previousStates, details),
       });
+    }
   }
 
   #cancelRendering() {
@@ -437,179 +343,7 @@ class PDFThumbnailViewer {
     }
   }
 
-  /**
-   * @param {Array|null} labels
-   */
-  setPageLabels(labels) {
-    if (!this.pdfDocument) {
-      return;
-    }
-    if (!labels) {
-      this._pageLabels = null;
-    } else if (
-      !(Array.isArray(labels) && this.pdfDocument.numPages === labels.length)
-    ) {
-      this._pageLabels = null;
-      console.error("PDFThumbnailViewer_setPageLabels: Invalid page labels.");
-    } else {
-      this._pageLabels = labels;
-    }
-    // Update all the `PDFThumbnailView` instances.
-    for (let i = 0, ii = this._thumbnails.length; i < ii; i++) {
-      this._thumbnails[i].setPageLabel(this._pageLabels?.[i] ?? null);
-    }
-  }
-
-  /**
-   * @param {PDFThumbnailView} thumbView
-   * @returns {Promise<PDFPageProxy | null>}
-   */
-  async #ensurePdfPageLoaded(thumbView) {
-    if (thumbView.pdfPage) {
-      return thumbView.pdfPage;
-    }
-    try {
-      const pdfPage = await this.pdfDocument.getPage(thumbView.id);
-      if (!thumbView.pdfPage) {
-        thumbView.setPdfPage(pdfPage);
-      }
-      return pdfPage;
-    } catch (reason) {
-      console.error("Unable to get page for thumb view", reason);
-      return null; // Page error -- there is nothing that can be done.
-    }
-  }
-
-  #getScrollAhead(visible) {
-    if (visible.first?.id === 1) {
-      return true;
-    } else if (visible.last?.id === this._thumbnails.length) {
-      return false;
-    }
-    return this.scroll.down;
-  }
-
-  forceRendering() {
-    const visibleThumbs = this.#getVisibleThumbs();
-    const scrollAhead = this.#getScrollAhead(visibleThumbs);
-    const thumbView = this.renderingQueue.getHighestPriority(
-      visibleThumbs,
-      this._thumbnails,
-      scrollAhead,
-      /* preRenderExtra */ false,
-      /* ignoreDetailViews */ true
-    );
-    if (thumbView) {
-      this.#ensurePdfPageLoaded(thumbView).then(() => {
-        this.renderingQueue.renderView(thumbView);
-      });
-      return true;
-    }
-    return false;
-  }
-
-  hasStructuralChanges() {
-    return this.#pagesMapper?.hasBeenAltered() || false;
-  }
-
-  getStructuralChanges() {
-    return this.#pagesMapper?.getPageMappingForSaving() || null;
-  }
-
-  static #getScaleFactor(image) {
-    return (PDFThumbnailViewer.#draggingScaleFactor ||= parseFloat(
-      getComputedStyle(image).getPropertyValue("--thumbnail-dragging-scale")
-    ));
-  }
-
-  #updateThumbnails(currentPageNumber) {
-    this.#resetCurrentThumbnail(0);
-    let newCurrentPageNumber = 0;
-    const pagesMapper = this.#pagesMapper;
-    const prevThumbnails = (this.#savedThumbnails = this._thumbnails);
-    const newThumbnails = (this._thumbnails = []);
-    const fragment = document.createDocumentFragment();
-    const isCut = this.#isCut;
-    for (let i = 1, ii = pagesMapper.pagesNumber; i <= ii; i++) {
-      const prevPageNumber = pagesMapper.getPrevPageNumber(i);
-      if (prevPageNumber < 0) {
-        let thumbnail = this.#copiedThumbnails.get(-prevPageNumber);
-        thumbnail.checkbox.checked = false;
-        if (isCut) {
-          thumbnail.updateId(i);
-          fragment.append(thumbnail.div);
-        } else {
-          thumbnail = thumbnail.clone(fragment, i);
-        }
-        newThumbnails.push(thumbnail);
-        continue;
-      }
-      if (prevPageNumber === currentPageNumber) {
-        newCurrentPageNumber = i;
-      }
-      const newThumbnail = prevThumbnails[prevPageNumber - 1];
-      newThumbnails.push(newThumbnail);
-      newThumbnail.updateId(i);
-      newThumbnail.checkbox.checked = false;
-      fragment.append(newThumbnail.div);
-    }
-    this.container.replaceChildren(fragment);
-    return newCurrentPageNumber;
-  }
-
-  #onStartDragging(draggedThumbnail) {
-    this.#currentScrollTop = this.scrollableContainer.scrollTop;
-    this.#currentScrollBottom =
-      this.#currentScrollTop + this.scrollableContainer.clientHeight;
-    this.#dragAC = new AbortController();
-    this.container.classList.add("isDragging");
-    const startPageNumber = parseInt(
-      draggedThumbnail.getAttribute("page-number"),
-      10
-    );
-    this.#lastDraggedOverIndex = startPageNumber - 1;
-    if (!this.#selectedPages?.has(startPageNumber)) {
-      this.#pageNumberToRemove = startPageNumber;
-      this.#selectPage(startPageNumber, true);
-    }
-
-    for (const selected of this.#selectedPages) {
-      const thumbnail = this._thumbnails[selected - 1];
-      const placeholder = (thumbnail.placeholder =
-        document.createElement("div"));
-      placeholder.classList.add("thumbnailImageContainer", "placeholder");
-      const { div, imageContainer } = thumbnail;
-      div.classList.add("isDragging");
-      placeholder.style.height = getComputedStyle(imageContainer).height;
-      imageContainer.after(placeholder);
-      if (selected !== startPageNumber) {
-        imageContainer.classList.add("hidden");
-        continue;
-      }
-      if (this.#selectedPages.size === 1) {
-        imageContainer.classList.add("draggingThumbnail");
-        this.#draggedContainer = imageContainer;
-        continue;
-      }
-      // For multiple selected thumbnails, only the one being dragged is shown
-      // (with the dragging style), while the others are hidden.
-      const draggedContainer = (this.#draggedContainer =
-        document.createElement("div"));
-      draggedContainer.classList.add(
-        "draggingThumbnail",
-        "thumbnailImageContainer",
-        "multiple"
-      );
-      draggedContainer.style.height = getComputedStyle(imageContainer).height;
-      imageContainer.replaceWith(draggedContainer);
-      imageContainer.classList.remove("thumbnailImageContainer");
-      draggedContainer.append(imageContainer);
-      draggedContainer.setAttribute(
-        "data-multiple-count",
-        this.#selectedPages.size
-      );
-    }
-  }
+;
 
   #onStopDragging(isDropping = false) {
     const draggedContainer = this.#draggedContainer;
@@ -683,215 +417,28 @@ class PDFThumbnailViewer {
     }
   }
 
-  #clearSelection() {
-    for (const pageNumber of this.#selectedPages) {
-      this._thumbnails[pageNumber - 1].toggleSelected(false);
-    }
-    this.#selectedPages.clear();
-  }
+;
 
-  #updateCurrentPage(currentPageNumber) {
-    setTimeout(() => {
-      this.forceRendering();
-      const newPageNumber = currentPageNumber || 1;
-      this.linkService.goToPage(newPageNumber);
-      const thumbnailView = this._thumbnails[newPageNumber - 1];
-      thumbnailView.imageContainer.focus();
-    }, 0);
-  }
-
-  #undo() {
-    if (this.#copiedThumbnails) {
-      // We undo a copy or a cut.
-      this.#copiedThumbnails = null;
-      this.#pagesMapper.cancelCopy();
-      this.#clearSelection();
-      this.#toggleMenuEntries(false);
-      this.#updateStatus("select");
-      this.#togglePasteMode(false);
-
-      this.eventBus.dispatch("pagesedited", {
-        source: this,
-        pagesMapper: this.#pagesMapper,
-        type: "cancelCopy",
+  forceRendering() {
+    const visibleThumbs = this.#getVisibleThumbs();
+    const scrollAhead = this.#getScrollAhead(visibleThumbs);
+    const thumbView = this.renderingQueue.getHighestPriority(
+      visibleThumbs,
+      this._thumbnails,
+      scrollAhead,
+      /* preRenderExtra */ false,
+      /* ignoreDetailViews */ true
+    );
+    if (thumbView) {
+      this.#ensurePdfPageLoaded(thumbView).then(() => {
+        this.renderingQueue.renderView(thumbView);
       });
+      return true;
     }
-
-    this.#isCut = false;
-    if (this.#savedThumbnails) {
-      const fragment = document.createDocumentFragment();
-      for (let i = 1, ii = this.#savedThumbnails.length; i <= ii; i++) {
-        const thumbnail = this.#savedThumbnails[i - 1];
-        thumbnail.updateId(i);
-        thumbnail.checkbox.checked = false;
-        fragment.append(thumbnail.div);
-      }
-      this.container.replaceChildren(fragment);
-      this._thumbnails = this.#savedThumbnails;
-      this.#savedThumbnails = null;
-      this.#pagesMapper.cancelDelete();
-
-      this.eventBus.dispatch("pagesedited", {
-        source: this,
-        pagesMapper: this.#pagesMapper,
-        type: "cancelDelete",
-      });
-    }
+    return false;
   }
 
-  #dismissUndo() {
-    this.#copiedThumbnails = null;
-    if (this.#deletedPageNumbers) {
-      for (const pageNumber of this.#deletedPageNumbers) {
-        this.#savedThumbnails[pageNumber - 1].destroy();
-      }
-      this.#deletedPageNumbers = null;
-      this.#savedThumbnails = null;
-    }
-    this.#isCut = false;
-    this.#updateStatus("select");
-    this.#togglePasteMode(false);
-    this.#pagesMapper.cleanSavedData();
-
-    this.eventBus.dispatch("pagesedited", {
-      source: this,
-      pagesMapper: this.#pagesMapper,
-      type: "cleanSavedData",
-    });
-  }
-
-  #canDelete() {
-    const size = this.#selectedPages?.size || 0;
-    return size > 0 && size < this._thumbnails.length;
-  }
-
-  #togglePasteMode(enable) {
-    this.#isInPasteMode = enable;
-    if (enable) {
-      this.container.classList.add("pasteMode");
-      for (const thumbnail of this._thumbnails) {
-        thumbnail.addPasteButton(this.#boundPastePages);
-      }
-    } else {
-      this.container.classList.remove("pasteMode");
-      for (const thumbnail of this._thumbnails) {
-        thumbnail.removePasteButton();
-      }
-    }
-  }
-
-  #saveExtractedPages() {
-    this.eventBus.dispatch("saveextractedpages", {
-      source: this,
-      data: this.#pagesMapper.extractPages(this.#selectedPages),
-    });
-    this.#clearSelection();
-    this.#toggleMenuEntries(false);
-  }
-
-  #copyPages(clearSelection = true) {
-    this.#updateStatus(this.#isCut ? "cut" : "copy");
-    const pageNumbersToCopy = (this.#copiedPageNumbers = Uint32Array.from(
-      this.#selectedPages
-    ).sort((a, b) => a - b));
-    const pagesMapper = this.#pagesMapper;
-    pagesMapper.copyPages(pageNumbersToCopy);
-    this.#copiedThumbnails = new Map();
-    for (const pageNumber of pageNumbersToCopy) {
-      this.#copiedThumbnails.set(pageNumber, this._thumbnails[pageNumber - 1]);
-    }
-    this.eventBus.dispatch("pagesedited", {
-      source: this,
-      pagesMapper,
-      pageNumbers: pageNumbersToCopy,
-      type: "copy",
-    });
-    if (clearSelection) {
-      this.#clearSelection();
-    }
-    this.#togglePasteMode(true);
-    this.#toggleMenuEntries(false);
-  }
-
-  #cutPages() {
-    if (!this.#canDelete()) {
-      return;
-    }
-
-    this.#isCut = true;
-    this.#copyPages(false);
-    this.#deletePages(/* type = */ "cut");
-  }
-
-  #pastePages(index) {
-    const pagesMapper = this.#pagesMapper;
-    const currentPageNumber = this.#copiedPageNumbers.includes(
-      this._currentPageNumber
-    )
-      ? 0
-      : this._currentPageNumber;
-
-    pagesMapper.pastePages(index);
-    this.#updateCurrentPage(this.#updateThumbnails(currentPageNumber));
-
-    this.eventBus.dispatch("pagesedited", {
-      source: this,
-      pagesMapper,
-      hasBeenCut: this.#isCut,
-      type: "paste",
-    });
-
-    this.#copiedThumbnails = null;
-    this.#isCut = false;
-    this.#togglePasteMode(false);
-    this.#toggleMenuEntries(false);
-    this.#updateStatus("select");
-  }
-
-  #deletePages(type = "delete") {
-    if (!this.#canDelete()) {
-      return;
-    }
-
-    const selectedPages = this.#selectedPages;
-    if (type === "delete") {
-      this.#updateStatus("delete");
-    }
-    const pagesMapper = this.#pagesMapper;
-    const currentPageNumber = selectedPages.has(this._currentPageNumber)
-      ? 0
-      : this._currentPageNumber;
-    const pagesToDelete = (this.#deletedPageNumbers = Uint32Array.from(
-      selectedPages
-    ).sort((a, b) => a - b));
-
-    pagesMapper.deletePages(pagesToDelete);
-    this.#updateCurrentPage(this.#updateThumbnails(currentPageNumber));
-    selectedPages.clear();
-    this.#updateMenuEntries();
-
-    this.eventBus.dispatch("pagesedited", {
-      source: this,
-      pagesMapper,
-      pageNumbers: pagesToDelete,
-      type,
-    });
-  }
-
-  #updateMenuEntries() {
-    const size = this.#selectedPages?.size || 0;
-    this.#manageSaveAsButton.disabled = this.#manageCopyButton.disabled = !size;
-    this.#manageDeleteButton.disabled = this.#manageCutButton.disabled =
-      !this.#canDelete();
-  }
-
-  #toggleMenuEntries(enable) {
-    this.#manageSaveAsButton.disabled =
-      this.#manageDeleteButton.disabled =
-      this.#manageCopyButton.disabled =
-      this.#manageCutButton.disabled =
-        !enable;
-  }
+;
 
   #updateStatus(type) {
     if (!this.#statusBar || !this.#undoBar) {
@@ -950,6 +497,272 @@ class PDFThumbnailViewer {
     this.#statusBar.classList.toggle("hidden", true);
     this.#undoBar.classList.toggle("hidden", false);
   }
+
+;
+
+  setDocument(pdfDocument) {
+    if (this.pdfDocument) {
+      this.#cancelRendering();
+      this.#resetView();
+    }
+
+    this.pdfDocument = pdfDocument;
+    if (!pdfDocument) {
+      return;
+    }
+    this.#pagesMapper = pdfDocument.pagesMapper;
+    const firstPagePromise = pdfDocument.getPage(1);
+    const optionalContentConfigPromise = pdfDocument.getOptionalContentConfig({
+      intent: "display",
+    });
+
+    firstPagePromise
+      .then(firstPdfPage => {
+        const pagesCount = pdfDocument.numPages;
+        const viewport = firstPdfPage.getViewport({ scale: 1 });
+        const fragment = document.createDocumentFragment();
+
+        for (let pageNum = 1; pageNum <= pagesCount; ++pageNum) {
+          const thumbnail = new PDFThumbnailView({
+            container: fragment,
+            eventBus: this.eventBus,
+            id: pageNum,
+            defaultViewport: viewport.clone(),
+            optionalContentConfigPromise,
+            linkService: this.linkService,
+            renderingQueue: this.renderingQueue,
+            maxCanvasPixels: this.maxCanvasPixels,
+            maxCanvasDim: this.maxCanvasDim,
+            pageColors: this.pageColors,
+            enableSplitMerge: this.#enableSplitMerge,
+          });
+          this._thumbnails.push(thumbnail);
+        }
+        // Set the first `pdfPage` immediately, since it's already loaded,
+        // rather than having to repeat the `PDFDocumentProxy.getPage` call in
+        // the `this.#ensurePdfPageLoaded` method before rendering can start.
+        this._thumbnails[0]?.setPdfPage(firstPdfPage);
+
+        // Ensure that the current thumbnail is always highlighted on load.
+        const thumbnailView = this._thumbnails[this._currentPageNumber - 1];
+        thumbnailView.toggleCurrent(/* isCurrent = */ true);
+        this.container.append(fragment);
+      })
+      .catch(reason => {
+        console.error("Unable to initialize thumbnail viewer", reason);
+      });
+  }
+
+;
+
+  #draggedImageX = 0
+
+  #enableSplitMerge = false
+
+  #draggedImageOffsetY = 0
+
+  #onStartDragging(draggedThumbnail) {
+    this.#currentScrollTop = this.scrollableContainer.scrollTop;
+    this.#currentScrollBottom =
+      this.#currentScrollTop + this.scrollableContainer.clientHeight;
+    this.#dragAC = new AbortController();
+    this.container.classList.add("isDragging");
+    const startPageNumber = parseInt(
+      draggedThumbnail.getAttribute("page-number"),
+      10
+    );
+    this.#lastDraggedOverIndex = startPageNumber - 1;
+    if (!this.#selectedPages?.has(startPageNumber)) {
+      this.#pageNumberToRemove = startPageNumber;
+      this.#selectPage(startPageNumber, true);
+    }
+
+    for (const selected of this.#selectedPages) {
+      const thumbnail = this._thumbnails[selected - 1];
+      const placeholder = (thumbnail.placeholder =
+        document.createElement("div"));
+      placeholder.classList.add("thumbnailImageContainer", "placeholder");
+      const { div, imageContainer } = thumbnail;
+      div.classList.add("isDragging");
+      placeholder.style.height = getComputedStyle(imageContainer).height;
+      imageContainer.after(placeholder);
+      if (selected !== startPageNumber) {
+        imageContainer.classList.add("hidden");
+        continue;
+      }
+      if (this.#selectedPages.size === 1) {
+        imageContainer.classList.add("draggingThumbnail");
+        this.#draggedContainer = imageContainer;
+        continue;
+      }
+      // For multiple selected thumbnails, only the one being dragged is shown
+      // (with the dragging style), while the others are hidden.
+      const draggedContainer = (this.#draggedContainer =
+        document.createElement("div"));
+      draggedContainer.classList.add(
+        "draggingThumbnail",
+        "thumbnailImageContainer",
+        "multiple"
+      );
+      draggedContainer.style.height = getComputedStyle(imageContainer).height;
+      imageContainer.replaceWith(draggedContainer);
+      imageContainer.classList.remove("thumbnailImageContainer");
+      draggedContainer.append(imageContainer);
+      draggedContainer.setAttribute(
+        "data-multiple-count",
+        this.#selectedPages.size
+      );
+    }
+  }
+
+;
+
+  // will be placed after thumbnail[index], or before all thumbnails if index
+
+;
+
+;
+
+  #undo() {
+    if (this.#copiedThumbnails) {
+      // We undo a copy or a cut.
+      this.#copiedThumbnails = null;
+      this.#pagesMapper.cancelCopy();
+      this.#clearSelection();
+      this.#toggleMenuEntries(false);
+      this.#updateStatus("select");
+      this.#togglePasteMode(false);
+
+      this.eventBus.dispatch("pagesedited", {
+        source: this,
+        pagesMapper: this.#pagesMapper,
+        type: "cancelCopy",
+      });
+    }
+
+    this.#isCut = false;
+    if (this.#savedThumbnails) {
+      const fragment = document.createDocumentFragment();
+      for (let i = 1, ii = this.#savedThumbnails.length; i <= ii; i++) {
+        const thumbnail = this.#savedThumbnails[i - 1];
+        thumbnail.updateId(i);
+        thumbnail.checkbox.checked = false;
+        fragment.append(thumbnail.div);
+      }
+      this.container.replaceChildren(fragment);
+      this._thumbnails = this.#savedThumbnails;
+      this.#savedThumbnails = null;
+      this.#pagesMapper.cancelDelete();
+
+      this.eventBus.dispatch("pagesedited", {
+        source: this,
+        pagesMapper: this.#pagesMapper,
+        type: "cancelDelete",
+      });
+    }
+  }
+
+  // Given the drag center (x, y), find the drop slot index: the drag marker
+
+  #goToNextItem(element, forward, horizontal, navigateCheckboxes = false) {
+    let currentPageNumber = parseInt(
+      element.parentElement.getAttribute("page-number"),
+      10
+    );
+    if (isNaN(currentPageNumber)) {
+      currentPageNumber = this._currentPageNumber;
+    }
+
+    const increment = forward ? 1 : -1;
+    let nextThumbnail;
+    if (horizontal) {
+      const nextPageNumber = MathClamp(
+        currentPageNumber + increment,
+        1,
+        this._thumbnails.length + 1
+      );
+      nextThumbnail = this._thumbnails[nextPageNumber - 1];
+    } else {
+      const currentThumbnail = this._thumbnails[currentPageNumber - 1];
+      const { x: currentX, y: currentY } =
+        currentThumbnail.div.getBoundingClientRect();
+      let firstWithDifferentY;
+      for (
+        let i = currentPageNumber - 1 + increment;
+        i >= 0 && i < this._thumbnails.length;
+        i += increment
+      ) {
+        const thumbnail = this._thumbnails[i];
+        const { x, y } = thumbnail.div.getBoundingClientRect();
+        if (!firstWithDifferentY && y !== currentY) {
+          firstWithDifferentY = thumbnail;
+        }
+        if (x === currentX) {
+          nextThumbnail = thumbnail;
+          break;
+        }
+      }
+      if (!nextThumbnail) {
+        nextThumbnail = firstWithDifferentY;
+      }
+    }
+    if (nextThumbnail) {
+      this.#focusThumbnailElement(nextThumbnail, navigateCheckboxes);
+    }
+  }
+
+  static #getScaleFactor(image) {
+    return (PDFThumbnailViewer.#draggingScaleFactor ||= parseFloat(
+      getComputedStyle(image).getPropertyValue("--thumbnail-dragging-scale")
+    ));
+  }
+
+  /**
+   * @param {PDFThumbnailViewerOptions} options
+   */
+
+  #resetView() {
+    this._thumbnails = [];
+    this._currentPageNumber = 1;
+    this._pageLabels = null;
+    this._pagesRotation = 0;
+
+    // Remove the thumbnails from the DOM.
+    this.container.textContent = "";
+  }
+
+  #saveExtractedPages() {
+    this.eventBus.dispatch("saveextractedpages", {
+      source: this,
+      data: this.#pagesMapper.extractPages(this.#selectedPages),
+    });
+    this.#clearSelection();
+    this.#toggleMenuEntries(false);
+  }
+
+  getThumbnail(index) {
+    return this._thumbnails[index];
+  }
+
+;
+
+;
+
+;
+
+  // is -1. Returns null when the drop slot hasn't changed (no marker update
+
+  // positionsX holds the x-center of each column, positionsY the y-center of
+
+;
+
+;
+
+;
+
+  #scrollableContainerWidth = 0
+
+;
 
   #moveDraggedContainer(dx, dy) {
     if (this.#isOneColumnView) {
@@ -1032,170 +845,21 @@ class PDFThumbnailViewer {
     dragMarkerStyle.height = height ? `${height}px` : "";
   }
 
-  #computeThumbnailsPosition() {
-    // Collect the center of each thumbnail.
-    // This is used to determine the closest thumbnail when dragging.
-    // TODO: handle the RTL case.
-    const positionsX = [];
-    const positionsY = [];
-    const positionsLastX = [];
-    const bbox = new Float32Array(this._thumbnails.length * 4);
-    let prevX = -Infinity;
-    let prevY = -Infinity;
-    let reminder = -1;
-    let firstRightX;
-    let lastRightX;
-    let firstBottomY;
-    for (let i = 0, ii = this._thumbnails.length; i < ii; i++) {
-      const { div } = this._thumbnails[i];
-      const {
-        offsetTop: y,
-        offsetLeft: x,
-        offsetWidth: w,
-        offsetHeight: h,
-      } = div;
-      if (w === 0) {
-        // The thumbnail view isn't visible.
-        return;
-      }
-      bbox[i * 4] = x;
-      bbox[i * 4 + 1] = y;
-      bbox[i * 4 + 2] = w;
-      bbox[i * 4 + 3] = h;
-      if (x > prevX) {
-        prevX = x + w / 2;
-        firstRightX ??= prevX + w;
-        positionsX.push(prevX);
-      }
-      if (y > prevY) {
-        if (reminder === -1 && positionsX.length > 1) {
-          reminder = ii % positionsX.length;
-        }
-        prevY = y + h / 2;
-        firstBottomY ??= prevY + h;
-        positionsY.push(prevY);
-      }
-      if (reminder > 0 && i >= ii - reminder) {
-        const cx = x + w / 2;
-        positionsLastX.push(cx);
-        lastRightX ??= cx + w;
-      }
-    }
-    const space =
-      positionsX.length > 1
-        ? (positionsX[1] - firstRightX) / 2
-        : (positionsY[1] - firstBottomY) / 2;
-    this.#thumbnailsPositions = {
-      x: positionsX,
-      y: positionsY,
-      lastX: positionsLastX,
-      space,
-      lastSpace: (positionsLastX.at(-1) - lastRightX) / 2,
-      bbox,
-    };
-    this.#isOneColumnView = positionsX.length === 1;
-    ({
-      clientWidth: this.#scrollableContainerWidth,
-      scrollHeight: this.#scrollableContainerHeight,
-    } = this.scrollableContainer);
-  }
+  #copiedPageNumbers = null
 
-  #addEventListeners() {
-    this.eventBus.on("resize", ({ source }) => {
-      if (source.thumbnailsView === this.container) {
-        this.#computeThumbnailsPosition();
-      }
-    });
-    this.container.addEventListener("keydown", e => {
-      const { target } = e;
-      const isCheckbox =
-        target instanceof HTMLInputElement && target.type === "checkbox";
+;
 
-      switch (e.key) {
-        case "ArrowLeft":
-          this.#goToNextItem(target, false, true, isCheckbox);
-          stopEvent(e);
-          break;
-        case "ArrowRight":
-          this.#goToNextItem(target, true, true, isCheckbox);
-          stopEvent(e);
-          break;
-        case "ArrowDown":
-          this.#goToNextItem(target, true, false, isCheckbox);
-          stopEvent(e);
-          break;
-        case "ArrowUp":
-          this.#goToNextItem(target, false, false, isCheckbox);
-          stopEvent(e);
-          break;
-        case "Home":
-          this.#focusThumbnailElement(this._thumbnails[0], isCheckbox);
-          stopEvent(e);
-          break;
-        case "End":
-          this.#focusThumbnailElement(this._thumbnails.at(-1), isCheckbox);
-          stopEvent(e);
-          break;
-        case "Enter":
-        case " ":
-          if (!isCheckbox) {
-            this.#goToPage(e);
-          }
-          // For checkboxes, let the default behavior handle toggling
-          break;
-        case "c":
-          if (
-            this.#enableSplitMerge &&
-            (e.ctrlKey || e.metaKey) &&
-            this.#selectedPages?.size
-          ) {
-            this.#copyPages();
-            stopEvent(e);
-          }
-          break;
-        case "x":
-          if (
-            this.#enableSplitMerge &&
-            (e.ctrlKey || e.metaKey) &&
-            this.#selectedPages?.size
-          ) {
-            this.#cutPages();
-            stopEvent(e);
-          }
-          break;
-        case "Delete":
-        case "Backspace":
-          if (this.#enableSplitMerge && this.#selectedPages?.size) {
-            this.#deletePages();
-            stopEvent(e);
-          }
-          break;
-      }
-    });
-    this.container.addEventListener("click", e => {
-      const { target } = e;
-      if (target instanceof HTMLInputElement) {
-        const pageNumber = parseInt(
-          target.parentElement.getAttribute("page-number"),
-          10
-        );
-        this.#selectPage(pageNumber, target.checked);
-        return;
-      }
-      this.#goToPage(e);
-    });
-    this.#addDragListeners();
-  }
+  // needed), or [index, space] where space is the gap (in px) between
 
-  #selectPage(pageNumber, checked) {
-    const set = (this.#selectedPages ??= new Set());
-    if (checked) {
-      set.add(pageNumber);
-    } else {
-      set.delete(pageNumber);
-    }
-    this.#updateMenuEntries();
-    this.#updateStatus("select");
+;
+
+;
+
+  #updateMenuEntries() {
+    const size = this.#selectedPages?.size || 0;
+    this.#manageSaveAsButton.disabled = this.#manageCopyButton.disabled = !size;
+    this.#manageDeleteButton.disabled = this.#manageCutButton.disabled =
+      !this.#canDelete();
   }
 
   #addDragListeners() {
@@ -1351,17 +1015,400 @@ class PDFThumbnailViewer {
     });
   }
 
-  #goToPage(e) {
-    const { target } = e;
-    if (target.classList.contains("thumbnailImageContainer")) {
-      const pageNumber = parseInt(
-        target.parentElement.getAttribute("page-number"),
-        10
-      );
-      this.linkService.goToPage(pageNumber);
-      stopEvent(e);
+  #cutPages() {
+    if (!this.#canDelete()) {
+      return;
+    }
+
+    this.#isCut = true;
+    this.#copyPages(false);
+    this.#deletePages(/* type = */ "cut");
+  }
+
+  #updateThumbnails(currentPageNumber) {
+    this.#resetCurrentThumbnail(0);
+    let newCurrentPageNumber = 0;
+    const pagesMapper = this.#pagesMapper;
+    const prevThumbnails = (this.#savedThumbnails = this._thumbnails);
+    const newThumbnails = (this._thumbnails = []);
+    const fragment = document.createDocumentFragment();
+    const isCut = this.#isCut;
+    for (let i = 1, ii = pagesMapper.pagesNumber; i <= ii; i++) {
+      const prevPageNumber = pagesMapper.getPrevPageNumber(i);
+      if (prevPageNumber < 0) {
+        let thumbnail = this.#copiedThumbnails.get(-prevPageNumber);
+        thumbnail.checkbox.checked = false;
+        if (isCut) {
+          thumbnail.updateId(i);
+          fragment.append(thumbnail.div);
+        } else {
+          thumbnail = thumbnail.clone(fragment, i);
+        }
+        newThumbnails.push(thumbnail);
+        continue;
+      }
+      if (prevPageNumber === currentPageNumber) {
+        newCurrentPageNumber = i;
+      }
+      const newThumbnail = prevThumbnails[prevPageNumber - 1];
+      newThumbnails.push(newThumbnail);
+      newThumbnail.updateId(i);
+      newThumbnail.checkbox.checked = false;
+      fragment.append(newThumbnail.div);
+    }
+    this.container.replaceChildren(fragment);
+    return newCurrentPageNumber;
+  }
+
+  #undoButton = null
+
+  #currentScrollBottom = 0
+
+;
+
+  #resetCurrentThumbnail(newPageNumber) {
+    if (!this.pdfDocument) {
+      return;
+    }
+    const thumbnailView = this._thumbnails[this._currentPageNumber - 1];
+    thumbnailView?.toggleCurrent(/* isCurrent = */ false);
+    this._currentPageNumber = newPageNumber;
+  }
+
+  #getScrollAhead(visible) {
+    if (visible.first?.id === 1) {
+      return true;
+    } else if (visible.last?.id === this._thumbnails.length) {
+      return false;
+    }
+    return this.scroll.down;
+  }
+
+  #scrollableContainerHeight = 0
+
+  #undoLabel = null
+
+  #draggedImageOffsetX = 0
+
+  #clearSelection() {
+    for (const pageNumber of this.#selectedPages) {
+      this._thumbnails[pageNumber - 1].toggleSelected(false);
+    }
+    this.#selectedPages.clear();
+  }
+
+  #pagesMapper = null
+
+  // positionsX holds the x-center of each column, positionsY the y-center of
+
+;
+
+;
+
+  #manageCopyButton = null
+
+  /**
+   * @param {PDFThumbnailView} thumbView
+   * @returns {Promise<PDFPageProxy | null>}
+   */
+
+;
+
+;
+
+  cleanup() {
+    for (const thumbnail of this._thumbnails) {
+      if (thumbnail.renderingState !== RenderingStates.FINISHED) {
+        thumbnail.reset();
+      }
     }
   }
+
+;
+
+  #savedThumbnails = null
+
+;
+
+;
+
+  #deletePages(type = "delete") {
+    if (!this.#canDelete()) {
+      return;
+    }
+
+    const selectedPages = this.#selectedPages;
+    if (type === "delete") {
+      this.#updateStatus("delete");
+    }
+    const pagesMapper = this.#pagesMapper;
+    const currentPageNumber = selectedPages.has(this._currentPageNumber)
+      ? 0
+      : this._currentPageNumber;
+    const pagesToDelete = (this.#deletedPageNumbers = Uint32Array.from(
+      selectedPages
+    ).sort((a, b) => a - b));
+
+    pagesMapper.deletePages(pagesToDelete);
+    this.#updateCurrentPage(this.#updateThumbnails(currentPageNumber));
+    selectedPages.clear();
+    this.#updateMenuEntries();
+
+    this.eventBus.dispatch("pagesedited", {
+      source: this,
+      pagesMapper,
+      pageNumbers: pagesToDelete,
+      type,
+    });
+  }
+
+  getStructuralChanges() {
+    return this.#pagesMapper?.getPageMappingForSaving() || null;
+  }
+
+  #selectedPages = null
+
+  #thumbnailsPositions = null
+
+  #canDelete() {
+    const size = this.#selectedPages?.size || 0;
+    return size > 0 && size < this._thumbnails.length;
+  }
+
+  #undoBar = null
+
+;
+
+  #manageDeleteButton = null
+
+  #manageCutButton = null
+
+  #pageNumberToRemove = NaN
+
+  #draggedImageWidth = 0
+
+  // count).
+
+;
+
+;
+
+  #statusBar = null
+
+;
+
+;
+
+  scrollThumbnailIntoView(pageNumber) {
+    if (!this.pdfDocument) {
+      return;
+    }
+    const thumbnailView = this._thumbnails[pageNumber - 1];
+
+    if (!thumbnailView) {
+      console.error('scrollThumbnailIntoView: Invalid "pageNumber" parameter.');
+      return;
+    }
+    if (pageNumber !== this._currentPageNumber) {
+      this.#resetCurrentThumbnail(pageNumber);
+      thumbnailView.toggleCurrent(/* isCurrent = */ true);
+    }
+    const { first, last, views } = this.#getVisibleThumbs();
+
+    // If the thumbnail isn't currently visible, scroll it into view.
+    if (views.length > 0) {
+      let shouldScroll = false;
+      if (pageNumber <= first.id || pageNumber >= last.id) {
+        shouldScroll = true;
+      } else {
+        for (const { id, percent } of views) {
+          if (id !== pageNumber) {
+            continue;
+          }
+          shouldScroll = percent < 100;
+          break;
+        }
+      }
+      if (shouldScroll) {
+        thumbnailView.div.scrollIntoView(SCROLL_OPTIONS);
+      }
+    }
+
+    this._currentPageNumber = pageNumber;
+  }
+
+  #scrollUpdated() {
+    this.renderingQueue.renderHighestPriority();
+  }
+
+  // thumbnails at that slot, used to position the marker.
+
+;
+
+  #togglePasteMode(enable) {
+    this.#isInPasteMode = enable;
+    if (enable) {
+      this.container.classList.add("pasteMode");
+      for (const thumbnail of this._thumbnails) {
+        thumbnail.addPasteButton(this.#boundPastePages);
+      }
+    } else {
+      this.container.classList.remove("pasteMode");
+      for (const thumbnail of this._thumbnails) {
+        thumbnail.removePasteButton();
+      }
+    }
+  }
+
+;
+
+  //
+
+;
+
+  #draggedImageHeight = 0
+
+  // Given the drag center (x, y), find the drop slot index: the drag marker
+
+  // is -1. Returns null when the drop slot hasn't changed (no marker update
+
+  // (when the total number of thumbnails is not a multiple of the column
+
+;
+
+;
+
+  // (when the total number of thumbnails is not a multiple of the column
+
+;
+
+;
+
+  #dragMarker = null
+
+  #isCut = false
+
+;
+
+;
+
+;
+
+  // thumbnails at that slot, used to position the marker.
+
+;
+
+  #updateCurrentPage(currentPageNumber) {
+    setTimeout(() => {
+      this.forceRendering();
+      const newPageNumber = currentPageNumber || 1;
+      this.linkService.goToPage(newPageNumber);
+      const thumbnailView = this._thumbnails[newPageNumber - 1];
+      thumbnailView.imageContainer.focus();
+    }, 0);
+  }
+
+  #getVisibleThumbs() {
+    return getVisibleElements({
+      scrollEl: this.scrollableContainer,
+      views: this._thumbnails,
+    });
+  }
+
+;
+
+  #addEventListeners() {
+    this.eventBus.on("resize", ({ source }) => {
+      if (source.thumbnailsView === this.container) {
+        this.#computeThumbnailsPosition();
+      }
+    });
+    this.container.addEventListener("keydown", e => {
+      const { target } = e;
+      const isCheckbox =
+        target instanceof HTMLInputElement && target.type === "checkbox";
+
+      switch (e.key) {
+        case "ArrowLeft":
+          this.#goToNextItem(target, false, true, isCheckbox);
+          stopEvent(e);
+          break;
+        case "ArrowRight":
+          this.#goToNextItem(target, true, true, isCheckbox);
+          stopEvent(e);
+          break;
+        case "ArrowDown":
+          this.#goToNextItem(target, true, false, isCheckbox);
+          stopEvent(e);
+          break;
+        case "ArrowUp":
+          this.#goToNextItem(target, false, false, isCheckbox);
+          stopEvent(e);
+          break;
+        case "Home":
+          this.#focusThumbnailElement(this._thumbnails[0], isCheckbox);
+          stopEvent(e);
+          break;
+        case "End":
+          this.#focusThumbnailElement(this._thumbnails.at(-1), isCheckbox);
+          stopEvent(e);
+          break;
+        case "Enter":
+        case " ":
+          if (!isCheckbox) {
+            this.#goToPage(e);
+          }
+          // For checkboxes, let the default behavior handle toggling
+          break;
+        case "c":
+          if (
+            this.#enableSplitMerge &&
+            (e.ctrlKey || e.metaKey) &&
+            this.#selectedPages?.size
+          ) {
+            this.#copyPages();
+            stopEvent(e);
+          }
+          break;
+        case "x":
+          if (
+            this.#enableSplitMerge &&
+            (e.ctrlKey || e.metaKey) &&
+            this.#selectedPages?.size
+          ) {
+            this.#cutPages();
+            stopEvent(e);
+          }
+          break;
+        case "Delete":
+        case "Backspace":
+          if (this.#enableSplitMerge && this.#selectedPages?.size) {
+            this.#deletePages();
+            stopEvent(e);
+          }
+          break;
+      }
+    });
+    this.container.addEventListener("click", e => {
+      const { target } = e;
+      if (target instanceof HTMLInputElement) {
+        const pageNumber = parseInt(
+          target.parentElement.getAttribute("page-number"),
+          10
+        );
+        this.#selectPage(pageNumber, target.checked);
+        return;
+      }
+      this.#goToPage(e);
+    });
+    this.#addDragListeners();
+  }
+
+  #currentScrollTop = 0
+
+;
+
+;
 
   /**
    * Focus either the checkbox or image of a thumbnail.
@@ -1369,79 +1416,234 @@ class PDFThumbnailViewer {
    * @param {boolean} focusCheckbox - If true, focus checkbox; otherwise focus
    *   image
    */
-  #focusThumbnailElement(thumbnail, focusCheckbox) {
-    if (focusCheckbox && thumbnail.checkbox) {
-      thumbnail.checkbox.focus();
+
+  constructor({
+    container,
+    eventBus,
+    linkService,
+    renderingQueue,
+    maxCanvasPixels,
+    maxCanvasDim,
+    pageColors,
+    abortSignal,
+    enableSplitMerge,
+    statusBar,
+    undoBar,
+    manageMenu,
+    addFileButton,
+  }) {
+    this.scrollableContainer = container.parentElement;
+    this.container = container;
+    this.eventBus = eventBus;
+    this.linkService = linkService;
+    this.renderingQueue = renderingQueue;
+    this.maxCanvasPixels = maxCanvasPixels;
+    this.maxCanvasDim = maxCanvasDim;
+    this.pageColors = pageColors || null;
+    this.#enableSplitMerge = enableSplitMerge || false;
+    this.#statusLabel = statusBar?.viewsManagerStatusActionLabel || null;
+    this.#statusBar = statusBar?.viewsManagerStatusAction || null;
+    this.#undoBar = undoBar?.viewsManagerStatusUndo || null;
+    this.#undoLabel = undoBar?.viewsManagerStatusUndoLabel || null;
+    this.#undoButton = undoBar?.viewsManagerStatusUndoButton || null;
+    this.#undoCloseButton = undoBar?.viewsManagerStatusUndoCloseButton || null;
+
+    // TODO: uncomment when the "add file" feature is implemented.
+    // this.#addFileButton = addFileButton;
+
+    if (this.#enableSplitMerge && manageMenu) {
+      const { button, menu, copy, cut, delete: del, saveAs } = manageMenu;
+      this.eventBus.on(
+        "pagesloaded",
+        () => {
+          button.disabled = false;
+        },
+        { once: true }
+      );
+
+      this._manageMenu = new Menu(menu, button, [copy, cut, del, saveAs]);
+      this.#manageSaveAsButton = saveAs;
+      saveAs.addEventListener("click", this.#saveExtractedPages.bind(this));
+      this.#manageDeleteButton = del;
+      del.addEventListener("click", this.#deletePages.bind(this, "delete"));
+      this.#manageCopyButton = copy;
+      copy.addEventListener("click", this.#copyPages.bind(this));
+      this.#manageCutButton = cut;
+      cut.addEventListener("click", this.#cutPages.bind(this));
+
+      this.#toggleMenuEntries(false);
+      button.disabled = true;
+
+      this.eventBus.on("editingaction", ({ name }) => {
+        switch (name) {
+          case "copyPage":
+            this.#copyPages();
+            break;
+          case "cutPage":
+            this.#cutPages();
+            break;
+          case "deletePage":
+            this.#deletePages("delete");
+            break;
+          case "savePage":
+            this.#saveExtractedPages();
+            break;
+        }
+      });
+
+      this.container.addEventListener(
+        "contextmenu",
+        e => {
+          this.eventBus.dispatch("editingstateschanged", {
+            source: this,
+            details: {
+              thumbnailId:
+                parseInt(
+                  e.target
+                    .closest(".thumbnailImageContainer")
+                    ?.parentElement.getAttribute("page-number")
+                ) ?? -1,
+              hasSelectedPages: !!this.#selectedPages?.size,
+              canDeletePages: this.#canDelete(),
+            },
+          });
+        },
+        {
+          signal: abortSignal,
+          passive: true,
+        }
+      );
+
+      this.#undoButton?.addEventListener("click", this.#undo.bind(this));
+      this.#undoCloseButton?.addEventListener(
+        "click",
+        this.#dismissUndo.bind(this)
+      );
     } else {
-      thumbnail.imageContainer.focus();
+      manageMenu.button.hidden = true;
+    }
+
+    this.scroll = watchScroll(
+      this.scrollableContainer,
+      this.#scrollUpdated.bind(this),
+      abortSignal
+    );
+    this.#resetView();
+    this.#addEventListeners();
+  }
+
+;
+
+;
+
+;
+
+;
+
+  async #ensurePdfPageLoaded(thumbView) {
+    if (thumbView.pdfPage) {
+      return thumbView.pdfPage;
+    }
+    try {
+      const pdfPage = await this.pdfDocument.getPage(thumbView.id);
+      if (!thumbView.pdfPage) {
+        thumbView.setPdfPage(pdfPage);
+      }
+      return pdfPage;
+    } catch (reason) {
+      console.error("Unable to get page for thumb view", reason);
+      return null; // Page error -- there is nothing that can be done.
     }
   }
+
+;
+
+;
+
+;
 
   /**
-   * Go to the next/previous menu item.
-   * @param {HTMLElement} element
-   * @param {boolean} forward
-   * @param {boolean} horizontal
-   * @param {boolean} navigateCheckboxes - If true, focus checkboxes;
-   *   otherwise focus images
+   * @param {PDFDocumentProxy} pdfDocument
    */
-  #goToNextItem(element, forward, horizontal, navigateCheckboxes = false) {
-    let currentPageNumber = parseInt(
-      element.parentElement.getAttribute("page-number"),
-      10
-    );
-    if (isNaN(currentPageNumber)) {
-      currentPageNumber = this._currentPageNumber;
-    }
 
-    const increment = forward ? 1 : -1;
-    let nextThumbnail;
-    if (horizontal) {
-      const nextPageNumber = MathClamp(
-        currentPageNumber + increment,
-        1,
-        this._thumbnails.length + 1
-      );
-      nextThumbnail = this._thumbnails[nextPageNumber - 1];
-    } else {
-      const currentThumbnail = this._thumbnails[currentPageNumber - 1];
-      const { x: currentX, y: currentY } =
-        currentThumbnail.div.getBoundingClientRect();
-      let firstWithDifferentY;
-      for (
-        let i = currentPageNumber - 1 + increment;
-        i >= 0 && i < this._thumbnails.length;
-        i += increment
-      ) {
-        const thumbnail = this._thumbnails[i];
-        const { x, y } = thumbnail.div.getBoundingClientRect();
-        if (!firstWithDifferentY && y !== currentY) {
-          firstWithDifferentY = thumbnail;
-        }
-        if (x === currentX) {
-          nextThumbnail = thumbnail;
-          break;
-        }
-      }
-      if (!nextThumbnail) {
-        nextThumbnail = firstWithDifferentY;
-      }
+  setPageLabels(labels) {
+    if (!this.pdfDocument) {
+      return;
     }
-    if (nextThumbnail) {
-      this.#focusThumbnailElement(nextThumbnail, navigateCheckboxes);
+    if (!labels) {
+      this._pageLabels = null;
+    } else if (
+      !(Array.isArray(labels) && this.pdfDocument.numPages === labels.length)
+    ) {
+      this._pageLabels = null;
+      console.error("PDFThumbnailViewer_setPageLabels: Invalid page labels.");
+    } else {
+      this._pageLabels = labels;
+    }
+    // Update all the `PDFThumbnailView` instances.
+    for (let i = 0, ii = this._thumbnails.length; i < ii; i++) {
+      this._thumbnails[i].setPageLabel(this._pageLabels?.[i] ?? null);
     }
   }
 
-  // Given the drag center (x, y), find the drop slot index: the drag marker
-  // will be placed after thumbnail[index], or before all thumbnails if index
-  // is -1. Returns null when the drop slot hasn't changed (no marker update
-  // needed), or [index, space] where space is the gap (in px) between
-  // thumbnails at that slot, used to position the marker.
-  //
-  // positionsX holds the x-center of each column, positionsY the y-center of
-  // each row. positionsLastX holds the x-centers for an incomplete last row
-  // (when the total number of thumbnails is not a multiple of the column
+  #pastePages(index) {
+    const pagesMapper = this.#pagesMapper;
+    const currentPageNumber = this.#copiedPageNumbers.includes(
+      this._currentPageNumber
+    )
+      ? 0
+      : this._currentPageNumber;
+
+    pagesMapper.pastePages(index);
+    this.#updateCurrentPage(this.#updateThumbnails(currentPageNumber));
+
+    this.eventBus.dispatch("pagesedited", {
+      source: this,
+      pagesMapper,
+      hasBeenCut: this.#isCut,
+      type: "paste",
+    });
+
+    this.#copiedThumbnails = null;
+    this.#isCut = false;
+    this.#togglePasteMode(false);
+    this.#toggleMenuEntries(false);
+    this.#updateStatus("select");
+  }
+
+;
+
   // count).
+
+;
+
+  #statusLabel = null
+
+  #deletedPageNumbers = null
+
+;
+
+;
+
+;
+
+;
+
+;
+
+  #copiedThumbnails = null
+
+;
+
+  #isOneColumnView = false
+
+  #boundPastePages = this.#pastePages.bind(this)
+
+  // will be placed after thumbnail[index], or before all thumbnails if index
+
+;
+
+  #draggedContainer = null
   #findClosestThumbnail(x, y) {
     if (!this.#thumbnailsPositions) {
       this.#computeThumbnailsPosition();
