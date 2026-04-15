@@ -2376,6 +2376,56 @@ mod test {
         ));
     }
 
+    #[apply(test_clarity_versions)]
+    fn vm_initialize_contract_already_exists(
+        #[case] version: ClarityVersion,
+        #[case] epoch: StacksEpochId,
+    ) {
+        // --- Setup VM ---
+        let mut marf = MemoryBackingStore::new();
+        let mut global_context = GlobalContext::new(
+            false,
+            CHAIN_ID_TESTNET,
+            marf.as_clarity_db(),
+            LimitedCostTracker::new_free(),
+            StacksEpochId::Epoch21, // any modern epoch
+        );
+
+        let mut call_stack = CallStack::new();
+
+        let contract_context =
+            ContractContext::new(QualifiedContractIdentifier::transient(), version);
+
+        let mut env = Environment::new(
+            &mut global_context,
+            &contract_context,
+            &mut call_stack,
+            None,
+            None,
+            None,
+        );
+
+        let contract_id = QualifiedContractIdentifier::local("dup").unwrap();
+
+        let contract_src = "(define-public (ping) (ok u1))";
+
+        let ast = ast::build_ast(&contract_id, contract_src, &mut env, version, epoch).unwrap();
+
+        // First initialization succeeds
+        env.initialize_contract_from_ast(contract_id.clone(), version, &ast, contract_src)
+            .unwrap();
+
+        // Second initialization hits ContractAlreadyExists
+        let err = env
+            .initialize_contract_from_ast(contract_id.clone(), version, &ast, contract_src)
+            .unwrap_err();
+
+        assert!(matches!(
+            err,
+            VmExecutionError::Unchecked(CheckErrorKind::ContractAlreadyExists(_))
+        ));
+    }
+
     #[test]
     fn eval_raw_empty_program() {
         // Setup environment
@@ -2434,56 +2484,6 @@ mod test {
                 RuntimeError::MaxContextDepthReached,
                 _
             ))
-        ));
-    }
-
-    #[apply(test_clarity_versions)]
-    fn vm_initialize_contract_already_exists(
-        #[case] version: ClarityVersion,
-        #[case] epoch: StacksEpochId,
-    ) {
-        // --- Setup VM ---
-        let mut marf = MemoryBackingStore::new();
-        let mut global_context = GlobalContext::new(
-            false,
-            CHAIN_ID_TESTNET,
-            marf.as_clarity_db(),
-            LimitedCostTracker::new_free(),
-            StacksEpochId::Epoch21, // any modern epoch
-        );
-
-        let mut call_stack = CallStack::new();
-
-        let contract_context =
-            ContractContext::new(QualifiedContractIdentifier::transient(), version);
-
-        let mut env = Environment::new(
-            &mut global_context,
-            &contract_context,
-            &mut call_stack,
-            None,
-            None,
-            None,
-        );
-
-        let contract_id = QualifiedContractIdentifier::local("dup").unwrap();
-
-        let contract_src = "(define-public (ping) (ok u1))";
-
-        let ast = ast::build_ast(&contract_id, contract_src, &mut env, version, epoch).unwrap();
-
-        // First initialization succeeds
-        env.initialize_contract_from_ast(contract_id.clone(), version, &ast, contract_src)
-            .unwrap();
-
-        // Second initialization hits ContractAlreadyExists
-        let err = env
-            .initialize_contract_from_ast(contract_id.clone(), version, &ast, contract_src)
-            .unwrap_err();
-
-        assert!(matches!(
-            err,
-            VmExecutionError::Unchecked(CheckErrorKind::ContractAlreadyExists(_))
         ));
     }
 }
