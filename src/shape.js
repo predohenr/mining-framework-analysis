@@ -1,3 +1,4 @@
+
 import { Events } from './events.js';
 import { Element } from './element.js';
 import { Matrix } from './matrix.js';
@@ -194,6 +195,7 @@ export class Shape extends Element {
    * @description Remove self from the scene / parent.
    */
   remove() {
+
     if (!this.parent) {
       return this;
     }
@@ -201,6 +203,7 @@ export class Shape extends Element {
     this.parent.remove(this);
 
     return this;
+
   }
 
   /**
@@ -251,6 +254,7 @@ export class Shape extends Element {
    * @description Create a new {@link Two.Shape} with the same values as the current shape.
    */
   clone(parent) {
+
     const clone = new Shape();
 
     clone.position.copy(this.position);
@@ -268,6 +272,7 @@ export class Shape extends Element {
     }
 
     return clone._update();
+
   }
 
   /**
@@ -299,18 +304,22 @@ export class Shape extends Element {
    * @nota-bene Try not to call this method more than once a frame.
    */
   _update(bubbles) {
+
     if (!this._matrix.manual && this._flagMatrix) {
-      this._matrix.identity().translate(this.position.x, this.position.y);
 
-      if (this._scale instanceof Vector) {
-        this._matrix.scale(this._scale.x, this._scale.y);
-      } else {
-        this._matrix.scale(this._scale);
-      }
+      this._matrix
+        .identity()
+        .translate(this.position.x, this.position.y);
 
-      this._matrix.rotate(this.rotation);
-      this._matrix.skewX(this.skewX);
-      this._matrix.skewY(this.skewY);
+        if (this._scale instanceof Vector) {
+          this._matrix.scale(this._scale.x, this._scale.y);
+        } else {
+          this._matrix.scale(this._scale);
+        }
+
+        this._matrix.rotate(this.rotation);
+        this._matrix.skewX(this.skewX);
+        this._matrix.skewY(this.skewY);
     }
 
     if (bubbles) {
@@ -320,6 +329,7 @@ export class Shape extends Element {
     }
 
     return this;
+
   }
 
   /**
@@ -329,11 +339,13 @@ export class Shape extends Element {
    * @description Called internally to reset all flags. Ensures that only properties that change are updated before being sent to the renderer.
    */
   flagReset() {
+
     this._flagMatrix = this._flagScale = false;
 
     super.flagReset.call(this);
 
     return this;
+
   }
 }
 
