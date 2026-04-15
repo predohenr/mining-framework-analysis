@@ -886,8 +886,7 @@
      * {@link OpenSeadragon.Options} for details.
      */
     OpenSeadragon.TileCache = class TileCache {
-        constructor( options ) {
-
+        constructor(options) {
             options = options || {};
 
             this._maxCacheItemCount = options.maxImageCacheCount || $.DEFAULT_SETTINGS.maxImageCacheCount;
