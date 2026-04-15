@@ -49,84 +49,247 @@ import { TouchManager } from "../touch_manager.js";
 class AnnotationEditor {
   #accessibilityData = null;
 
-  #allResizerDivs = null;
+;
 
-  #altText = null;
+  static _telemetryTimeout = 1000
 
-  #comment = null;
+;
 
-  #disabled = false;
+  #focusAC = null
 
-  #dragPointerId = null;
+;
 
-  #dragPointerType = "";
+;
 
-  #keepAspectRatio = false;
+;
 
-  #resizersDiv = null;
+;
 
-  #lastPointerCoords = null;
+  #isInEditMode = false
 
-  #savedDimensions = null;
+;
 
-  #focusAC = null;
+;
 
-  #focusedResizerName = "";
+;
 
-  #hasBeenClicked = false;
+;
 
-  #initialRect = null;
+;
 
-  #isEditing = false;
+;
 
-  #isInEditMode = false;
+;
 
-  #isResizerEnabledForKeyboard = false;
+  _focusEventsAllowed = true
 
-  #moveInDOMTimeout = null;
+  #keepAspectRatio = false
 
-  #prevDragX = 0;
+;
 
-  #prevDragY = 0;
+  _initialOptions = Object.create(null)
 
-  #telemetryTimeouts = null;
+;
 
-  #touchManager = null;
+;
 
-  isSelected = false;
+;
 
-  _isCopy = false;
+;
 
-  _editToolbar = null;
+;
 
-  _initialOptions = Object.create(null);
+;
 
-  _initialData = null;
+;
 
-  _isVisible = true;
+;
 
-  _uiManager = null;
+;
 
-  _focusEventsAllowed = true;
+;
 
-  static _l10n = null;
+;
 
-  static _l10nResizer = null;
+;
 
-  #isDraggable = false;
-
-  #zIndex = AnnotationEditor._zIndex++;
-
-  static _borderLineWidth = -1;
-
-  static _colorManager = new ColorManager();
-
-  static _zIndex = 1;
+;
 
   // Time to wait (in ms) before sending the telemetry data.
+
+;
+
+;
+
+;
+
+;
+
+  #prevDragX = 0
+
+;
+
+  #telemetryTimeouts = null
+
+;
+
+;
+
+  static _l10nResizer = null
+
+;
+
   // We wait a bit to avoid sending too many requests when changing something
+
+  #isDraggable = false
+
+  #savedDimensions = null
+
+;
+
+  #touchManager = null
+
+;
+
+;
+
+;
+
+  #lastPointerCoords = null
+
+;
+
+  isSelected = false
+
+;
+
+  #allResizerDivs = null
+
+;
+
+;
+
+;
+
+;
+
+  #initialRect = null
+
+;
+
+;
+
+  _initialData = null
+
+;
+
+;
+
+  static _colorManager = new ColorManager()
+
+;
+
+  #isEditing = false
+
+;
+
+;
+
+;
+
+;
+
+;
+
+  _isVisible = true
+
+;
+
+;
+
+  _editToolbar = null
+
+  #isResizerEnabledForKeyboard = false
+
   // like the thickness of a line.
-  static _telemetryTimeout = 1000;
+
+  #comment = null
+
+;
+
+;
+
+;
+
+  _uiManager = null
+
+;
+
+  #dragPointerId = null
+
+;
+
+  #focusedResizerName = ""
+
+  #resizersDiv = null
+
+  // We wait a bit to avoid sending too many requests when changing something
+
+  #prevDragY = 0
+
+;
+
+;
+
+  #zIndex = AnnotationEditor._zIndex++
+
+;
+
+;
+
+  #dragPointerType = ""
+
+;
+
+  _isCopy = false
+
+  static _zIndex = 1
+
+  static _l10n = null
+
+;
+
+  #altText = null
+
+;
+
+;
+
+  #hasBeenClicked = false
+
+;
+
+  static _borderLineWidth = -1
+
+  // Time to wait (in ms) before sending the telemetry data.
+
+  // like the thickness of a line.
+
+  #disabled = false
+
+;
+
+;
+
+;
+
+;
+
+;
+
+;
+
+  #moveInDOMTimeout = null
 
   static get _resizerKeyboardManager() {
     const resize = AnnotationEditor.prototype._resizeWithKeyboard;
@@ -1134,16 +1297,16 @@ class AnnotationEditor {
   get altTextData() {
     return this.#altText?.data;
   }
-
-  /**
-   * Set the alt text data.
-   */
   set altTextData(data) {
     if (!this.#altText) {
       return;
     }
     this.#altText.data = data;
   }
+
+  /**
+   * Set the alt text data.
+   */
 
   get guessedAltText() {
     return this.#altText?.guessedText;
@@ -2052,11 +2215,6 @@ class AnnotationEditor {
   get isEditing() {
     return this.#isEditing;
   }
-
-  /**
-   * When set to true, it means that this editor is currently edited.
-   * @param {boolean} value
-   */
   set isEditing(value) {
     this.#isEditing = value;
     if (!this.parent) {
@@ -2069,6 +2227,11 @@ class AnnotationEditor {
       this.parent.setActiveEditor(null);
     }
   }
+
+  /**
+   * When set to true, it means that this editor is currently edited.
+   * @param {boolean} value
+   */
 
   /**
    * Set the aspect ratio to use when resizing.
