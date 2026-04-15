@@ -434,58 +434,126 @@ fn static_check_error_could_not_determine_serialization_type() {
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::IllegalOrUnknownFunctionApplication`]
-/// Caused by: calling `map` with `if` (a non-function) as its function argument.
+/// CheckErrorKind: [`CheckErrorKind::ExpectedListApplication`]
+/// Caused by: calling append with lhs that is not a list.
 /// Outcome: block accepted.
 #[test]
-fn static_check_error_illegal_or_unknown_function_application() {
+fn static_check_error_expected_list_application() {
     contract_deploy_consensus_test!(
-        contract_name: "illegal-or-unknown",
-        contract_code: "(map if (list 1 2 3 4 5))",
+        contract_name: "expected-list-appl",
+        contract_code: "(append 2 3)",
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::UnknownFunction`]
-/// Caused by: invoking the undefined function `ynot`.
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::TraitTooManyMethods`]
+/// Caused by: a trait has too many methods.
 /// Outcome: block accepted.
 #[test]
-fn static_check_error_unknown_function() {
+fn static_check_error_trait_too_many_methods() {
     contract_deploy_consensus_test!(
-        contract_name: "unknown-function",
-        contract_code: "(ynot 1 2)",
+        contract_name: "too-many-methods",
+        contract_code: &format!(
+            "(define-trait trait-1 ({}))",
+            (0..(MAX_TRAIT_METHODS + 1))
+                .map(|i| format!("(method-{i} (uint) (response uint uint))"))
+                .collect::<Vec<String>>()
+                .join(" ")
+        ),
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::IncorrectArgumentCount`]
-/// Caused by: `len` receives two arguments even though it expects exactly one.
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::UnexpectedTraitOrFieldReference`]
+/// Caused by: unexpected use of trait reference or field
 /// Outcome: block accepted.
 #[test]
-fn static_check_error_incorrect_argument_count() {
+fn static_check_error_unexpected_trait_or_field_reference() {
     contract_deploy_consensus_test!(
-        contract_name: "incorrect-arg-count",
-        contract_code: "(len (list 1) (list 1))",
-    );
-}
-
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::BadLetSyntax`]
-/// Caused by: `let` is used without a binding list.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_bad_let_syntax() {
-    contract_deploy_consensus_test!(
-        contract_name: "bad-let-syntax",
-        contract_code: "(let 1 2)",
+        contract_name: "trait-or-field-ref",
+        contract_code: "(+ 1 'SZ2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKQ9H6DPR.contract.field)",
     );
 }
 
 /// StaticCheckErrorKind: [`StaticCheckErrorKind::BadSyntaxBinding`]
-/// Caused by: `let` binding `((1))` is not a two-element list.
+/// Caused by:
 /// Outcome: block accepted.
 #[test]
 fn static_check_error_bad_syntax_binding() {
     contract_deploy_consensus_test!(
         contract_name: "bad-syntax-binding",
         contract_code: "(let ((1)) (+ 1 2))",
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::NoSuchStacksBlockInfoProperty`]
+/// Caused by: referenced an unknown property of a stacks block
+/// Outcome: block accepted.
+/// Note: This error was added in Clarity 3. Clarity 1, and 2
+///       will trigger a [`StaticCheckErrorKind::UnknownFunction`].
+#[test]
+fn static_check_error_no_such_stacks_block_info_property() {
+    contract_deploy_consensus_test!(
+        contract_name: "no-such-stacks-info",
+        contract_code: "(get-stacks-block-info? none u1)",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::NoSuchFT`]
+/// Caused by: calling `ft-get-balance` with a non-existent FT name.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_no_such_ft() {
+    contract_deploy_consensus_test!(
+        contract_name: "no-such-ft",
+        contract_code: "(ft-get-balance stackoos tx-sender)",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::ExpectedCallableType`]
+/// Caused by: passing a non-callable constant as the contract principal in `contract-call?`.
+/// Outcome: block accepted.
+/// Note: This error was added in Clarity 2. Clarity 1 will trigger a [`CheckErrorKind::TraitReferenceUnknown`]
+#[test]
+fn static_check_error_expected_callable_type() {
+    contract_deploy_consensus_test!(
+        contract_name: "exp-callable-type",
+        contract_code: "
+            (define-constant bad-contract u1)
+            (contract-call? bad-contract call-me)",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::DefaultTypesMustMatch`]
+/// Caused by: calling `default-to` with a default value that does not match the expected type.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_default_types_must_match() {
+    contract_deploy_consensus_test!(
+        contract_name: "default-types-must",
+        contract_code: "
+        (define-map tokens { id: int } { balance: int })
+        (default-to false (get balance (map-get? tokens (tuple (id 0)))))",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::NoSuchContract`]
+/// Caused by: calling contract-call? with a non-existent contract name.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_no_such_contract() {
+    contract_deploy_consensus_test!(
+        contract_name: "no-such-contract",
+        contract_code: "(contract-call? 'S1G2081040G2081040G2081040G208105NK8PE5.contract-name test! u1)",
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::IllegalOrUnknownFunctionApplication`]
+/// Caused by:
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_illegal_or_unknown_function_application() {
+    contract_deploy_consensus_test!(
+        contract_name: "illegal-or-unknown",
+        contract_code: "(map if (list 1 2 3 4 5))",
     );
 }
 
@@ -500,41 +568,53 @@ fn static_check_error_expected_optional_or_response_type() {
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::DefineTraitBadSignature`]
-/// Caused by: calling `define-trait` with a method signature that is not valid.
+/// CheckErrorKind: [`CheckErrorKind::IfArmsMustMatch`]
+/// Caused by: calling `if` with arms that do not match the same type.
 /// Outcome: block accepted.
 #[test]
-fn static_check_error_define_trait_bad_signature() {
+fn static_check_error_if_arms_must_match() {
     contract_deploy_consensus_test!(
-        contract_name: "def-trait-bad-sign",
-        contract_code: "(define-trait trait-1 ((get-1 uint uint)))",
+        contract_name: "if-arms-must-match",
+        contract_code: "(if true true 1)",
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::DefineTraitDuplicateMethod`]
-/// Caused by: trait definition contains duplicate method names
+/// CheckErrorKind: [`CheckErrorKind::NoSuchNFT`]
+/// Caused by: calling `nft-get-owner?` with a non-existent NFT name.
 /// Outcome: block accepted.
-/// Note: This error was added in Clarity 2. Clarity 1 will accept the contract.
 #[test]
-fn static_check_error_define_trait_duplicate_method() {
+fn static_check_error_no_such_nft() {
     contract_deploy_consensus_test!(
-        contract_name: "def-trait-dup-method",
-        contract_code: "
-        (define-trait double-method (
-            (foo (uint) (response uint uint))
-            (foo (bool) (response bool bool))
-        ))",
+        contract_name: "no-such-nft",
+        contract_code: r#"(nft-get-owner? stackoos "abc")"#,
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::UnexpectedTraitOrFieldReference`]
-/// Caused by: unexpected use of trait reference or field
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::TooManyFunctionParameters`]
+/// Caused by: a function has too many parameters.
 /// Outcome: block accepted.
 #[test]
-fn static_check_error_unexpected_trait_or_field_reference() {
+fn static_check_error_too_many_function_parameters() {
     contract_deploy_consensus_test!(
-        contract_name: "trait-or-field-ref",
-        contract_code: "(+ 1 'SZ2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKQ9H6DPR.contract.field)",
+        contract_name: "too-many-params",
+        contract_code: &format!(
+            "(define-trait trait-1 ((method ({}) (response uint uint))))",
+            (0..(MAX_FUNCTION_PARAMETERS + 1))
+                .map(|i| "uint".to_string())
+                .collect::<Vec<String>>()
+                .join(" ")
+        ),
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::BadTokenName`]
+/// Caused by: calling `ft-get-balance` with a non-valid token name.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_bad_token_name() {
+    contract_deploy_consensus_test!(
+        contract_name: "bad-token-name",
+        contract_code: "(ft-get-balance u1234 tx-sender)",
     );
 }
 
@@ -560,37 +640,83 @@ fn static_check_error_incompatible_trait() {
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::TraitTooManyMethods`]
-/// Caused by: a trait has too many methods.
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::DefineTraitBadSignature`]
+/// Caused by:
 /// Outcome: block accepted.
 #[test]
-fn static_check_error_trait_too_many_methods() {
+fn static_check_error_define_trait_bad_signature() {
     contract_deploy_consensus_test!(
-        contract_name: "too-many-methods",
-        contract_code: &format!(
-            "(define-trait trait-1 ({}))",
-            (0..(MAX_TRAIT_METHODS + 1))
-                .map(|i| format!("(method-{i} (uint) (response uint uint))"))
-                .collect::<Vec<String>>()
-                .join(" ")
-        ),
+        contract_name: "def-trait-bad-sign",
+        contract_code: "(define-trait trait-1 ((get-1 uint uint)))",
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::TooManyFunctionParameters`]
-/// Caused by: a function has too many parameters.
+/// CheckErrorKind: [`CheckErrorKind::ContractCallExpectName`]
+/// Caused by: calling contract-call? without a contract function name.
 /// Outcome: block accepted.
 #[test]
-fn static_check_error_too_many_function_parameters() {
+fn static_check_error_contract_call_expect_name() {
     contract_deploy_consensus_test!(
-        contract_name: "too-many-params",
-        contract_code: &format!(
-            "(define-trait trait-1 ((method ({}) (response uint uint))))",
-            (0..(MAX_FUNCTION_PARAMETERS + 1))
-                .map(|i| "uint".to_string())
-                .collect::<Vec<String>>()
-                .join(" ")
-        ),
+        contract_name: "ccall-expect-name",
+        contract_code: "(contract-call? 'S1G2081040G2081040G2081040G208105NK8PE5.contract-name u1)",
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::BadLetSyntax`]
+/// Caused by:
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_bad_let_syntax() {
+    contract_deploy_consensus_test!(
+        contract_name: "bad-let-syntax",
+        contract_code: "(let 1 2)",
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::IncorrectArgumentCount`]
+/// Caused by:
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_incorrect_argument_count() {
+    contract_deploy_consensus_test!(
+        contract_name: "incorrect-arg-count",
+        contract_code: "(len (list 1) (list 1))",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::NoSuchPublicFunction`]
+/// Caused by: calling a non-existent public or read-only function on a contract literal.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_no_such_public_function() {
+    contract_deploy_consensus_test!(
+        contract_name: "no-such-pub-func-lit",
+        // using the pox-4 contract as we know it exists!
+        contract_code: &format!("(contract-call? '{}.pox-4 missing-func)", boot_code_test_addr()),
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::NonFunctionApplication`]
+/// Caused by: attempt to apply a non-function value as a function.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_non_function_application() {
+    contract_deploy_consensus_test!(
+        contract_name: "non-function-appl",
+        contract_code: "((lambda (x y) 1) 2 1)",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::EmptyTuplesNotAllowed`]
+/// Caused by: calling `set-cursor` with an empty tuple.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_empty_tuples_not_allowed() {
+    contract_deploy_consensus_test!(
+        contract_name: "empty-tuples-not",
+        contract_code: "
+            (define-private (set-cursor (value (tuple)))
+                value)",
     );
 }
 
@@ -618,16 +744,32 @@ fn static_check_error_no_such_block_info_property() {
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::NoSuchStacksBlockInfoProperty`]
-/// Caused by: referenced an unknown property of a stacks block
+/// CheckErrorKind: [`CheckErrorKind::NoSuchDataVariable`]
+/// Caused by: calling var-get with a non-existent variable.
 /// Outcome: block accepted.
-/// Note: This error was added in Clarity 3. Clarity 1, and 2
-///       will trigger a [`StaticCheckErrorKind::UnknownFunction`].
 #[test]
-fn static_check_error_no_such_stacks_block_info_property() {
+fn static_check_error_no_such_data_variable() {
     contract_deploy_consensus_test!(
-        contract_name: "no-such-stacks-info",
-        contract_code: "(get-stacks-block-info? none u1)",
+        contract_name: "no-such-data-var",
+        contract_code: "
+            (define-private (get-cursor)
+            (unwrap! (var-get cursor) 0))",
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::DefineTraitDuplicateMethod`]
+/// Caused by: trait definition contains duplicate method names
+/// Outcome: block accepted.
+/// Note: This error was added in Clarity 2. Clarity 1 will accept the contract.
+#[test]
+fn static_check_error_define_trait_duplicate_method() {
+    contract_deploy_consensus_test!(
+        contract_name: "def-trait-dup-method",
+        contract_code: "
+        (define-trait double-method (
+            (foo (uint) (response uint uint))
+            (foo (bool) (response bool bool))
+        ))",
     );
 }
 
@@ -646,28 +788,6 @@ fn static_check_error_unchecked_intermediary_responses() {
     );
 }
 
-/// CheckErrorKind: [`CheckErrorKind::NoSuchFT`]
-/// Caused by: calling `ft-get-balance` with a non-existent FT name.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_no_such_ft() {
-    contract_deploy_consensus_test!(
-        contract_name: "no-such-ft",
-        contract_code: "(ft-get-balance stackoos tx-sender)",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::NoSuchNFT`]
-/// Caused by: calling `nft-get-owner?` with a non-existent NFT name.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_no_such_nft() {
-    contract_deploy_consensus_test!(
-        contract_name: "no-such-nft",
-        contract_code: r#"(nft-get-owner? stackoos "abc")"#,
-    );
-}
-
 /// CheckErrorKind: [`CheckErrorKind::DefineNFTBadSignature`]
 /// Caused by: malformed signature in a `(define-non-fungible-token ...)` expression
 /// Outcome: block accepted.
@@ -679,133 +799,13 @@ fn static_check_error_define_nft_bad_signature() {
     );
 }
 
-/// CheckErrorKind: [`CheckErrorKind::BadTokenName`]
-/// Caused by: calling `ft-get-balance` with a non-valid token name.
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::UnknownFunction`]
+/// Caused by:
 /// Outcome: block accepted.
 #[test]
-fn static_check_error_bad_token_name() {
+fn static_check_error_unknown_function() {
     contract_deploy_consensus_test!(
-        contract_name: "bad-token-name",
-        contract_code: "(ft-get-balance u1234 tx-sender)",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::EmptyTuplesNotAllowed`]
-/// Caused by: calling `set-cursor` with an empty tuple.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_empty_tuples_not_allowed() {
-    contract_deploy_consensus_test!(
-        contract_name: "empty-tuples-not",
-        contract_code: "
-            (define-private (set-cursor (value (tuple)))
-                value)",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::NoSuchDataVariable`]
-/// Caused by: calling var-get with a non-existent variable.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_no_such_data_variable() {
-    contract_deploy_consensus_test!(
-        contract_name: "no-such-data-var",
-        contract_code: "
-            (define-private (get-cursor)
-            (unwrap! (var-get cursor) 0))",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::NonFunctionApplication`]
-/// Caused by: attempt to apply a non-function value as a function.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_non_function_application() {
-    contract_deploy_consensus_test!(
-        contract_name: "non-function-appl",
-        contract_code: "((lambda (x y) 1) 2 1)",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::ExpectedListApplication`]
-/// Caused by: calling append with lhs that is not a list.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_expected_list_application() {
-    contract_deploy_consensus_test!(
-        contract_name: "expected-list-appl",
-        contract_code: "(append 2 3)",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::NoSuchContract`]
-/// Caused by: calling contract-call? with a non-existent contract name.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_no_such_contract() {
-    contract_deploy_consensus_test!(
-        contract_name: "no-such-contract",
-        contract_code: "(contract-call? 'S1G2081040G2081040G2081040G208105NK8PE5.contract-name test! u1)",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::ContractCallExpectName`]
-/// Caused by: calling contract-call? without a contract function name.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_contract_call_expect_name() {
-    contract_deploy_consensus_test!(
-        contract_name: "ccall-expect-name",
-        contract_code: "(contract-call? 'S1G2081040G2081040G2081040G208105NK8PE5.contract-name u1)",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::ExpectedCallableType`]
-/// Caused by: passing a non-callable constant as the contract principal in `contract-call?`.
-/// Outcome: block accepted.
-/// Note: This error was added in Clarity 2. Clarity 1 will trigger a [`CheckErrorKind::TraitReferenceUnknown`]
-#[test]
-fn static_check_error_expected_callable_type() {
-    contract_deploy_consensus_test!(
-        contract_name: "exp-callable-type",
-        contract_code: "
-            (define-constant bad-contract u1)
-            (contract-call? bad-contract call-me)",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::NoSuchPublicFunction`]
-/// Caused by: calling a non-existent public or read-only function on a contract literal.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_no_such_public_function() {
-    contract_deploy_consensus_test!(
-        contract_name: "no-such-pub-func-lit",
-        // using the pox-4 contract as we know it exists!
-        contract_code: &format!("(contract-call? '{}.pox-4 missing-func)", boot_code_test_addr()),
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::DefaultTypesMustMatch`]
-/// Caused by: calling `default-to` with a default value that does not match the expected type.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_default_types_must_match() {
-    contract_deploy_consensus_test!(
-        contract_name: "default-types-must",
-        contract_code: "
-        (define-map tokens { id: int } { balance: int })
-        (default-to false (get balance (map-get? tokens (tuple (id 0)))))",
-    );
-}
-
-/// CheckErrorKind: [`CheckErrorKind::IfArmsMustMatch`]
-/// Caused by: calling `if` with arms that do not match the same type.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_if_arms_must_match() {
-    contract_deploy_consensus_test!(
-        contract_name: "if-arms-must-match",
-        contract_code: "(if true true 1)",
+        contract_name: "unknown-function",
+        contract_code: "(ynot 1 2)",
     );
 }
