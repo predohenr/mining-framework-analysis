@@ -32,10 +32,27 @@ import (
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+)
+import (
+	"embed"
+	"encoding/json"
+	"testing"
+	"testing/fstest"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/spf13/afero"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 //go:embed testdata

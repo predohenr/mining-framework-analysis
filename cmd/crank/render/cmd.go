@@ -33,8 +33,25 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+)
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/alecthomas/kong"
+	"github.com/spf13/afero"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 // Cmd arguments and flags for render subcommand.
