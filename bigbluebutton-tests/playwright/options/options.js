@@ -161,7 +161,6 @@ class Options extends MultiUsers {
     }
   }
 
-
   async enableOtherParticipantsWebcams() {
     await this.modPage.waitForSelector(e.whiteboard);
     await this.userPage.waitForSelector(e.whiteboard);
@@ -226,6 +225,7 @@ class Options extends MultiUsers {
     await sleep(500);
     await this.modPage.hasElement(e.screenShareVideo, 'should display the screenshare for the moderator');
     await this.userPage.wasRemoved(e.screenShareVideo, 'should not display the screenshare for the attendee');
+  }
 
   async autoHideWhiteboardToolbar() {
     await this.modPage.waitForSelector(e.whiteboard);
@@ -253,7 +253,6 @@ class Options extends MultiUsers {
     await expect(whiteboardLocator).toHaveScreenshot('whiteboard-with-toolbar-hidden.png', {
       maxDiffPixels: 1000,
     });
-
   }
 }
 
