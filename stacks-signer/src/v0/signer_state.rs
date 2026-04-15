@@ -1060,7 +1060,7 @@ impl LocalStateMachine {
                 db,
                 expected_burn_block,
                 prior_state_machine.burn_block_height,
-                prior_state_machine.burn_block.clone(),
+                prior_state_machine.burn_block,
             ) {
                 info!("Detected bitcoin fork - prior tip is not parent of new tip.";
                     "new_tip.burn_block_height" => expected_burn_block.burn_block_height,

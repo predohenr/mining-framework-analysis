@@ -1372,13 +1372,13 @@ impl Signer {
         // Remove this block validation from the pending table
         let signer_sig_hash = block_validate_response.signer_signature_hash();
         self.signer_db
-            .remove_pending_block_validation(signer_sig_hash)
+            .remove_pending_block_validation(&signer_sig_hash)
             .unwrap_or_else(|e| warn!("{self}: Failed to remove pending block validation: {e:?}"));
 
         if let Some(response) = block_response {
             let block = self
                 .signer_db
-                .block_lookup(signer_sig_hash)
+                .block_lookup(&signer_sig_hash)
                 .unwrap_or_default()
                 .map(|info| info.block);
             self.impl_send_block_response(block.as_ref(), response);
