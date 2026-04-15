@@ -77,7 +77,7 @@ const verifySettingsPageElements = ({
 
     cy.verifyElement({
         labelElement: feedbackRatingWidgetsPageElements.WIDGET_NAME_LABEL,
-        labelText: "Internal Name",
+        labelText: "Internal Name", //TODO: Will be updated after SER-2121 fixed  
         element: feedbackRatingWidgetsPageElements.WIDGET_NAME_INPUT,
         value: widgetName,
         elementPlaceHolder: "Widget Name"
