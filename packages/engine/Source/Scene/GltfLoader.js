@@ -2088,7 +2088,6 @@ function loadPrimitive(loader, gltfPrimitive, hasInstances, frameState) {
   }
 
   const spzExtension = fetchSpzExtensionFrom(extensions);
-
   if (defined(spzExtension)) {
     needsPostProcessing = true;
     primitivePlan.needsGaussianSplats = true;
