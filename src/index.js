@@ -591,6 +591,471 @@ export default class Gantt {
         }
     }
 
+    hide_popup() {
+        this.popup && this.popup.hide();
+    }
+
+    trigger_event(event, args) {
+        if (this.options['on_' + event]) {
+            this.options['on_' + event].apply(this, args);
+        }
+    }
+
+    unselect_all() {
+        if (this.popup) this.popup.parent.classList.add('hide');
+        this.$container
+            .querySelectorAll('.date-range-highlight')
+            .forEach((k) => k.classList.add('hide'));
+    }
+
+    get_snap_position(dx, ox) {
+        let unit_length = 1;
+        const default_snap =
+            this.options.snap_at || this.config.view_mode.snap_at || '1d';
+
+        if (default_snap !== 'unit') {
+            const { duration, scale } = date_utils.parse_duration(default_snap);
+            unit_length =
+                date_utils.convert_scales(this.config.view_mode.step, scale) /
+                duration;
+        }
+
+        const rem = dx % (this.config.column_width / unit_length);
+
+        let final_dx =
+            dx -
+            rem +
+            (rem < (this.config.column_width / unit_length) * 2
+                ? 0
+                : this.config.column_width / unit_length);
+        let final_pos = ox + final_dx;
+
+        const drn = final_dx > 0 ? 1 : -1;
+        let ignored_regions = this.get_ignored_region(final_pos, drn);
+        while (ignored_regions.length) {
+            final_pos += this.config.column_width * drn;
+            ignored_regions = this.get_ignored_region(final_pos, drn);
+            if (!ignored_regions.length)
+                final_pos -= this.config.column_width * drn;
+        }
+        return final_pos - ox;
+    }
+
+    show_popup(opts) {
+        if (this.options.popup === false) return;
+        if (!this.popup) {
+            this.popup = new Popup(
+                this.$popup_wrapper,
+                this.options.popup,
+                this,
+            );
+        }
+        this.popup.show(opts);
+    }
+
+    map_arrows_on_bars() {
+        for (let bar of this.bars) {
+            bar.arrows = this.arrows.filter((arrow) => {
+                return (
+                    arrow.from_task.task.id === bar.task.id ||
+                    arrow.to_task.task.id === bar.task.id
+                );
+            });
+        }
+    }
+
+    set_dimensions() {
+        const { width: cur_width } = this.$svg.getBoundingClientRect();
+        const actual_width = this.$svg.querySelector('.grid .grid-row')
+            ? this.$svg.querySelector('.grid .grid-row').getAttribute('width')
+            : 0;
+        if (cur_width < actual_width) {
+            this.$svg.setAttribute('width', actual_width);
+        }
+    }
+
+    set_scroll_position(date) {
+        if (this.options.infinite_padding && (!date || date === 'start')) {
+            let [min_start, ..._] = this.get_start_end_positions();
+            this.$container.scrollLeft = min_start;
+            return;
+        }
+        if (!date || date === 'start') {
+            date = this.gantt_start;
+        } else if (date === 'end') {
+            date = this.gantt_end;
+        } else if (date === 'today') {
+            return this.scroll_current();
+        } else if (typeof date === 'string') {
+            date = date_utils.parse(date);
+        }
+
+        // Weird bug where infinite padding results in one day offset in scroll
+        // Related to header-body displacement
+        const units_since_first_task = date_utils.diff(
+            date,
+            this.gantt_start,
+            this.config.unit,
+        );
+        const scroll_pos =
+            (units_since_first_task / this.config.step) *
+            this.config.column_width;
+
+        this.$container.scrollTo({
+            left: scroll_pos - this.config.column_width / 6,
+            behavior: 'smooth',
+        });
+
+        // Calculate current scroll position's upper text
+        if (this.$current) {
+            this.$current.classList.remove('current-upper');
+        }
+
+        this.current_date = date_utils.add(
+            this.gantt_start,
+            this.$container.scrollLeft / this.config.column_width,
+            this.config.unit,
+        );
+
+        let current_upper = this.config.view_mode.upper_text(
+            this.current_date,
+            null,
+            this.options.language,
+        );
+        let $el = this.upperTexts.find(
+            (el) => el.textContent === current_upper,
+        );
+
+        // Recalculate
+        this.current_date = date_utils.add(
+            this.gantt_start,
+            (this.$container.scrollLeft + $el.clientWidth) /
+                this.config.column_width,
+            this.config.unit,
+        );
+        current_upper = this.config.view_mode.upper_text(
+            this.current_date,
+            null,
+            this.options.language,
+        );
+        $el = this.upperTexts.find((el) => el.textContent === current_upper);
+        $el.classList.add('current-upper');
+        this.$current = $el;
+    }
+
+    get_dates_to_draw() {
+        let last_date_info = null;
+        const dates = this.dates.map((date, i) => {
+            const d = this.get_date_info(date, last_date_info, i);
+            last_date_info = d;
+            return d;
+        });
+        return dates;
+    }
+
+    bind_holiday_labels() {
+        const $highlights =
+            this.$container.querySelectorAll('.holiday-highlight');
+        for (let h of $highlights) {
+            const label = this.$container.querySelector(
+                '.label_' + h.classList[1],
+            );
+            if (!label) continue;
+            let timeout;
+            h.onmouseenter = (e) => {
+                timeout = setTimeout(() => {
+                    label.classList.add('show');
+                    label.style.left = (e.offsetX || e.layerX) + 'px';
+                    label.style.top = (e.offsetY || e.layerY) + 'px';
+                }, 300);
+            };
+
+            h.onmouseleave = (e) => {
+                clearTimeout(timeout);
+                label.classList.remove('show');
+            };
+        }
+    }
+
+    view_is(modes) {
+        if (typeof modes === 'string') {
+            return this.config.view_mode.name === modes;
+        }
+
+        if (Array.isArray(modes)) {
+            return modes.some(view_is);
+        }
+
+        return this.config.view_mode.name === modes.name;
+    }
+
+    create_el({ left, top, width, height, id, classes, append_to, type }) {
+        let $el = document.createElement(type || 'div');
+        for (let cls of classes.split(' ')) $el.classList.add(cls);
+        $el.style.top = top + 'px';
+        $el.style.left = left + 'px';
+        if (id) $el.id = id;
+        if (width) $el.style.width = width + 'px';
+        if (height) $el.style.height = height + 'px';
+        if (append_to) append_to.appendChild($el);
+        return $el;
+    }
+
+    get_bar(id) {
+        return this.bars.find((bar) => {
+            return bar.task.id === id;
+        });
+    }
+
+    get_ignored_region(pos, drn = 1) {
+        if (drn === 1) {
+            return this.config.ignored_positions.filter((val) => {
+                return pos > val && pos <= val + this.config.column_width;
+            });
+        } else {
+            return this.config.ignored_positions.filter(
+                (val) => pos >= val && pos < val + this.config.column_width,
+            );
+        }
+    }
+
+    make_bars() {
+        this.bars = this.tasks.map((task) => {
+            const bar = new Bar(this, task);
+            this.layers.bar.appendChild(bar.group);
+            return bar;
+        });
+    }
+
+    get_date_info(date, last_date_info) {
+        let last_date = last_date_info ? last_date_info.date : null;
+
+        let column_width = this.config.column_width;
+
+        const x = last_date_info
+            ? last_date_info.x + last_date_info.column_width
+            : 0;
+
+        let upper_text = this.config.view_mode.upper_text;
+        let lower_text = this.config.view_mode.lower_text;
+
+        if (!upper_text) {
+            this.config.view_mode.upper_text = () => '';
+        } else if (typeof upper_text === 'string') {
+            this.config.view_mode.upper_text = (date) =>
+                date_utils.format(date, upper_text, this.options.language);
+        }
+
+        if (!lower_text) {
+            this.config.view_mode.lower_text = () => '';
+        } else if (typeof lower_text === 'string') {
+            this.config.view_mode.lower_text = (date) =>
+                date_utils.format(date, lower_text, this.options.language);
+        }
+
+        return {
+            date,
+            formatted_date: sanitize(
+                date_utils.format(
+                    date,
+                    this.config.date_format,
+                    this.options.language,
+                ),
+            ),
+            column_width: this.config.column_width,
+            x,
+            upper_text: this.config.view_mode.upper_text(
+                date,
+                last_date,
+                this.options.language,
+            ),
+            lower_text: this.config.view_mode.lower_text(
+                date,
+                last_date,
+                this.options.language,
+            ),
+            upper_y: 17,
+            lower_y: this.options.upper_header_height + 5,
+        };
+    }
+
+    get_task(id) {
+        return this.tasks.find((task) => {
+            return task.id === id;
+        });
+    }
+
+    get_all_dependent_tasks(task_id) {
+        let out = [];
+        let to_process = [task_id];
+        while (to_process.length) {
+            const deps = to_process.reduce((acc, curr) => {
+                acc = acc.concat(this.dependency_map[curr]);
+                return acc;
+            }, []);
+
+            out = out.concat(deps);
+            to_process = deps.filter((d) => !to_process.includes(d) && !out.includes(d));
+        }
+
+        return out.filter(Boolean);
+    }
+
+    make_arrows() {
+        this.arrows = [];
+        for (let task of this.tasks) {
+            let arrows = [];
+            arrows = task.dependencies
+                .map((task_id) => {
+                    const dependency = this.get_task(task_id);
+                    if (!dependency) return;
+                    const arrow = new Arrow(
+                        this,
+                        this.bars[dependency._index], // from_task
+                        this.bars[task._index], // to_task
+                    );
+                    this.layers.arrow.appendChild(arrow.element);
+                    return arrow;
+                })
+                .filter(Boolean); // filter falsy values
+            this.arrows = this.arrows.concat(arrows);
+        }
+    }
+
+    get_start_end_positions() {
+        if (!this.bars.length) return [0, 0, 0];
+        let { x, width } = this.bars[0].group.getBBox();
+        let min_start = x;
+        let max_start = x;
+        let max_end = x + width;
+        Array.prototype.forEach.call(this.bars, function ({ group }, i) {
+            let { x, width } = group.getBBox();
+            if (x < min_start) min_start = x;
+            if (x > max_start) max_start = x;
+            if (x + width > max_end) max_end = x + width;
+        });
+        return [min_start, max_start, max_end];
+    }
+
+    scroll_current() {
+        let res = this.get_closest_date();
+        if (res) this.set_scroll_position(res[0]);
+    }
+
+    get_closest_date() {
+        let now = new Date();
+        if (now < this.gantt_start || now > this.gantt_end) return null;
+
+        let current = new Date(),
+            el = this.$container.querySelector(
+                '.date_' +
+                    sanitize(
+                        date_utils.format(
+                            current,
+                            this.config.date_format,
+                            this.options.language,
+                        ),
+                    ),
+            );
+
+        // safety check to prevent infinite loop
+        let c = 0;
+        while (!el && c < this.config.step) {
+            current = date_utils.add(current, -1, this.config.unit);
+            el = this.$container.querySelector(
+                '.date_' +
+                    sanitize(
+                        date_utils.format(
+                            current,
+                            this.config.date_format,
+                            this.options.language,
+                        ),
+                    ),
+            );
+            c++;
+        }
+        return [
+            new Date(
+                date_utils.format(
+                    current,
+                    this.config.date_format,
+                    this.options.language,
+                ) + ' ',
+            ),
+            el,
+        ];
+    }
+
+    make_grid_highlights() {
+        this.highlight_holidays();
+        this.config.ignored_positions = [];
+
+        const height =
+            (this.options.bar_height + this.options.padding) *
+            this.tasks.length;
+        this.layers.grid.innerHTML += `<pattern id="diagonalHatch" patternUnits="userSpaceOnUse" width="4" height="4">
+          <path d="M-1,1 l2,-2
+                   M0,4 l4,-4
+                   M3,5 l2,-2"
+                style="stroke:grey; stroke-width:0.3" />
+        </pattern>`;
+
+        for (
+            let d = new Date(this.gantt_start);
+            d <= this.gantt_end;
+            d.setDate(d.getDate() + 1)
+        ) {
+            if (
+                !this.config.ignored_dates.find(
+                    (k) => k.getTime() == d.getTime(),
+                ) &&
+                (!this.config.ignored_function ||
+                    !this.config.ignored_function(d))
+            )
+                continue;
+            let diff =
+                date_utils.convert_scales(
+                    date_utils.diff(d, this.gantt_start) + 'd',
+                    this.config.unit,
+                ) / this.config.step;
+
+            this.config.ignored_positions.push(diff * this.config.column_width);
+            createSVG('rect', {
+                x: diff * this.config.column_width,
+                y: this.config.header_height,
+                width: this.config.column_width,
+                height: height,
+                class: 'ignored-bar',
+                style: 'fill: url(#diagonalHatch);',
+                append_to: this.$svg,
+            });
+        }
+
+        const highlightDimensions = this.highlight_current(
+            this.config.view_mode,
+        );
+
+        if (!highlightDimensions) return;
+    }
+
+    /**
+     * Compute the horizontal x-axis distance and associated date for the current date and view.
+     *
+     * @returns Object containing the x-axis distance and date of the current date, or null if the current date is out of the gantt range.
+     */
+
+    bind_grid_click() {
+        $.on(
+            this.$container,
+            'click',
+            '.grid-row, .grid-header, .ignored-bar, .holiday-highlight',
+            () => {
+                this.unselect_all();
+                this.hide_popup();
+            },
+        );
+    }
+
     highlight_holidays() {
         let labels = {};
         if (!this.options.holidays) return;
@@ -688,11 +1153,135 @@ export default class Gantt {
         }
     }
 
-    /**
-     * Compute the horizontal x-axis distance and associated date for the current date and view.
-     *
-     * @returns Object containing the x-axis distance and date of the current date, or null if the current date is out of the gantt range.
-     */
+    make_dates() {
+        this.get_dates_to_draw().forEach((date, i) => {
+            if (date.lower_text) {
+                let $lower_text = this.create_el({
+                    left: date.x,
+                    top: date.lower_y,
+                    classes: 'lower-text date_' + sanitize(date.formatted_date),
+                    append_to: this.$lower_header,
+                });
+                $lower_text.innerText = date.lower_text;
+            }
+
+            if (date.upper_text) {
+                let $upper_text = this.create_el({
+                    left: date.x,
+                    top: date.upper_y,
+                    classes: 'upper-text',
+                    append_to: this.$upper_header,
+                });
+                $upper_text.innerText = date.upper_text;
+            }
+        });
+        this.upperTexts = Array.from(
+            this.$container.querySelectorAll('.upper-text'),
+        );
+        this.lowerTexts = Array.from(
+            this.$container.querySelectorAll('.lower-text'),
+        );
+    }
+
+    get_all_dependent_tasks(task_id) {
+        let out = [];
+        let to_process = [task_id];
+        while (to_process.length) {
+            const deps = to_process.reduce((acc, curr) => {
+                acc = acc.concat(this.dependency_map[curr]);
+                return acc;
+            }, []);
+
+            out = out.concat(deps);
+            to_process = deps.filter((d) => !to_process.includes(d));
+        }
+
+        return out.filter(Boolean);
+    }
+
+    bind_bar_progress() {
+        let x_on_start = 0;
+        let is_resizing = null;
+        let bar = null;
+        let $bar_progress = null;
+        let $bar = null;
+
+        $.on(this.$svg, 'mousedown', '.handle.progress', (e, handle) => {
+            is_resizing = true;
+            x_on_start = e.offsetX || e.layerX;
+
+            const $bar_wrapper = $.closest('.bar-wrapper', handle);
+            const id = $bar_wrapper.getAttribute('data-id');
+            bar = this.get_bar(id);
+
+            $bar_progress = bar.$bar_progress;
+            $bar = bar.$bar;
+
+            $bar_progress.finaldx = 0;
+            $bar_progress.owidth = $bar_progress.getWidth();
+            $bar_progress.min_dx = -$bar_progress.owidth;
+            $bar_progress.max_dx = $bar.getWidth() - $bar_progress.getWidth();
+        });
+
+        const range_positions = this.config.ignored_positions.map((d) => [
+            d,
+            d + this.config.column_width,
+        ]);
+
+        $.on(this.$svg, 'mousemove', (e) => {
+            if (!is_resizing) return;
+            let now_x = e.offsetX || e.layerX;
+
+            let moving_right = now_x > x_on_start;
+            if (moving_right) {
+                let k = range_positions.find(
+                    ([begin, end]) => now_x >= begin && now_x < end,
+                );
+                while (k) {
+                    now_x = k[1];
+                    k = range_positions.find(
+                        ([begin, end]) => now_x >= begin && now_x < end,
+                    );
+                }
+            } else {
+                let k = range_positions.find(
+                    ([begin, end]) => now_x > begin && now_x <= end,
+                );
+                while (k) {
+                    now_x = k[0];
+                    k = range_positions.find(
+                        ([begin, end]) => now_x > begin && now_x <= end,
+                    );
+                }
+            }
+
+            let dx = now_x - x_on_start;
+            if (dx > $bar_progress.max_dx) {
+                dx = $bar_progress.max_dx;
+            }
+            if (dx < $bar_progress.min_dx) {
+                dx = $bar_progress.min_dx;
+            }
+
+            $bar_progress.setAttribute('width', $bar_progress.owidth + dx);
+            $.attr(bar.$handle_progress, 'cx', $bar_progress.getEndX());
+
+            $bar_progress.finaldx = dx;
+        });
+
+        $.on(this.$svg, 'mouseup', () => {
+            is_resizing = false;
+            if (!($bar_progress && $bar_progress.finaldx)) return;
+
+            $bar_progress.finaldx = 0;
+            bar.progress_changed();
+            bar.set_action_completed();
+            bar = null;
+            $bar_progress = null;
+            $bar = null;
+        });
+    }
+
     highlight_current() {
         const res = this.get_closest_date();
         if (!res || !res[1]) return;
@@ -724,381 +1313,6 @@ export default class Gantt {
             classes: 'current-ball-highlight',
             append_to: this.$header,
         });
-    }
-
-    make_grid_highlights() {
-        this.highlight_holidays();
-        this.config.ignored_positions = [];
-
-        const height =
-            (this.options.bar_height + this.options.padding) *
-            this.tasks.length;
-        this.layers.grid.innerHTML += `<pattern id="diagonalHatch" patternUnits="userSpaceOnUse" width="4" height="4">
-          <path d="M-1,1 l2,-2
-                   M0,4 l4,-4
-                   M3,5 l2,-2"
-                style="stroke:grey; stroke-width:0.3" />
-        </pattern>`;
-
-        for (
-            let d = new Date(this.gantt_start);
-            d <= this.gantt_end;
-            d.setDate(d.getDate() + 1)
-        ) {
-            if (
-                !this.config.ignored_dates.find(
-                    (k) => k.getTime() == d.getTime(),
-                ) &&
-                (!this.config.ignored_function ||
-                    !this.config.ignored_function(d))
-            )
-                continue;
-            let diff =
-                date_utils.convert_scales(
-                    date_utils.diff(d, this.gantt_start) + 'd',
-                    this.config.unit,
-                ) / this.config.step;
-
-            this.config.ignored_positions.push(diff * this.config.column_width);
-            createSVG('rect', {
-                x: diff * this.config.column_width,
-                y: this.config.header_height,
-                width: this.config.column_width,
-                height: height,
-                class: 'ignored-bar',
-                style: 'fill: url(#diagonalHatch);',
-                append_to: this.$svg,
-            });
-        }
-
-        const highlightDimensions = this.highlight_current(
-            this.config.view_mode,
-        );
-
-        if (!highlightDimensions) return;
-    }
-
-    create_el({ left, top, width, height, id, classes, append_to, type }) {
-        let $el = document.createElement(type || 'div');
-        for (let cls of classes.split(' ')) $el.classList.add(cls);
-        $el.style.top = top + 'px';
-        $el.style.left = left + 'px';
-        if (id) $el.id = id;
-        if (width) $el.style.width = width + 'px';
-        if (height) $el.style.height = height + 'px';
-        if (append_to) append_to.appendChild($el);
-        return $el;
-    }
-
-    make_dates() {
-        this.get_dates_to_draw().forEach((date, i) => {
-            if (date.lower_text) {
-                let $lower_text = this.create_el({
-                    left: date.x,
-                    top: date.lower_y,
-                    classes: 'lower-text date_' + sanitize(date.formatted_date),
-                    append_to: this.$lower_header,
-                });
-                $lower_text.innerText = date.lower_text;
-            }
-
-            if (date.upper_text) {
-                let $upper_text = this.create_el({
-                    left: date.x,
-                    top: date.upper_y,
-                    classes: 'upper-text',
-                    append_to: this.$upper_header,
-                });
-                $upper_text.innerText = date.upper_text;
-            }
-        });
-        this.upperTexts = Array.from(
-            this.$container.querySelectorAll('.upper-text'),
-        );
-        this.lowerTexts = Array.from(
-            this.$container.querySelectorAll('.lower-text'),
-        );
-    }
-
-    get_dates_to_draw() {
-        let last_date_info = null;
-        const dates = this.dates.map((date, i) => {
-            const d = this.get_date_info(date, last_date_info, i);
-            last_date_info = d;
-            return d;
-        });
-        return dates;
-    }
-
-    get_date_info(date, last_date_info) {
-        let last_date = last_date_info ? last_date_info.date : null;
-
-        let column_width = this.config.column_width;
-
-        const x = last_date_info
-            ? last_date_info.x + last_date_info.column_width
-            : 0;
-
-        let upper_text = this.config.view_mode.upper_text;
-        let lower_text = this.config.view_mode.lower_text;
-
-        if (!upper_text) {
-            this.config.view_mode.upper_text = () => '';
-        } else if (typeof upper_text === 'string') {
-            this.config.view_mode.upper_text = (date) =>
-                date_utils.format(date, upper_text, this.options.language);
-        }
-
-        if (!lower_text) {
-            this.config.view_mode.lower_text = () => '';
-        } else if (typeof lower_text === 'string') {
-            this.config.view_mode.lower_text = (date) =>
-                date_utils.format(date, lower_text, this.options.language);
-        }
-
-        return {
-            date,
-            formatted_date: sanitize(
-                date_utils.format(
-                    date,
-                    this.config.date_format,
-                    this.options.language,
-                ),
-            ),
-            column_width: this.config.column_width,
-            x,
-            upper_text: this.config.view_mode.upper_text(
-                date,
-                last_date,
-                this.options.language,
-            ),
-            lower_text: this.config.view_mode.lower_text(
-                date,
-                last_date,
-                this.options.language,
-            ),
-            upper_y: 17,
-            lower_y: this.options.upper_header_height + 5,
-        };
-    }
-
-    make_bars() {
-        this.bars = this.tasks.map((task) => {
-            const bar = new Bar(this, task);
-            this.layers.bar.appendChild(bar.group);
-            return bar;
-        });
-    }
-
-    make_arrows() {
-        this.arrows = [];
-        for (let task of this.tasks) {
-            let arrows = [];
-            arrows = task.dependencies
-                .map((task_id) => {
-                    const dependency = this.get_task(task_id);
-                    if (!dependency) return;
-                    const arrow = new Arrow(
-                        this,
-                        this.bars[dependency._index], // from_task
-                        this.bars[task._index], // to_task
-                    );
-                    this.layers.arrow.appendChild(arrow.element);
-                    return arrow;
-                })
-                .filter(Boolean); // filter falsy values
-            this.arrows = this.arrows.concat(arrows);
-        }
-    }
-
-    map_arrows_on_bars() {
-        for (let bar of this.bars) {
-            bar.arrows = this.arrows.filter((arrow) => {
-                return (
-                    arrow.from_task.task.id === bar.task.id ||
-                    arrow.to_task.task.id === bar.task.id
-                );
-            });
-        }
-    }
-
-    set_dimensions() {
-        const { width: cur_width } = this.$svg.getBoundingClientRect();
-        const actual_width = this.$svg.querySelector('.grid .grid-row')
-            ? this.$svg.querySelector('.grid .grid-row').getAttribute('width')
-            : 0;
-        if (cur_width < actual_width) {
-            this.$svg.setAttribute('width', actual_width);
-        }
-    }
-
-    set_scroll_position(date) {
-        if (this.options.infinite_padding && (!date || date === 'start')) {
-            let [min_start, ..._] = this.get_start_end_positions();
-            this.$container.scrollLeft = min_start;
-            return;
-        }
-        if (!date || date === 'start') {
-            date = this.gantt_start;
-        } else if (date === 'end') {
-            date = this.gantt_end;
-        } else if (date === 'today') {
-            return this.scroll_current();
-        } else if (typeof date === 'string') {
-            date = date_utils.parse(date);
-        }
-
-        // Weird bug where infinite padding results in one day offset in scroll
-        // Related to header-body displacement
-        const units_since_first_task = date_utils.diff(
-            date,
-            this.gantt_start,
-            this.config.unit,
-        );
-        const scroll_pos =
-            (units_since_first_task / this.config.step) *
-            this.config.column_width;
-
-        this.$container.scrollTo({
-            left: scroll_pos - this.config.column_width / 6,
-            behavior: 'smooth',
-        });
-
-        // Calculate current scroll position's upper text
-        if (this.$current) {
-            this.$current.classList.remove('current-upper');
-        }
-
-        this.current_date = date_utils.add(
-            this.gantt_start,
-            this.$container.scrollLeft / this.config.column_width,
-            this.config.unit,
-        );
-
-        let current_upper = this.config.view_mode.upper_text(
-            this.current_date,
-            null,
-            this.options.language,
-        );
-        let $el = this.upperTexts.find(
-            (el) => el.textContent === current_upper,
-        );
-
-        // Recalculate
-        this.current_date = date_utils.add(
-            this.gantt_start,
-            (this.$container.scrollLeft + $el.clientWidth) /
-                this.config.column_width,
-            this.config.unit,
-        );
-        current_upper = this.config.view_mode.upper_text(
-            this.current_date,
-            null,
-            this.options.language,
-        );
-        $el = this.upperTexts.find((el) => el.textContent === current_upper);
-        $el.classList.add('current-upper');
-        this.$current = $el;
-    }
-
-    scroll_current() {
-        let res = this.get_closest_date();
-        if (res) this.set_scroll_position(res[0]);
-    }
-
-    get_closest_date() {
-        let now = new Date();
-        if (now < this.gantt_start || now > this.gantt_end) return null;
-
-        let current = new Date(),
-            el = this.$container.querySelector(
-                '.date_' +
-                    sanitize(
-                        date_utils.format(
-                            current,
-                            this.config.date_format,
-                            this.options.language,
-                        ),
-                    ),
-            );
-
-        // safety check to prevent infinite loop
-        let c = 0;
-        while (!el && c < this.config.step) {
-            current = date_utils.add(current, -1, this.config.unit);
-            el = this.$container.querySelector(
-                '.date_' +
-                    sanitize(
-                        date_utils.format(
-                            current,
-                            this.config.date_format,
-                            this.options.language,
-                        ),
-                    ),
-            );
-            c++;
-        }
-        return [
-            new Date(
-                date_utils.format(
-                    current,
-                    this.config.date_format,
-                    this.options.language,
-                ) + ' ',
-            ),
-            el,
-        ];
-    }
-
-    bind_grid_click() {
-        $.on(
-            this.$container,
-            'click',
-            '.grid-row, .grid-header, .ignored-bar, .holiday-highlight',
-            () => {
-                this.unselect_all();
-                this.hide_popup();
-            },
-        );
-    }
-
-    bind_holiday_labels() {
-        const $highlights =
-            this.$container.querySelectorAll('.holiday-highlight');
-        for (let h of $highlights) {
-            const label = this.$container.querySelector(
-                '.label_' + h.classList[1],
-            );
-            if (!label) continue;
-            let timeout;
-            h.onmouseenter = (e) => {
-                timeout = setTimeout(() => {
-                    label.classList.add('show');
-                    label.style.left = (e.offsetX || e.layerX) + 'px';
-                    label.style.top = (e.offsetY || e.layerY) + 'px';
-                }, 300);
-            };
-
-            h.onmouseleave = (e) => {
-                clearTimeout(timeout);
-                label.classList.remove('show');
-            };
-        }
-    }
-
-    get_start_end_positions() {
-        if (!this.bars.length) return [0, 0, 0];
-        let { x, width } = this.bars[0].group.getBBox();
-        let min_start = x;
-        let max_start = x;
-        let max_end = x + width;
-        Array.prototype.forEach.call(this.bars, function ({ group }, i) {
-            let { x, width } = group.getBBox();
-            if (x < min_start) min_start = x;
-            if (x > max_start) max_start = x;
-            if (x + width > max_end) max_end = x + width;
-        });
-        return [min_start, max_start, max_end];
     }
 
     bind_bar_events() {
@@ -1364,203 +1578,6 @@ export default class Gantt {
         });
 
         this.bind_bar_progress();
-    }
-
-    bind_bar_progress() {
-        let x_on_start = 0;
-        let is_resizing = null;
-        let bar = null;
-        let $bar_progress = null;
-        let $bar = null;
-
-        $.on(this.$svg, 'mousedown', '.handle.progress', (e, handle) => {
-            is_resizing = true;
-            x_on_start = e.offsetX || e.layerX;
-
-            const $bar_wrapper = $.closest('.bar-wrapper', handle);
-            const id = $bar_wrapper.getAttribute('data-id');
-            bar = this.get_bar(id);
-
-            $bar_progress = bar.$bar_progress;
-            $bar = bar.$bar;
-
-            $bar_progress.finaldx = 0;
-            $bar_progress.owidth = $bar_progress.getWidth();
-            $bar_progress.min_dx = -$bar_progress.owidth;
-            $bar_progress.max_dx = $bar.getWidth() - $bar_progress.getWidth();
-        });
-
-        const range_positions = this.config.ignored_positions.map((d) => [
-            d,
-            d + this.config.column_width,
-        ]);
-
-        $.on(this.$svg, 'mousemove', (e) => {
-            if (!is_resizing) return;
-            let now_x = e.offsetX || e.layerX;
-
-            let moving_right = now_x > x_on_start;
-            if (moving_right) {
-                let k = range_positions.find(
-                    ([begin, end]) => now_x >= begin && now_x < end,
-                );
-                while (k) {
-                    now_x = k[1];
-                    k = range_positions.find(
-                        ([begin, end]) => now_x >= begin && now_x < end,
-                    );
-                }
-            } else {
-                let k = range_positions.find(
-                    ([begin, end]) => now_x > begin && now_x <= end,
-                );
-                while (k) {
-                    now_x = k[0];
-                    k = range_positions.find(
-                        ([begin, end]) => now_x > begin && now_x <= end,
-                    );
-                }
-            }
-
-            let dx = now_x - x_on_start;
-            if (dx > $bar_progress.max_dx) {
-                dx = $bar_progress.max_dx;
-            }
-            if (dx < $bar_progress.min_dx) {
-                dx = $bar_progress.min_dx;
-            }
-
-            $bar_progress.setAttribute('width', $bar_progress.owidth + dx);
-            $.attr(bar.$handle_progress, 'cx', $bar_progress.getEndX());
-
-            $bar_progress.finaldx = dx;
-        });
-
-        $.on(this.$svg, 'mouseup', () => {
-            is_resizing = false;
-            if (!($bar_progress && $bar_progress.finaldx)) return;
-
-            $bar_progress.finaldx = 0;
-            bar.progress_changed();
-            bar.set_action_completed();
-            bar = null;
-            $bar_progress = null;
-            $bar = null;
-        });
-    }
-
-    get_all_dependent_tasks(task_id) {
-        let out = [];
-        let to_process = [task_id];
-        while (to_process.length) {
-            const deps = to_process.reduce((acc, curr) => {
-                acc = acc.concat(this.dependency_map[curr]);
-                return acc;
-            }, []);
-
-            out = out.concat(deps);
-            to_process = deps.filter((d) => !to_process.includes(d) && !out.includes(d));
-        }
-
-        return out.filter(Boolean);
-    }
-
-    get_snap_position(dx, ox) {
-        let unit_length = 1;
-        const default_snap =
-            this.options.snap_at || this.config.view_mode.snap_at || '1d';
-
-        if (default_snap !== 'unit') {
-            const { duration, scale } = date_utils.parse_duration(default_snap);
-            unit_length =
-                date_utils.convert_scales(this.config.view_mode.step, scale) /
-                duration;
-        }
-
-        const rem = dx % (this.config.column_width / unit_length);
-
-        let final_dx =
-            dx -
-            rem +
-            (rem < (this.config.column_width / unit_length) * 2
-                ? 0
-                : this.config.column_width / unit_length);
-        let final_pos = ox + final_dx;
-
-        const drn = final_dx > 0 ? 1 : -1;
-        let ignored_regions = this.get_ignored_region(final_pos, drn);
-        while (ignored_regions.length) {
-            final_pos += this.config.column_width * drn;
-            ignored_regions = this.get_ignored_region(final_pos, drn);
-            if (!ignored_regions.length)
-                final_pos -= this.config.column_width * drn;
-        }
-        return final_pos - ox;
-    }
-
-    get_ignored_region(pos, drn = 1) {
-        if (drn === 1) {
-            return this.config.ignored_positions.filter((val) => {
-                return pos > val && pos <= val + this.config.column_width;
-            });
-        } else {
-            return this.config.ignored_positions.filter(
-                (val) => pos >= val && pos < val + this.config.column_width,
-            );
-        }
-    }
-
-    unselect_all() {
-        if (this.popup) this.popup.parent.classList.add('hide');
-        this.$container
-            .querySelectorAll('.date-range-highlight')
-            .forEach((k) => k.classList.add('hide'));
-    }
-
-    view_is(modes) {
-        if (typeof modes === 'string') {
-            return this.config.view_mode.name === modes;
-        }
-
-        if (Array.isArray(modes)) {
-            return modes.some(view_is);
-        }
-
-        return this.config.view_mode.name === modes.name;
-    }
-
-    get_task(id) {
-        return this.tasks.find((task) => {
-            return task.id === id;
-        });
-    }
-
-    get_bar(id) {
-        return this.bars.find((bar) => {
-            return bar.task.id === id;
-        });
-    }
-
-    show_popup(opts) {
-        if (this.options.popup === false) return;
-        if (!this.popup) {
-            this.popup = new Popup(
-                this.$popup_wrapper,
-                this.options.popup,
-                this,
-            );
-        }
-        this.popup.show(opts);
-    }
-
-    hide_popup() {
-        this.popup && this.popup.hide();
-    }
-
-    trigger_event(event, args) {
-        if (this.options['on_' + event]) {
-            this.options['on_' + event].apply(this, args);
-        }
     }
 
     view_is(view) {
