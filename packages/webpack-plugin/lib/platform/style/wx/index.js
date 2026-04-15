@@ -161,7 +161,7 @@ module.exports = function getSpec({ warn, error }) {
     }
     switch (type) {
       case ValueType.length: {
-        if (!valueExp.length.test(valueForVerify)) {
+        if (!valueExp.length.test(value)) {
           tipsType(type)
           return false
         }
