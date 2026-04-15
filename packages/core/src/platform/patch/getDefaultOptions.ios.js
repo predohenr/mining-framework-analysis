@@ -604,7 +604,7 @@ export function getDefaultOptions ({ type, rawOptions = {}, currentInject }) {
       const rootRef = useRef(null)
       const keyboardAvoidRef = useRef(null)
       useEffect(() => {
-        setTimeout(() => {
+         setTimeout(() => {
           rootRef.current?.measureInWindow((x, y, width, height) => {
             navigation.layout = { x, y, width, height }
           })
