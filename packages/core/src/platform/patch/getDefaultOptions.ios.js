@@ -11,10 +11,10 @@ import { queueJob, hasPendingJob } from '../../observer/scheduler'
 import { createSelectorQuery, createIntersectionObserver } from '@mpxjs/api-proxy'
 import { IntersectionObserverContext, RouteContext, KeyboardAvoidContext } from '@mpxjs/webpack-plugin/lib/runtime/components/react/dist/context'
 import MpxKeyboardAvoidingView from '@mpxjs/webpack-plugin/lib/runtime/components/react/dist/mpx-keyboard-avoiding-view'
-
-const ProviderContext = createContext(null)
 const windowDimensions = ReactNative.Dimensions.get('window')
 const screenDimensions = ReactNative.Dimensions.get('screen')
+const ProviderContext = createContext(null)
+
 function getSystemInfo () {
   return {
     deviceOrientation: windowDimensions.width > windowDimensions.height ? 'landscape' : 'portrait',
