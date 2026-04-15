@@ -2401,10 +2401,8 @@ func TestStrictPrefixMatchingRule(t *testing.T) {
 			t.Parallel()
 
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
-			parser, err := traefikhttp.NewSyntaxParser()
+			muxer, err := traefikhttp.NewMuxer()
 			require.NoError(t, err)
-
-			muxer := traefikhttp.NewMuxer(parser)
 
 			rule := buildStrictPrefixMatchingRule(tt.path)
 			err = muxer.AddRoute(rule, "", 0, handler)
