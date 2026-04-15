@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"time"
 
