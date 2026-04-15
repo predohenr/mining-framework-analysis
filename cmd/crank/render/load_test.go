@@ -32,10 +32,10 @@ import (
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 //go:embed testdata
