@@ -431,6 +431,9 @@ macro_rules! impl_array_newtype {
             fn clone(&self) -> Self {
                 $thing(self.0.clone())
             }
+            fn clone(&self) -> Self {
+                $thing(self.0.clone())
+            }
         }
 
         impl ::std::hash::Hash for $thing {
