@@ -1528,19 +1528,19 @@ ICS ==> create a new event with the same UID and a RECURRENCE-ID field (with a v
         APP.wasRecurrent = Boolean(APP.recurrenceRule);
 
 /*
-// Test data:
-APP.recurrenceRule = {
-    freq: 'yearly',
-    interval: 2,
-    count: 30,
-    until: 1924902000000,
-    by: {
-        month: [1, 3, 5, 7, 9, 11],
-        weekno: [1, 11, 21, 31, 41, 51],
-        day: ["MO","TU","WE","TH","FR"]
-    }
-};
-*/
+    // Test data:
+    APP.recurrenceRule = {
+        freq: 'yearly',
+        interval: 2,
+        count: 30,
+        until: 1924902000000,
+        by: {
+            month: [1, 3, 5, 7, 9, 11],
+            weekno: [1, 11, 21, 31, 41, 51],
+            day: ["MO","TU","WE","TH","FR"]
+        }
+    };
+    */
 
         var basicStr = {};
 
@@ -2286,12 +2286,21 @@ APP.recurrenceRule = {
                             break;
                     }
                 };
+                let updateDropdownArrow = function(isOpen) {
+                    const $icon = $dropdownButton.find('i.fa');
+                    if (isOpen) {
+                        $icon.removeClass('fa-caret-down').addClass('fa-caret-up');
+                    } else {
+                        $icon.removeClass('fa-caret-up').addClass('fa-caret-down');
+                    }
+                }
                 $dropdownButton.on('click keydown', function (event) {
                     if (event.type !== 'click' && event.key !== 'Enter' && event.key !== ' ' && event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
                         return;
                     }
                     let isOpen = $el.find('.tui-full-calendar-open').length > 0;
                     toggleAriaExpanded(!isOpen);
+                    updateDropdownArrow(!isOpen);
                     if (!isOpen && event.key !== 'ArrowUp') {
                         $dropdownMenu.find('li').first().focus();
                     }
@@ -2303,6 +2312,7 @@ APP.recurrenceRule = {
                 $(document).on('click', function (event) {
                     if (!$(event.target).closest($dropdownButton).length) {
                         toggleAriaExpanded(false);
+                        updateDropdownArrow(false);
                     }
                 });
 
