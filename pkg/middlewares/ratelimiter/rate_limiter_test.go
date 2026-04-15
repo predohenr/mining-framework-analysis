@@ -492,7 +492,11 @@ func TestRedisRateLimit(t *testing.T) {
 			end := start.Add(test.loadDuration)
 			ticker := time.NewTicker(loadPeriod)
 			defer ticker.Stop()
-			for !time.Now().After(end) {
+			for {
+				if time.Now().After(end) {
+					break
+				}
+
 				req := testhelpers.MustNewRequest(http.MethodGet, "http://localhost", nil)
 				req.RemoteAddr = "127.0.0." + strconv.Itoa(randPort) + ":" + strconv.Itoa(randPort)
 				w := httptest.NewRecorder()
