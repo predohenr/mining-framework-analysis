@@ -132,30 +132,30 @@ class GltfTextureLoader extends ResourceLoader {
     //>>includeStart('debug', pragmas.debug);
     Check.typeOf.object("frameState", frameState);
     //>>includeEnd('debug');
-
+  
     if (this._state === ResourceLoaderState.READY) {
       return true;
     }
-
+  
     if (
       this._state !== ResourceLoaderState.LOADED &&
       this._state !== ResourceLoaderState.PROCESSING
     ) {
       return false;
     }
-
+  
     if (defined(this._texture)) {
       // Already created texture
       return false;
     }
-
+  
     if (!defined(this._image)) {
       // Not ready to create texture
       return false;
     }
-
+  
     this._state = ResourceLoaderState.PROCESSING;
-
+  
     let texture;
     if (this._asynchronous) {
       const textureJob = scratchTextureJob;
@@ -183,10 +183,10 @@ class GltfTextureLoader extends ResourceLoader {
         frameState.context,
       );
     }
-
+  
     // Unload everything except the texture
     this.unload();
-
+  
     this._texture = texture;
     this._state = ResourceLoaderState.READY;
     this._resourceCache.statistics.addTextureLoader(this);

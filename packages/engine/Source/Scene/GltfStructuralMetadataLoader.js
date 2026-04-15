@@ -205,16 +205,16 @@ class GltfStructuralMetadataLoader extends ResourceLoader {
   unload() {
     unloadBufferViews(this);
     unloadTextures(this);
-
+  
     if (defined(this._schemaLoader)) {
       ResourceCache.unload(this._schemaLoader);
     }
     this._schemaLoader = undefined;
-
+  
     if (defined(this._structuralMetadata)) {
       this._structuralMetadata.destroy();
     }
-
+  
     this._structuralMetadata = undefined;
   }
 }
