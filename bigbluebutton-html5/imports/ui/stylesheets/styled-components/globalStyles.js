@@ -156,13 +156,14 @@ const GlobalStyle = createGlobalStyle`
       left: none !important;
     }
   }
+  button[data-testid="tools.more.asset"] {
+    display: none;
+  }
   [data-darkreader-scheme="dark"] button[data-testid="mobile.styles"] {
     & > div.tlui-icon {
       color: ${colorWhite};
     }
     
-  button[data-testid="tools.more.asset"] {
-    display: none;
   }
 `;
 
