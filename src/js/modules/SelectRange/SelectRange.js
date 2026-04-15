@@ -528,7 +528,7 @@ export default class SelectRange extends Module {
 				}
 			}
 
-			this.layoutElement();
+			this.layoutElement(true);
 		}
 		return true;
 	}
