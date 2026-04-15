@@ -357,7 +357,7 @@ class Page {
         console.log('not able to close the toast notification');
       }
     }
-    await this.hasElementCount(e.toastContainer, 0, 'should not display any toast notification');
+    await this.checkElementCount(e.toastContainer, 0, 'should not display any toast notification');
   }
 
   async setHeightWidthViewPortSize() {
