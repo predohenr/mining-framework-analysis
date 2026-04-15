@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"io"
 	"net/http"
 	"testing"
 	"time"
