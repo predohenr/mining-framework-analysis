@@ -329,13 +329,11 @@ Cesium3DTilesVoxelProvider.fromUrl = async function (url) {
   }
 
   const provider = new Cesium3DTilesVoxelProvider(providerOptions);
-
-  const implicitTileset = new ImplicitTileset(
+  provider._implicitTileset = new ImplicitTileset(
     resource,
     root,
     schemaLoader.schema,
   );
-  provider._implicitTileset = implicitTileset;
   provider._availableLevels = implicitTileset.availableLevels;
 
   ResourceCache.unload(schemaLoader);
