@@ -15,8 +15,26 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/traefik/traefik/v3/integration/try"
+	"github.com/traefik/traefik/v2/integration/try"
 	"golang.org/x/net/http2"
+	"golang.org/x/net/websocket"
+)
+import (
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
+
+	gorillawebsocket "github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"github.com/traefik/traefik/v3/integration/try"
 	"golang.org/x/net/websocket"
 )
 
