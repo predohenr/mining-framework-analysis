@@ -624,109 +624,6 @@ func Test_ExtractTenantIDs(t *testing.T) {
 	}
 }
 
-func Test_TenantFederation_MaxTenant(t *testing.T) {
-	// set a multi tenant resolver
-	tenant.WithDefaultResolver(tenant.NewMultiResolver())
-
-	roundTripper := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader("{}")),
-		}, nil
-	})
-
-	tests := []struct {
-		name               string
-		cfg                tenantfederation.Config
-		orgId              string
-		expectedStatusCode int
-		expectedErrMsg     string
-	}{
-		{
-			name: "one tenant",
-			cfg: tenantfederation.Config{
-				Enabled:   true,
-				MaxTenant: 0,
-			},
-			orgId:              "org1",
-			expectedStatusCode: http.StatusOK,
-		},
-		{
-			name: "less than max tenant",
-			cfg: tenantfederation.Config{
-				Enabled:   true,
-				MaxTenant: 3,
-			},
-			orgId:              "org1|org2",
-			expectedStatusCode: http.StatusOK,
-		},
-		{
-			name: "equal to max tenant",
-			cfg: tenantfederation.Config{
-				Enabled:   true,
-				MaxTenant: 2,
-			},
-			orgId:              "org1|org2",
-			expectedStatusCode: http.StatusOK,
-		},
-		{
-			name: "exceeds max tenant",
-			cfg: tenantfederation.Config{
-				Enabled:   true,
-				MaxTenant: 2,
-			},
-			orgId:              "org1|org2|org3",
-			expectedStatusCode: http.StatusBadRequest,
-			expectedErrMsg:     "too many tenants, max: 2, actual: 3",
-		},
-		{
-			name: "no org Id",
-			cfg: tenantfederation.Config{
-				Enabled:   true,
-				MaxTenant: 0,
-			},
-			orgId:              "",
-			expectedStatusCode: http.StatusUnauthorized,
-			expectedErrMsg:     "no org id",
-		},
-		{
-			name: "no limit",
-			cfg: tenantfederation.Config{
-				Enabled:   true,
-				MaxTenant: 0,
-			},
-			orgId:              "org1|org2|org3",
-			expectedStatusCode: http.StatusOK,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			handler := NewHandler(HandlerConfig{QueryStatsEnabled: true}, test.cfg, roundTripper, log.NewNopLogger(), nil)
-			handlerWithAuth := middleware.Merge(middleware.AuthenticateUser).Wrap(handler)
-
-			req := httptest.NewRequest("GET", "http://fake", nil)
-			req.Header.Set("X-Scope-OrgId", test.orgId)
-			resp := httptest.NewRecorder()
-
-			handlerWithAuth.ServeHTTP(resp, req)
-
-			body, err := io.ReadAll(resp.Body)
-			require.NoError(t, err)
-			require.Equal(t, test.expectedStatusCode, resp.Code)
-
-			if test.expectedErrMsg != "" {
-				require.Contains(t, string(body), test.expectedErrMsg)
-
-				if strings.Contains(test.expectedErrMsg, "too many tenants") {
-					v := promtest.ToFloat64(handler.rejectedQueries.WithLabelValues(reasonTooManyTenants, requestmeta.SourceAPI, test.orgId))
-					assert.Equal(t, float64(1), v)
-				}
-			}
-		})
-	}
-}
-
 func TestHandlerMetricsCleanup(t *testing.T) {
 	reg := prometheus.NewPedanticRegistry()
 	handler := NewHandler(HandlerConfig{QueryStatsEnabled: true}, tenantfederation.Config{}, http.DefaultTransport, log.NewNopLogger(), reg)
@@ -878,4 +775,107 @@ func TestHandler_RemoteReadRequest_DoesNotParseQueryString(t *testing.T) {
 
 	// Verify that the request body is still readable (not replaced with empty buffer)
 	require.NotEmpty(t, string(bodyBytes))
+}
+
+func Test_TenantFederation_MaxTenant(t *testing.T) {
+	// set a multi tenant resolver
+	tenant.WithDefaultResolver(tenant.NewMultiResolver())
+
+	roundTripper := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("{}")),
+		}, nil
+	})
+
+	tests := []struct {
+		name               string
+		cfg                tenantfederation.Config
+		orgId              string
+		expectedStatusCode int
+		expectedErrMsg     string
+	}{
+		{
+			name: "one tenant",
+			cfg: tenantfederation.Config{
+				Enabled:   true,
+				MaxTenant: 0,
+			},
+			orgId:              "org1",
+			expectedStatusCode: http.StatusOK,
+		},
+		{
+			name: "less than max tenant",
+			cfg: tenantfederation.Config{
+				Enabled:   true,
+				MaxTenant: 3,
+			},
+			orgId:              "org1|org2",
+			expectedStatusCode: http.StatusOK,
+		},
+		{
+			name: "equal to max tenant",
+			cfg: tenantfederation.Config{
+				Enabled:   true,
+				MaxTenant: 2,
+			},
+			orgId:              "org1|org2",
+			expectedStatusCode: http.StatusOK,
+		},
+		{
+			name: "exceeds max tenant",
+			cfg: tenantfederation.Config{
+				Enabled:   true,
+				MaxTenant: 2,
+			},
+			orgId:              "org1|org2|org3",
+			expectedStatusCode: http.StatusBadRequest,
+			expectedErrMsg:     "too many tenants, max: 2, actual: 3",
+		},
+		{
+			name: "no org Id",
+			cfg: tenantfederation.Config{
+				Enabled:   true,
+				MaxTenant: 0,
+			},
+			orgId:              "",
+			expectedStatusCode: http.StatusUnauthorized,
+			expectedErrMsg:     "no org id",
+		},
+		{
+			name: "no limit",
+			cfg: tenantfederation.Config{
+				Enabled:   true,
+				MaxTenant: 0,
+			},
+			orgId:              "org1|org2|org3",
+			expectedStatusCode: http.StatusOK,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			handler := NewHandler(HandlerConfig{QueryStatsEnabled: true}, test.cfg, roundTripper, log.NewNopLogger(), nil)
+			handlerWithAuth := middleware.Merge(middleware.AuthenticateUser).Wrap(handler)
+
+			req := httptest.NewRequest("GET", "http://fake", nil)
+			req.Header.Set("X-Scope-OrgId", test.orgId)
+			resp := httptest.NewRecorder()
+
+			handlerWithAuth.ServeHTTP(resp, req)
+
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			require.Equal(t, test.expectedStatusCode, resp.Code)
+
+			if test.expectedErrMsg != "" {
+				require.Contains(t, string(body), test.expectedErrMsg)
+
+				if strings.Contains(test.expectedErrMsg, "too many tenants") {
+					v := promtest.ToFloat64(handler.rejectedQueries.WithLabelValues(reasonTooManyTenants, requestmeta.SourceAPI, test.orgId))
+					assert.Equal(t, float64(1), v)
+				}
+			}
+		})
+	}
 }
