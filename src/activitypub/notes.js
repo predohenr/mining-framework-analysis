@@ -266,7 +266,7 @@ Notes.assert = async (uid, input, options = { skipChecks: false }) => {
 		await Notes.syncUserInboxes(tid, uid);
 
 		if (!hasTid && uid && options.cid) {
-			// New topic, have category announce it
+			// New topic via search/post-redirect, have category announce it
 			await activitypub.out.announce.topic(tid);
 		}
 
