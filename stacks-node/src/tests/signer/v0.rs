@@ -4031,7 +4031,7 @@ fn tx_replay_failsafe() {
 
     // Wait for the block commit re-broadcast to be confirmed
     wait_for(10, || {
-        let is_confirmed = btc_controller.is_transaction_confirmed(commit_txid.as_ref().unwrap());
+        let is_confirmed = btc_controller.is_transaction_confirmed(&commit_txid.unwrap());
         Ok(is_confirmed)
     })
     .expect("Timed out waiting for transaction to be confirmed");
@@ -4315,7 +4315,7 @@ fn tx_replay_disagreement() {
 
     // Wait for the block commit re-broadcast to be confirmed
     wait_for(10, || {
-        let is_confirmed = btc_controller.is_transaction_confirmed(commit_txid.as_ref().unwrap());
+        let is_confirmed = btc_controller.is_transaction_confirmed(&commit_txid.unwrap());
         Ok(is_confirmed)
     })
     .expect("Timed out waiting for transaction to be confirmed");

@@ -1622,13 +1622,13 @@ impl<Z: SpawnedSignerTrait> SignerTest<Z> {
             .running_nodes
             .btc_regtest_controller
             .get_raw_transaction(&unconfirmed_txid);
-        let parent_txid = &unconfirmed_tx
+        let parent_txid = unconfirmed_tx
             .input
             .get(0)
             .expect("First input should exist")
             .previous_output
             .txid;
-        Some(Txid::from_bitcoin_tx_hash(parent_txid))
+        Some(Txid::from_bitcoin_tx_hash(&parent_txid))
     }
 }
 

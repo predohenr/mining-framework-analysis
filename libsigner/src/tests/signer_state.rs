@@ -112,7 +112,7 @@ impl SignerStateTest {
             self.active_signer_protocol_version,
             self.local_supported_signer_protocol_version,
             StateMachineUpdateContent::V1 {
-                burn_block: self.burn_block.clone(),
+                burn_block: self.burn_block,
                 burn_block_height: self.burn_block_height,
                 current_miner: self.current_miner.clone(),
                 replay_transactions: transactions,
