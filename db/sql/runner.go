@@ -45,3 +45,7 @@ func (d *SqlDb) GetRunnerTags(projectID int) (res []db.RunnerTag, err error) {
 
 	return
 }
+
+func (d *SqlDb) GetRunnerTags(projectID int) ([]db.RunnerTag, error) {
+	return []db.RunnerTag{}, nil
+}
