@@ -1534,19 +1534,19 @@ ICS ==> create a new event with the same UID and a RECURRENCE-ID field (with a v
         APP.wasRecurrent = Boolean(APP.recurrenceRule);
 
 /*
-// Test data:
-APP.recurrenceRule = {
-    freq: 'yearly',
-    interval: 2,
-    count: 30,
-    until: 1924902000000,
-    by: {
-        month: [1, 3, 5, 7, 9, 11],
-        weekno: [1, 11, 21, 31, 41, 51],
-        day: ["MO","TU","WE","TH","FR"]
-    }
-};
-*/
+    // Test data:
+    APP.recurrenceRule = {
+        freq: 'yearly',
+        interval: 2,
+        count: 30,
+        until: 1924902000000,
+        by: {
+            month: [1, 3, 5, 7, 9, 11],
+            weekno: [1, 11, 21, 31, 41, 51],
+            day: ["MO","TU","WE","TH","FR"]
+        }
+    };
+    */
 
         var basicStr = {};
 
@@ -2194,7 +2194,7 @@ APP.recurrenceRule = {
             $el.find('.tui-full-calendar-confirm').addClass('btn btn-primary').prepend(Icons.get('save'));
             $el.find('input').attr('autocomplete', 'off');
             $el.find('.tui-full-calendar-dropdown-button').addClass('btn btn-secondary');
-            $el.find('.tui-full-calendar-dropdown-arrow').append(Icons.get('chevron-down')).removeClass('tui-full-calendar-dropdown-arrow').addClass('tui-full-calendar-dropdown-arrow-custom');
+            $el.find('.tui-full-calendar-dropdown-arrow').append(h('i.fa.fa-caret-down', {'aria-hidden': 'true'})).removeClass('tui-full-calendar-dropdown-arrow').addClass('tui-full-calendar-dropdown-arrow-custom');
             $el.find('.tui-full-calendar-popup-close').addClass('btn btn-cancel cp-calendar-close').empty();
             $el.find('.tui-full-calendar-popup-close').append(Icons.get('close'));
             $el.find('.tui-full-calendar-section-allday').attr('tabindex', 0);
