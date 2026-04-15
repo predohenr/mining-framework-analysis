@@ -401,10 +401,6 @@ function usePageEffect (mpxProxy, pageId) {
   }, [])
 }
 
-let pageId = 0
-const pageStatusMap = global.__mpxPageStatusMap = reactive({})
-let currentInjectPageConfig = {}
-
 function usePageStatus (navigation, pageId) {
   navigation.pageId = pageId
   if (!hasOwn(pageStatusMap, pageId)) {
@@ -425,6 +421,10 @@ function usePageStatus (navigation, pageId) {
     }
   }, [navigation])
 }
+
+const pageStatusMap = global.__mpxPageStatusMap = reactive({})
+let currentInjectPageConfig = {}
+let pageId = 0
 
 const RelationsContext = createContext(null)
 
