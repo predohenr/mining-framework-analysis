@@ -418,102 +418,6 @@ fn static_check_error_expected_sequence() {
     );
 }
 
-/// CheckErrorKind: [`CheckErrorKind::CouldNotDetermineSerializationType`]
-/// Caused by: `to-consensus-buff?` over a list of trait references lacks a serialization type.
-/// Outcome: block accepted.
-/// Note: during analysis, this error can only be triggered by `from-consensus-buff?`
-///       which is only available in Clarity 2 and later. So Clarity 1 will not trigger
-///       this error.
-#[test]
-fn static_check_error_could_not_determine_serialization_type() {
-    contract_deploy_consensus_test!(
-        contract_name: "serialization-type",
-        contract_code: "
-        (define-trait trait-a ((ping () (response bool bool))))
-        (define-trait trait-b ((pong () (response bool bool))))
-        (define-public (trigger (first <trait-a>) (second <trait-b>))
-            (ok (to-consensus-buff? (list first second))))",
-        exclude_clarity_versions: &[ClarityVersion::Clarity1],
-    );
-}
-
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::IllegalOrUnknownFunctionApplication`]
-/// Caused by: calling `map` with `if` (a non-function) as its function argument.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_illegal_or_unknown_function_application() {
-    contract_deploy_consensus_test!(
-        contract_name: "illegal-or-unknown",
-        contract_code: "(map if (list 1 2 3 4 5))",
-    );
-}
-
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::UnknownFunction`]
-/// Caused by: invoking the undefined function `ynot`.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_unknown_function() {
-    contract_deploy_consensus_test!(
-        contract_name: "unknown-function",
-        contract_code: "(ynot 1 2)",
-    );
-}
-
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::IncorrectArgumentCount`]
-/// Caused by: `len` receives two arguments even though it expects exactly one.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_incorrect_argument_count() {
-    contract_deploy_consensus_test!(
-        contract_name: "incorrect-arg-count",
-        contract_code: "(len (list 1) (list 1))",
-    );
-}
-
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::BadLetSyntax`]
-/// Caused by: `let` is used without a binding list.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_bad_let_syntax() {
-    contract_deploy_consensus_test!(
-        contract_name: "bad-let-syntax",
-        contract_code: "(let 1 2)",
-    );
-}
-
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::BadSyntaxBinding`]
-/// Caused by: `let` binding `((1))` is not a two-element list.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_bad_syntax_binding() {
-    contract_deploy_consensus_test!(
-        contract_name: "bad-syntax-binding",
-        contract_code: "(let ((1)) (+ 1 2))",
-    );
-}
-
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::ExpectedOptionalOrResponseType`]
-/// Caused by: expected an optional or response type, but got a value
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_expected_optional_or_response_type() {
-    contract_deploy_consensus_test!(
-        contract_name: "exp-opt-or-res",
-        contract_code: "(try! 3)",
-    );
-}
-
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::DefineTraitBadSignature`]
-/// Caused by: calling `define-trait` with a method signature that is not valid.
-/// Outcome: block accepted.
-#[test]
-fn static_check_error_define_trait_bad_signature() {
-    contract_deploy_consensus_test!(
-        contract_name: "def-trait-bad-sign",
-        contract_code: "(define-trait trait-1 ((get-1 uint uint)))",
-    );
-}
-
 /// StaticCheckErrorKind: [`StaticCheckErrorKind::DefineTraitDuplicateMethod`]
 /// Caused by: trait definition contains duplicate method names
 /// Outcome: block accepted.
@@ -530,14 +434,16 @@ fn static_check_error_define_trait_duplicate_method() {
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::UnexpectedTraitOrFieldReference`]
-/// Caused by: unexpected use of trait reference or field
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::NoSuchStacksBlockInfoProperty`]
+/// Caused by: referenced an unknown property of a stacks block
 /// Outcome: block accepted.
+/// Note: This error was added in Clarity 3. Clarity 1, and 2
+///       will trigger a [`StaticCheckErrorKind::UnknownFunction`].
 #[test]
-fn static_check_error_unexpected_trait_or_field_reference() {
+fn static_check_error_no_such_stacks_block_info_property() {
     contract_deploy_consensus_test!(
-        contract_name: "trait-or-field-ref",
-        contract_code: "(+ 1 'SZ2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKQ9H6DPR.contract.field)",
+        contract_name: "no-such-stacks-info",
+        contract_code: "(get-stacks-block-info? none u1)",
     );
 }
 
@@ -563,20 +469,25 @@ fn static_check_error_incompatible_trait() {
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::TraitTooManyMethods`]
-/// Caused by: a trait has too many methods.
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::BadSyntaxBinding`]
+/// Caused by: `let` binding `((1))` is not a two-element list.
 /// Outcome: block accepted.
 #[test]
-fn static_check_error_trait_too_many_methods() {
+fn static_check_error_bad_syntax_binding() {
     contract_deploy_consensus_test!(
-        contract_name: "too-many-methods",
-        contract_code: &format!(
-            "(define-trait trait-1 ({}))",
-            (0..(MAX_TRAIT_METHODS + 1))
-                .map(|i| format!("(method-{i} (uint) (response uint uint))"))
-                .collect::<Vec<String>>()
-                .join(" ")
-        ),
+        contract_name: "bad-syntax-binding",
+        contract_code: "(let ((1)) (+ 1 2))",
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::IllegalOrUnknownFunctionApplication`]
+/// Caused by: calling `map` with `if` (a non-function) as its function argument.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_illegal_or_unknown_function_application() {
+    contract_deploy_consensus_test!(
+        contract_name: "illegal-or-unknown",
+        contract_code: "(map if (list 1 2 3 4 5))",
     );
 }
 
@@ -594,6 +505,50 @@ fn static_check_error_too_many_function_parameters() {
                 .collect::<Vec<String>>()
                 .join(" ")
         ),
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::BadLetSyntax`]
+/// Caused by: `let` is used without a binding list.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_bad_let_syntax() {
+    contract_deploy_consensus_test!(
+        contract_name: "bad-let-syntax",
+        contract_code: "(let 1 2)",
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::ExpectedOptionalOrResponseType`]
+/// Caused by: expected an optional or response type, but got a value
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_expected_optional_or_response_type() {
+    contract_deploy_consensus_test!(
+        contract_name: "exp-opt-or-res",
+        contract_code: "(try! 3)",
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::DefineTraitBadSignature`]
+/// Caused by: calling `define-trait` with a method signature that is not valid.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_define_trait_bad_signature() {
+    contract_deploy_consensus_test!(
+        contract_name: "def-trait-bad-sign",
+        contract_code: "(define-trait trait-1 ((get-1 uint uint)))",
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::UnexpectedTraitOrFieldReference`]
+/// Caused by: unexpected use of trait reference or field
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_unexpected_trait_or_field_reference() {
+    contract_deploy_consensus_test!(
+        contract_name: "trait-or-field-ref",
+        contract_code: "(+ 1 'SZ2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKQ9H6DPR.contract.field)",
     );
 }
 
@@ -621,16 +576,61 @@ fn static_check_error_no_such_block_info_property() {
     );
 }
 
-/// StaticCheckErrorKind: [`StaticCheckErrorKind::NoSuchStacksBlockInfoProperty`]
-/// Caused by: referenced an unknown property of a stacks block
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::TraitTooManyMethods`]
+/// Caused by: a trait has too many methods.
 /// Outcome: block accepted.
-/// Note: This error was added in Clarity 3. Clarity 1, and 2
-///       will trigger a [`StaticCheckErrorKind::UnknownFunction`].
 #[test]
-fn static_check_error_no_such_stacks_block_info_property() {
+fn static_check_error_trait_too_many_methods() {
     contract_deploy_consensus_test!(
-        contract_name: "no-such-stacks-info",
-        contract_code: "(get-stacks-block-info? none u1)",
+        contract_name: "too-many-methods",
+        contract_code: &format!(
+            "(define-trait trait-1 ({}))",
+            (0..(MAX_TRAIT_METHODS + 1))
+                .map(|i| format!("(method-{i} (uint) (response uint uint))"))
+                .collect::<Vec<String>>()
+                .join(" ")
+        ),
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::IncorrectArgumentCount`]
+/// Caused by: `len` receives two arguments even though it expects exactly one.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_incorrect_argument_count() {
+    contract_deploy_consensus_test!(
+        contract_name: "incorrect-arg-count",
+        contract_code: "(len (list 1) (list 1))",
+    );
+}
+
+/// StaticCheckErrorKind: [`StaticCheckErrorKind::UnknownFunction`]
+/// Caused by: invoking the undefined function `ynot`.
+/// Outcome: block accepted.
+#[test]
+fn static_check_error_unknown_function() {
+    contract_deploy_consensus_test!(
+        contract_name: "unknown-function",
+        contract_code: "(ynot 1 2)",
+    );
+}
+
+/// CheckErrorKind: [`CheckErrorKind::CouldNotDetermineSerializationType`]
+/// Caused by: `to-consensus-buff?` over a list of trait references lacks a serialization type.
+/// Outcome: block accepted.
+/// Note: during analysis, this error can only be triggered by `from-consensus-buff?`
+///       which is only available in Clarity 2 and later. So Clarity 1 will not trigger
+///       this error.
+#[test]
+fn static_check_error_could_not_determine_serialization_type() {
+    contract_deploy_consensus_test!(
+        contract_name: "serialization-type",
+        contract_code: "
+        (define-trait trait-a ((ping () (response bool bool))))
+        (define-trait trait-b ((pong () (response bool bool))))
+        (define-public (trigger (first <trait-a>) (second <trait-b>))
+            (ok (to-consensus-buff? (list first second))))",
+        exclude_clarity_versions: &[ClarityVersion::Clarity1],
     );
 }
 
