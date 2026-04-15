@@ -189,14 +189,14 @@ class AudioManager {
       this.fullAudioBridge.inputDeviceId = this._inputDeviceId.value();
     }
   }
+  get inputDeviceId() {
+    return this._inputDeviceId.value();
+  }
 
   // inputDeviceId is a string that represents a MediaDeviceInfo.deviceId OR a static
   // 'listen-only' string that represents our "virtual" listen-only device.
   // i.e.: the user has a bidirectional audio channel, but did not specify any
   // input device to it.
-  get inputDeviceId() {
-    return this._inputDeviceId.value();
-  }
 
   set outputDeviceId(value) {
     if (this._outputDeviceId.value() !== value) {
@@ -1017,16 +1017,16 @@ class AudioManager {
     return this._inputStream();
   }
 
-  get bridge() {
-    return this.isListenOnly ? this.listenOnlyBridge : this.fullAudioBridge;
-  }
-
   set inputStream(stream) {
     // We store reactive information about input stream
     // because mutedalert component needs to track when it changes
     // and then update hark with the new value for inputStream
 
     this._inputStream(stream);
+  }
+
+  get bridge() {
+    return this.isListenOnly ? this.listenOnlyBridge : this.fullAudioBridge;
   }
 
   /**
