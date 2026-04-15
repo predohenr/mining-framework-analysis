@@ -187,7 +187,7 @@ ResourceCache.getSchemaLoader = function (options) {
  * @private
  */
 ResourceCache.getEmbeddedBufferLoader = function (options) {
-  options = options ?? Frozen.EMPTY_OBJECT;
+  options = defaultValue(options, defaultValue.EMPTY_OBJECT);
   const { parentResource, bufferId } = options;
 
   //>>includeStart('debug', pragmas.debug);
