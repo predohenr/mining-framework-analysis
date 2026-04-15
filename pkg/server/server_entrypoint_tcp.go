@@ -808,7 +808,7 @@ func denyEncodedCharacters(encodedCharacters map[string]struct{}, h http.Handler
 
 			// This rejects a request with a path containing the given encoded characters.
 			if _, exists := encodedCharacters[escapedPath[i:i+3]]; exists {
-				log.Debug().Msgf("Rejecting request because it contains encoded character %s in the URL path: %s", escapedPath[i:i+3], escapedPath)
+				log.FromContext(req.Context()).Debugf("Rejecting request because it contains encoded character %s in the URL path: %s", escapedPath[i:i+3], escapedPath)
 				rw.WriteHeader(http.StatusBadRequest)
 				return
 			}
