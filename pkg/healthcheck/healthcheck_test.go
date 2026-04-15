@@ -461,7 +461,7 @@ func TestServiceHealthChecker_Launch(t *testing.T) {
 func TestDifferentIntervals(t *testing.T) {
 	// The context is passed to the health check and
 	// canonically canceled by the test server once all expected requests have been received.
-	ctx, cancel := context.WithCancel(t.Context())
+	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
 	healthyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
