@@ -368,11 +368,11 @@ func (c *Configuration) SetEffectiveConfiguration() {
 
 		switch resolver.ACME.DNSChallenge.Provider {
 		case "googledomains", "cloudxns", "brandit":
-			log.Warn().Msgf("%s DNS provider is deprecated.", resolver.ACME.DNSChallenge.Provider)
+			log.WithoutContext().Warnf("%s DNS provider is deprecated.", resolver.ACME.DNSChallenge.Provider)
 		case "dnspod":
-			log.Warn().Msgf("%s provider is deprecated, please use 'tencentcloud' provider instead.", resolver.ACME.DNSChallenge.Provider)
+			log.WithoutContext().Warnf("%s provider is deprecated, please use 'tencentcloud' provider instead.", resolver.ACME.DNSChallenge.Provider)
 		case "azure":
-			log.Warn().Msgf("%s provider is deprecated, please use 'azuredns' provider instead.", resolver.ACME.DNSChallenge.Provider)
+			log.WithoutContext().Warnf("%s provider is deprecated, please use 'azuredns' provider instead.", resolver.ACME.DNSChallenge.Provider)
 		}
 	}
 

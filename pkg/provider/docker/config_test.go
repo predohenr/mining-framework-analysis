@@ -5,7 +5,8 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/docker/docker/api/types/container"
+	docker "github.com/docker/docker/api/types"
+	dockercontainertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/go-connections/nat"
@@ -2746,7 +2747,7 @@ func TestDynConfBuilder_build(t *testing.T) {
 				{
 					ServiceName: "Test",
 					Name:        "Test",
-					Health:      containertypes.Unhealthy,
+					Health:      docker.Unhealthy,
 				},
 			},
 			expected: &dynamic.Configuration{
@@ -2778,7 +2779,7 @@ func TestDynConfBuilder_build(t *testing.T) {
 				{
 					ServiceName: "Test",
 					Name:        "Test",
-					Health:      containertypes.Unhealthy,
+					Health:      docker.Unhealthy,
 				},
 			},
 			expected: &dynamic.Configuration{
@@ -2825,7 +2826,7 @@ func TestDynConfBuilder_build(t *testing.T) {
 				{
 					ServiceName: "Test",
 					Name:        "Test",
-					Health:      containertypes.Unhealthy,
+					Health:      docker.Unhealthy,
 					Labels: map[string]string{
 						"traefik.tcp.routers.foo.rule": "HostSNI(`foo.bar`)",
 					},
@@ -2860,7 +2861,7 @@ func TestDynConfBuilder_build(t *testing.T) {
 				{
 					ServiceName: "Test",
 					Name:        "Test",
-					Health:      containertypes.Unhealthy,
+					Health:      docker.Unhealthy,
 					Labels: map[string]string{
 						"traefik.tcp.routers.foo.rule": "HostSNI(`foo.bar`)",
 					},
@@ -2903,7 +2904,7 @@ func TestDynConfBuilder_build(t *testing.T) {
 				{
 					ServiceName: "Test",
 					Name:        "Test",
-					Health:      containertypes.Unhealthy,
+					Health:      docker.Unhealthy,
 					Labels: map[string]string{
 						"traefik.udp.routers.foo": "true",
 					},
@@ -2941,7 +2942,7 @@ func TestDynConfBuilder_build(t *testing.T) {
 					Labels: map[string]string{
 						"traefik.udp.routers.foo": "true",
 					},
-					Health: containertypes.Unhealthy,
+					Health: docker.Unhealthy,
 				},
 			},
 			expected: &dynamic.Configuration{
@@ -3944,7 +3945,7 @@ func TestDynConfBuilder_getIPPort_docker(t *testing.T) {
 
 	testCases := []struct {
 		desc       string
-		container  containertypes.InspectResponse
+		container  dockercontainertypes.InspectResponse
 		serverPort string
 		expected   expected
 	}{
@@ -4112,10 +4113,287 @@ func TestDynConfBuilder_getIPPort_docker(t *testing.T) {
 	}
 }
 
+func TestDockerGetPort(t *testing.T) {
+	testCases := []struct {
+		desc       string
+		container  dockercontainertypes.InspectResponse
+		serverPort string
+		expected   string
+	}{
+		{
+			desc:      "no binding, no server port label",
+			container: containerJSON(name("foo")),
+			expected:  "",
+		},
+		{
+			desc: "binding, no server port label",
+			container: containerJSON(ports(nat.PortMap{
+				"80/tcp": {},
+			})),
+			expected: "80",
+		},
+		{
+			desc: "binding, multiple ports, no server port label",
+			container: containerJSON(ports(nat.PortMap{
+				"80/tcp":  {},
+				"443/tcp": {},
+			})),
+			expected: "80",
+		},
+		{
+			desc:       "no binding, server port label",
+			container:  containerJSON(),
+			serverPort: "8080",
+			expected:   "8080",
+		},
+		{
+			desc: "binding, server port label",
+			container: containerJSON(
+				ports(nat.PortMap{
+					"80/tcp": {},
+				})),
+			serverPort: "8080",
+			expected:   "8080",
+		},
+		{
+			desc: "binding, multiple ports, server port label",
+			container: containerJSON(ports(nat.PortMap{
+				"8080/tcp": {},
+				"80/tcp":   {},
+			})),
+			serverPort: "8080",
+			expected:   "8080",
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
+
+			dData := parseContainer(test.container)
+
+			actual := getPort(dData, test.serverPort)
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}
+
+func TestDockerGetIPAddress(t *testing.T) {
+	testCases := []struct {
+		desc      string
+		container dockercontainertypes.InspectResponse
+		network   string
+		nodeIP    string
+		expected  string
+	}{
+		{
+			desc:      "one network, no network label",
+			container: containerJSON(withNetwork("testnet", ipv4("10.11.12.13"))),
+			expected:  "10.11.12.13",
+		},
+		{
+			desc: "one network, network label",
+			container: containerJSON(
+				withNetwork("testnet", ipv4("10.11.12.13")),
+			),
+			network:  "testnet",
+			expected: "10.11.12.13",
+		},
+		{
+			desc: "one ipv6 network, network label",
+			container: containerJSON(
+				withNetwork("testnet", ipv6("fd00:1:2:3:4::")),
+			),
+			network:  "testnet",
+			expected: "fd00:1:2:3:4::",
+		},
+		{
+			desc: "two network ipv4 + ipv6, network label",
+			container: containerJSON(
+				withNetwork("testnet", ipv4("10.11.12.13"), ipv6("fd00:1:2:3:4::")),
+			),
+			network:  "testnet",
+			expected: "10.11.12.13",
+		},
+		{
+			desc: "two networks, network label",
+			container: containerJSON(
+				withNetwork("testnet", ipv4("10.11.12.13")),
+				withNetwork("testnet2", ipv4("10.11.12.14")),
+			),
+			network:  "testnet2",
+			expected: "10.11.12.14",
+		},
+		{
+			desc: "two networks, no network label, mode host",
+			container: containerJSON(
+				networkMode("host"),
+				withNetwork("testnet", ipv4("10.11.12.13")),
+				withNetwork("testnet2", ipv4("10.11.12.14")),
+			),
+			expected: "127.0.0.1",
+		},
+		{
+			desc: "two networks, no network label, mode host, use provider network",
+			container: containerJSON(
+				networkMode("host"),
+				withNetwork("testnet", ipv4("10.11.12.13")),
+				withNetwork("webnet", ipv4("10.11.12.14")),
+			),
+			expected: "10.11.12.14",
+		},
+		{
+			desc: "two networks, network label",
+			container: containerJSON(
+				withNetwork("testnet", ipv4("10.11.12.13")),
+				withNetwork("webnet", ipv4("10.11.12.14")),
+			),
+			network:  "testnet",
+			expected: "10.11.12.13",
+		},
+		{
+			desc: "no network, no network label, mode host",
+			container: containerJSON(
+				networkMode("host"),
+			),
+			expected: "127.0.0.1",
+		},
+		{
+			desc:   "no network, no network label, mode host, node IP",
+			nodeIP: "10.0.0.5",
+			container: containerJSON(
+				networkMode("host"),
+			),
+			expected: "10.0.0.5",
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
+
+			conf := Shared{
+				Network: "webnet",
+			}
+
+			dData := parseContainer(test.container)
+			if test.nodeIP != "" {
+				dData.NodeIP = test.nodeIP
+			}
+
+			dData.ExtraConf.Docker.Network = provider.Network
+			if test.network != "" {
+				dData.ExtraConf.Docker.Network = test.network
+			}
+
+			builder := NewDynConfBuilder(conf, nil, false)
+
+			actual := builder.getIPAddress(t.Context(), dData)
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}
+
+func TestSwarmGetPort(t *testing.T) {
+	testCases := []struct {
+		service    swarmtypes.Service
+		serverPort string
+		networks   map[string]*networktypes.Summary
+		expected   string
+	}{
+		{
+			service: swarmService(
+				withEndpointSpec(modeDNSRR),
+			),
+			networks:   map[string]*networktypes.Summary{},
+			serverPort: "8080",
+			expected:   "8080",
+		},
+	}
+
+	for serviceID, test := range testCases {
+		t.Run(strconv.Itoa(serviceID), func(t *testing.T) {
+			t.Parallel()
+
+			p := Provider{}
+
+			dData, err := p.parseService(t.Context(), test.service, test.networks)
+			require.NoError(t, err)
+
+			builder := NewDynConfBuilder(p.Shared, nil, false)
+			actual := builder.getIPAddress(t.Context(), dData)
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}
+
+func TestDynConfBuilder_getIPAddress_swarm(t *testing.T) {
+	testCases := []struct {
+		service  swarmtypes.Service
+		expected string
+		networks map[string]*networktypes.Summary
+	}{
+		{
+			service:  swarmService(withEndpointSpec(modeDNSRR)),
+			expected: "",
+			networks: map[string]*networktypes.Summary{},
+		},
+		{
+			service: swarmService(
+				withEndpointSpec(modeVIP),
+				withEndpoint(virtualIP("1", "10.11.12.13/24")),
+			),
+			expected: "10.11.12.13",
+			networks: map[string]*networktypes.Summary{
+				"1": {
+					Name: "foo",
+				},
+			},
+		},
+		{
+			service: swarmService(
+				serviceLabels(map[string]string{
+					"traefik.swarm.network": "barnet",
+				}),
+				withEndpointSpec(modeVIP),
+				withEndpoint(
+					virtualIP("1", "10.11.12.13/24"),
+					virtualIP("2", "10.11.12.99/24"),
+				),
+			),
+			expected: "10.11.12.99",
+			networks: map[string]*networktypes.Summary{
+				"1": {
+					Name: "foonet",
+				},
+				"2": {
+					Name: "barnet",
+				},
+			},
+		},
+	}
+
+	for serviceID, test := range testCases {
+		t.Run(strconv.Itoa(serviceID), func(t *testing.T) {
+			t.Parallel()
+
+			var p SwarmProvider
+			require.NoError(t, p.Init())
+
+			dData, err := p.parseService(t.Context(), test.service, test.networks)
+			require.NoError(t, err)
+
+			builder := NewDynConfBuilder(p.Shared, nil, false)
+			actual := builder.getIPAddress(t.Context(), dData)
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}
+
 func TestDynConfBuilder_getIPAddress_docker(t *testing.T) {
 	testCases := []struct {
 		desc      string
-		container containertypes.InspectResponse
+		container dockercontainertypes.InspectResponse
 		network   string
 		nodeIP    string
 		expected  string
@@ -4222,69 +4500,6 @@ func TestDynConfBuilder_getIPAddress_docker(t *testing.T) {
 
 			builder := NewDynConfBuilder(conf, nil, false)
 
-			actual := builder.getIPAddress(t.Context(), dData)
-			assert.Equal(t, test.expected, actual)
-		})
-	}
-}
-
-func TestDynConfBuilder_getIPAddress_swarm(t *testing.T) {
-	testCases := []struct {
-		service  swarmtypes.Service
-		expected string
-		networks map[string]*networktypes.Summary
-	}{
-		{
-			service:  swarmService(withEndpointSpec(modeDNSRR)),
-			expected: "",
-			networks: map[string]*networktypes.Summary{},
-		},
-		{
-			service: swarmService(
-				withEndpointSpec(modeVIP),
-				withEndpoint(virtualIP("1", "10.11.12.13/24")),
-			),
-			expected: "10.11.12.13",
-			networks: map[string]*networktypes.Summary{
-				"1": {
-					Name: "foo",
-				},
-			},
-		},
-		{
-			service: swarmService(
-				serviceLabels(map[string]string{
-					"traefik.swarm.network": "barnet",
-				}),
-				withEndpointSpec(modeVIP),
-				withEndpoint(
-					virtualIP("1", "10.11.12.13/24"),
-					virtualIP("2", "10.11.12.99/24"),
-				),
-			),
-			expected: "10.11.12.99",
-			networks: map[string]*networktypes.Summary{
-				"1": {
-					Name: "foonet",
-				},
-				"2": {
-					Name: "barnet",
-				},
-			},
-		},
-	}
-
-	for serviceID, test := range testCases {
-		t.Run(strconv.Itoa(serviceID), func(t *testing.T) {
-			t.Parallel()
-
-			var p SwarmProvider
-			require.NoError(t, p.Init())
-
-			dData, err := p.parseService(t.Context(), test.service, test.networks)
-			require.NoError(t, err)
-
-			builder := NewDynConfBuilder(p.Shared, nil, false)
 			actual := builder.getIPAddress(t.Context(), dData)
 			assert.Equal(t, test.expected, actual)
 		})
