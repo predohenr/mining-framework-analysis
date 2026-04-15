@@ -6187,9 +6187,9 @@ func getMockTableDesc(
 	return tabledesc.NewBuilder(&mockTableDescriptor).BuildImmutableTable()
 }
 
-// Unit tests for the spansForAllTableIndexes and forEachIndexTableSpan()
+// Unit tests for the spansForAllTableIndexes and forEachPublicIndexTableSpan()
 // methods.
-func TestIndexTableSpans(t *testing.T) {
+func TestPublicIndexTableSpans(t *testing.T) {
 	defer leaktest.AfterTest(t)()
 
 	testCases := []struct {
@@ -6211,17 +6211,15 @@ func TestIndexTableSpans(t *testing.T) {
 			expectedMergedSpans: []string{"/Table/55/{1-3}"},
 		},
 		{
-			// Dropping index 2 is now included, so spans are contiguous.
-			name:                "dropping-span-between-two-spans",
+			name:                "dropped-span-between-two-spans",
 			tableID:             56,
 			pkIndex:             getMockIndexDesc(1),
 			indexes:             []descpb.IndexDescriptor{getMockIndexDesc(1), getMockIndexDesc(3)},
 			droppingIndexes:     []descpb.IndexDescriptor{getMockIndexDesc(2)},
-			expectedSpans:       []string{"/Table/56/{1-2}", "/Table/56/{3-4}", "/Table/56/{2-3}"},
-			expectedMergedSpans: []string{"/Table/56/{1-4}"},
+			expectedSpans:       []string{"/Table/56/{1-2}", "/Table/56/{3-4}"},
+			expectedMergedSpans: []string{"/Table/56/{1-2}", "/Table/56/{3-4}"},
 		},
 		{
-			// No mutations, gap remains.
 			name:                "gced-span-between-two-spans",
 			tableID:             57,
 			pkIndex:             getMockIndexDesc(1),
@@ -6230,8 +6228,7 @@ func TestIndexTableSpans(t *testing.T) {
 			expectedMergedSpans: []string{"/Table/57/{1-2}", "/Table/57/{3-4}"},
 		},
 		{
-			// Dropping indexes 2 and 4 are now included, filling the gaps.
-			name:    "alternate-spans-dropping",
+			name:    "alternate-spans-dropped",
 			tableID: 58,
 			pkIndex: getMockIndexDesc(1),
 			indexes: []descpb.IndexDescriptor{
@@ -6239,11 +6236,10 @@ func TestIndexTableSpans(t *testing.T) {
 				getMockIndexDesc(5),
 			},
 			droppingIndexes:     []descpb.IndexDescriptor{getMockIndexDesc(2), getMockIndexDesc(4)},
-			expectedSpans:       []string{"/Table/58/{1-2}", "/Table/58/{3-4}", "/Table/58/{5-6}", "/Table/58/{2-3}", "/Table/58/{4-5}"},
-			expectedMergedSpans: []string{"/Table/58/{1-6}"},
+			expectedSpans:       []string{"/Table/58/{1-2}", "/Table/58/{3-4}", "/Table/58/{5-6}"},
+			expectedMergedSpans: []string{"/Table/58/{1-2}", "/Table/58/{3-4}", "/Table/58/{5-6}"},
 		},
 		{
-			// No mutations, gaps remain.
 			name:    "alternate-spans-gced",
 			tableID: 59,
 			pkIndex: getMockIndexDesc(1),
@@ -6255,7 +6251,6 @@ func TestIndexTableSpans(t *testing.T) {
 			expectedMergedSpans: []string{"/Table/59/{1-2}", "/Table/59/{3-4}", "/Table/59/{5-6}"},
 		},
 		{
-			// Dropping index 2 fills the gap between 1 and 3, but gap at 4 remains.
 			name:    "one-drop-one-gc",
 			tableID: 60,
 			pkIndex: getMockIndexDesc(1),
@@ -6264,13 +6259,13 @@ func TestIndexTableSpans(t *testing.T) {
 				getMockIndexDesc(5),
 			},
 			droppingIndexes:     []descpb.IndexDescriptor{getMockIndexDesc(2)},
-			expectedSpans:       []string{"/Table/60/{1-2}", "/Table/60/{3-4}", "/Table/60/{5-6}", "/Table/60/{2-3}"},
-			expectedMergedSpans: []string{"/Table/60/{1-4}", "/Table/60/{5-6}"},
+			expectedSpans:       []string{"/Table/60/{1-2}", "/Table/60/{3-4}", "/Table/60/{5-6}"},
+			expectedMergedSpans: []string{"/Table/60/{1-2}", "/Table/60/{3-4}", "/Table/60/{5-6}"},
 		},
 		{
-			// Adding index 2 is now included, filling the gap. This ensures data
-			// written during index build is captured incrementally by backup.
-			name:    "adding-index-included",
+			// Although there are no keys on index 2, we should not include its
+			// span since it holds an adding index.
+			name:    "empty-adding-index",
 			tableID: 61,
 			pkIndex: getMockIndexDesc(1),
 			indexes: []descpb.IndexDescriptor{
@@ -6278,8 +6273,8 @@ func TestIndexTableSpans(t *testing.T) {
 				getMockIndexDesc(4),
 			},
 			addingIndexes:       []descpb.IndexDescriptor{getMockIndexDesc(2)},
-			expectedSpans:       []string{"/Table/61/{1-2}", "/Table/61/{3-4}", "/Table/61/{4-5}", "/Table/61/{2-3}"},
-			expectedMergedSpans: []string{"/Table/61/{1-5}"},
+			expectedSpans:       []string{"/Table/61/{1-2}", "/Table/61/{3-4}", "/Table/61/{4-5}"},
+			expectedMergedSpans: []string{"/Table/61/{1-2}", "/Table/61/{3-5}"},
 		},
 	}
 
@@ -6304,9 +6299,9 @@ func TestIndexTableSpans(t *testing.T) {
 			for _, test := range testCases {
 				tableDesc := getMockTableDesc(test.tableID, test.pkIndex,
 					test.indexes, test.addingIndexes, test.droppingIndexes)
-				t.Run(fmt.Sprintf("%s:%s", "forEachIndexTableSpan", test.name), func(t *testing.T) {
+				t.Run(fmt.Sprintf("%s:%s", "forEachPublicIndexTableSpan", test.name), func(t *testing.T) {
 					var spans []roachpb.Span
-					forEachIndexTableSpan(tableDesc.TableDesc(), unusedMap, codec, func(sp roachpb.Span) {
+					forEachPublicIndexTableSpan(tableDesc.TableDesc(), unusedMap, codec, func(sp roachpb.Span) {
 						spans = append(spans, sp)
 					})
 					var unmergedSpans []string
