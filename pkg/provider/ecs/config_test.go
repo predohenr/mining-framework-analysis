@@ -2096,7 +2096,7 @@ func Test_buildConfiguration(t *testing.T) {
 						"traefik.http.services.Service1.LoadBalancer.server.url": "http://1.2.3.4:5678",
 					}),
 					iMachine(
-						mState(ec2types.InstanceStateNameRunning),
+						mState(ec2.InstanceStateNameRunning),
 						mPrivateIP("127.0.0.1"),
 						mPorts(
 							mPort(80, 8080, "tcp"),
@@ -2157,7 +2157,7 @@ func Test_buildConfiguration(t *testing.T) {
 						"traefik.http.services.Service1.LoadBalancer.server.preservepath": "true",
 					}),
 					iMachine(
-						mState(ec2types.InstanceStateNameRunning),
+						mState(ec2.InstanceStateNameRunning),
 						mPrivateIP("127.0.0.1"),
 						mPorts(
 							mPort(80, 8080, "tcp"),
@@ -2219,7 +2219,7 @@ func Test_buildConfiguration(t *testing.T) {
 						"traefik.http.services.Service1.LoadBalancer.server.port": "1234",
 					}),
 					iMachine(
-						mState(ec2types.InstanceStateNameRunning),
+						mState(ec2.InstanceStateNameRunning),
 						mPrivateIP("127.0.0.1"),
 						mPorts(
 							mPort(80, 8080, "tcp"),
@@ -2259,7 +2259,7 @@ func Test_buildConfiguration(t *testing.T) {
 						"traefik.http.services.Service1.LoadBalancer.server.scheme": "https",
 					}),
 					iMachine(
-						mState(ec2types.InstanceStateNameRunning),
+						mState(ec2.InstanceStateNameRunning),
 						mPrivateIP("127.0.0.1"),
 						mPorts(
 							mPort(80, 8080, "tcp"),
