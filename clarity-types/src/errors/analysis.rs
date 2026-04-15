@@ -596,8 +596,6 @@ pub enum RuntimeCheckErrorKind {
     ValueOutOfBounds,
     /// Type signature nesting depth exceeds the allowed limit during analysis.
     TypeSignatureTooDeep,
-    /// Supertype (e.g., trait or union) exceeds the maximum allowed size or complexity.
-    SupertypeTooLarge,
 
     // Unexpected interpreter behavior
     /// Unexpected condition or failure in the type-checker, indicating a catastrophic bug or invalid state.
@@ -692,6 +690,10 @@ pub struct StaticCheckError {
 
 impl RuntimeCheckErrorKind {
     /// This check indicates that the transaction should be rejected.
+    pub fn rejectable(&self) -> bool {
+        matches!(self, RuntimeCheckErrorKind::ExpectsRejectable(_))
+    }
+    /// This check indicates that the transaction should be rejected in the given epoch.
     pub fn rejectable_in_epoch(&self, epoch: StacksEpochId) -> bool {
         match self {
             RuntimeCheckErrorKind::SupertypeTooLarge => epoch.rejects_supertype_too_large(),
@@ -830,7 +832,6 @@ impl From<ClarityTypeError> for RuntimeCheckErrorKind {
             ClarityTypeError::DuplicateTupleField(name) => Self::NameAlreadyUsed(name),
             ClarityTypeError::TypeMismatchValue(ty, value) => Self::TypeValueError(ty, value),
             ClarityTypeError::TypeMismatch(expected, found) => Self::TypeError(expected, found),
-            ClarityTypeError::SupertypeTooLarge => Self::SupertypeTooLarge,
             ClarityTypeError::ListTypeMismatch => Self::ListTypesMustMatch,
             ClarityTypeError::InvalidAsciiCharacter(_) => Self::InvalidCharactersDetected,
             ClarityTypeError::InvalidUtf8Encoding => Self::InvalidUTF8Encoding,
@@ -851,7 +852,8 @@ impl From<ClarityTypeError> for RuntimeCheckErrorKind {
                 "Unexpected error type during runtime analysis: {err}"
             )),
             ClarityTypeError::InvariantViolation(_)
-            | ClarityTypeError::InvalidPrincipalVersion(_) => Self::ExpectsRejectable(format!(
+            | ClarityTypeError::InvalidPrincipalVersion(_)
+            | ClarityTypeError::SupertypeTooLarge => Self::ExpectsRejectable(format!(
                 "Unexpected error type during runtime analysis: {err}"
             )),
             ClarityTypeError::CouldNotDetermineType => Self::CouldNotDetermineType,
