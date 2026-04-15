@@ -4534,7 +4534,7 @@ describe('Query', function() {
       it('throws error for null filter when requireFilter is true', async function() {
         await assert.rejects(
           Person.findOneAndUpdate(null, { name: 'Updated' }, { requireFilter: true }),
-          /Parameter "filter" to findOneAndUpdate\(\) must be an object, got "null"/
+          /Empty or invalid filter not allowed with requireFilter enabled/
         );
       });
 
@@ -4596,7 +4596,7 @@ describe('Query', function() {
       it('throws error for null filter when requireFilter is true', async function() {
         await assert.rejects(
           Person.findOneAndReplace(null, { name: 'Replaced', email: 'replaced@example.com' }, { requireFilter: true }),
-          /Parameter "filter" to findOneAndReplace\(\) must be an object, got "null"/
+          /Empty or invalid filter not allowed with requireFilter enabled/
         );
       });
 
@@ -4659,7 +4659,7 @@ describe('Query', function() {
       it('throws error for null filter when requireFilter is true', async function() {
         await assert.rejects(
           Person.findOneAndDelete(null, { requireFilter: true }),
-          /Parameter "filter" to findOneAndDelete\(\) must be an object, got "null"/
+          /Empty or invalid filter not allowed with requireFilter enabled/
         );
       });
 
@@ -4723,7 +4723,7 @@ describe('Query', function() {
       it('throws error for null filter when requireFilter is true', async function() {
         await assert.rejects(
           Person.updateOne(null, { name: 'Updated' }, { requireFilter: true }),
-          /Parameter "filter" to updateOne\(\) must be an object, got "null"/
+          /Empty or invalid filter not allowed with requireFilter enabled/
         );
       });
 
@@ -4793,7 +4793,7 @@ describe('Query', function() {
       it('throws error for null filter when requireFilter is true', async function() {
         await assert.rejects(
           Person.updateMany(null, { name: 'Updated' }, { requireFilter: true }),
-          /Parameter "filter" to updateMany\(\) must be an object, got "null"/
+          /Empty or invalid filter not allowed with requireFilter enabled/
         );
       });
 
@@ -4859,7 +4859,7 @@ describe('Query', function() {
       it('throws error for null filter when requireFilter is true', async function() {
         await assert.rejects(
           Person.deleteOne(null, { requireFilter: true }),
-          /Parameter "filter" to deleteOne\(\) must be an object, got "null"/
+          /Empty or invalid filter not allowed with requireFilter enabled/
         );
       });
 
@@ -4927,7 +4927,7 @@ describe('Query', function() {
       it('throws error for null filter when requireFilter is true', async function() {
         await assert.rejects(
           Person.deleteMany(null, { requireFilter: true }),
-          /Parameter "filter" to deleteMany\(\) must be an object, got "null"/
+          /Empty or invalid filter not allowed with requireFilter enabled/
         );
       });
 
