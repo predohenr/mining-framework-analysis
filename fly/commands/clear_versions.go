@@ -12,10 +12,10 @@ import (
 )
 
 type ClearVersionsCommand struct {
+	Team         flaghelpers.TeamFlag     `long:"team" description:"Name of the team to which the pipeline belongs, if different from the target default"`
 	Resource        flaghelpers.ResourceFlag `long:"resource" value-name:"PIPELINE/RESOURCE" description:"Name of a resource to clear versions"`
 	ResourceType    flaghelpers.ResourceFlag `long:"resource-type" value-name:"PIPELINE/RESOURCE-TYPE" description:"Name of a resource type to clear versions"`
 	SkipInteractive bool                     `short:"n"  long:"non-interactive"          description:"Clear versions without confirmation"`
-	Team            flaghelpers.TeamFlag     `long:"team" description:"Name of the team to which the pipeline belongs, if different from the target default"`
 }
 
 func (command *ClearVersionsCommand) Execute(args []string) error {
