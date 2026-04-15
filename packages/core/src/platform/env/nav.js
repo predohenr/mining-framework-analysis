@@ -108,6 +108,7 @@ export const innerNav = memo(({ pageConfig, navigation }) => {
           }
           return
         }
+
         navigation.goBack()
       }
     }, createElement(View, {
