@@ -2286,12 +2286,21 @@ APP.recurrenceRule = {
                             break;
                     }
                 };
+                let updateDropdownArrow = function(isOpen) {
+                    const $icon = $dropdownButton.find('i.fa');
+                    if (isOpen) {
+                        $icon.removeClass('fa-caret-down').addClass('fa-caret-up');
+                    } else {
+                        $icon.removeClass('fa-caret-up').addClass('fa-caret-down');
+                    }
+                }
                 $dropdownButton.on('click keydown', function (event) {
                     if (event.type !== 'click' && event.key !== 'Enter' && event.key !== ' ' && event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
                         return;
                     }
                     let isOpen = $el.find('.tui-full-calendar-open').length > 0;
                     toggleAriaExpanded(!isOpen);
+                    updateDropdownArrow(!isOpen);
                     if (!isOpen && event.key !== 'ArrowUp') {
                         $dropdownMenu.find('li').first().focus();
                     }
@@ -2303,6 +2312,7 @@ APP.recurrenceRule = {
                 $(document).on('click', function (event) {
                     if (!$(event.target).closest($dropdownButton).length) {
                         toggleAriaExpanded(false);
+                        updateDropdownArrow(false);
                     }
                 });
 
