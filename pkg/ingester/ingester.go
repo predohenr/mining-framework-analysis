@@ -2311,6 +2311,27 @@ func (i *Ingester) blockChunkQuerierFunc(userId string) tsdb.BlockChunkQuerierFu
 	}
 }
 
+func (i *Ingester) blockChunkQuerierFunc(userId string) tsdb.BlockChunkQuerierFunc {
+	return func(b tsdb.BlockReader, mint, maxt int64) (storage.ChunkQuerier, error) {
+		db := i.getTSDB(userId)
+
+		var postingCache cortex_tsdb.ExpandedPostingsCache
+		if db != nil {
+			postingCache = db.postingCache
+		}
+
+		// Caching expanded postings for queries that are "in the future" may lead to incorrect results being cached.
+		// This occurs because the tsdb.PostingsForMatchers function can return invalid data in such scenarios.
+		// For more details, see: https://github.com/cortexproject/cortex/issues/6556
+		// TODO: alanprot: Consider removing this logic when prometheus is updated as this logic is "fixed" upstream.
+		if postingCache == nil || mint > db.Head().MaxTime() {
+			return tsdb.NewBlockChunkQuerier(b, mint, maxt)
+		}
+
+		return cortex_tsdb.NewCachedBlockChunkQuerier(postingCache, b, mint, maxt)
+	}
+}
+
 // createTSDB creates a TSDB for a given userID, and returns the created db.
 func (i *Ingester) createTSDB(userID string) (*userTSDB, error) {
 	tsdbPromReg := prometheus.NewRegistry()
