@@ -3,8 +3,22 @@ package tasks
 import (
 	"encoding/json"
 	"errors"
-	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+
+	"github.com/semaphoreui/semaphore/api/sockets"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
+)
+import (
+	"encoding/json"
+	"errors"
+	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 	"os"
 	"strconv"
 	"strings"

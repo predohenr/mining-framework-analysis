@@ -4,8 +4,24 @@ import (
 	"errors"
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/random"
-	"github.com/semaphoreui/semaphore/services/tasks/stage_parsers"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+
+	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
+)
+import (
+	"errors"
+	"fmt"
+	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/services/tasks/stage_parsers"
 	"regexp"
 	"strconv"
 	"strings"
