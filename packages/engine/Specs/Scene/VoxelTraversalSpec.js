@@ -139,7 +139,7 @@ describe(
     });
 
     it("shows texture memory allocation statistic", function () {
-      expect(traversal.textureMemoryByteLength).toBe(500);
+      expect(traversal.textureMemoryByteLength).toBe(textureMemory);
       traversal.destroy();
       expect(traversal.textureMemoryByteLength).toBe(0);
     });
