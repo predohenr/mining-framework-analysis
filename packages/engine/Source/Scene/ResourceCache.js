@@ -392,7 +392,7 @@ ResourceCache.getDracoLoader = function (options) {
 };
 
 ResourceCache.getSpzLoader = function (options) {
-  options = options ?? Frozen.EMPTY_OBJECT;
+  options = defaultValue(options, defaultValue.EMPTY_OBJECT);
   const { gltf, primitive, spz, gltfResource, baseResource } = options;
 
   //>>includeStart('debug', pragmas.debug);

@@ -469,15 +469,20 @@ function Model(options) {
    */
   this.showOutline = options.showOutline ?? true;
 
-  this._enableShowGaussianSplatting =
-    options.enableShowGaussianSplatting ?? true;
+  this._enableShowGaussianSplatting = defaultValue(
+    options.enableShowGaussianSplatting,
+    true,
+  );
 
   /**
    * Whether to display Gaussian Splatting (will fall back to point cloud rendering if false)
    *
    * @type {boolean}
    */
-  this.showGaussianSplatting = options.showGaussianSplatting ?? true;
+  this.showGaussianSplatting = defaultValue(
+    options.showGaussianSplatting,
+    true,
+  );
 
   /**
    * The color to use when rendering outlines.
