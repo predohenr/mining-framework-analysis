@@ -1150,7 +1150,7 @@ fn test_current_contract(
         let err = analysis.unwrap_err();
         assert_eq!(
             CheckErrors::UndefinedVariable("current-contract".to_string()),
-            *err.err
+            err.err
         );
     } else {
         assert!(analysis.is_ok());
