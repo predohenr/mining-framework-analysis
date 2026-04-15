@@ -763,6 +763,9 @@ define('format/format-plugin', [
 		/** @type {SplitButton} */
 		typographyButton: null,
 
+		/** @type {SplitButton} */
+		typographyButton: null,
+
 		/**
 		 * Initialize the plugin and set initialize flag on true
 		 */
