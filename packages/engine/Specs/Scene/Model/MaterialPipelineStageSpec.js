@@ -910,6 +910,50 @@ describe(
       });
     });
 
+    it("adds point diameter uniforms for BENTLEY_materials_point_style extension", async function () {
+      const gltfLoader = await loadGltf(pointStyleTestData);
+      const primitive = gltfLoader.components.nodes[0].primitives[0];
+      const renderResources = mockRenderResources();
+      const { shaderBuilder, uniformMap } = renderResources;
+
+      MaterialPipelineStage.process(renderResources, primitive, mockFrameState);
+
+      ShaderBuilderTester.expectHasVertexDefines(shaderBuilder, [
+        "HAS_POINT_DIAMETER",
+      ]);
+      ShaderBuilderTester.expectHasFragmentDefines(shaderBuilder, [
+        "HAS_BASE_COLOR_FACTOR",
+        "HAS_METALLIC_FACTOR",
+        "HAS_POINT_DIAMETER",
+        "USE_METALLIC_ROUGHNESS",
+      ]);
+      ShaderBuilderTester.expectHasVertexUniforms(shaderBuilder, [
+        "uniform float u_pointDiameter;",
+      ]);
+
+      // The first primitive has pointDiameter of 5, and mockFrameState.pixelRatio is 1.0
+      const expectedPointDiameter = 5 * mockFrameState.pixelRatio;
+      expectUniformMap(uniformMap, {
+        u_pointDiameter: expectedPointDiameter,
+      });
+    });
+
+    it("does not add point diameter uniforms when pointDiameter is undefined", async function () {
+      // Use triangle model which has no BENTLEY_materials_point_style extension
+      const gltfLoader = await loadGltf(triangle);
+      const primitive = gltfLoader.components.nodes[0].primitives[0];
+      const renderResources = mockRenderResources();
+      const { shaderBuilder, uniformMap } = renderResources;
+
+      MaterialPipelineStage.process(renderResources, primitive, mockFrameState);
+
+      ShaderBuilderTester.expectHasVertexDefines(shaderBuilder, []);
+      ShaderBuilderTester.expectHasFragmentDefines(shaderBuilder, [
+        "USE_METALLIC_ROUGHNESS",
+      ]);
+      expect(uniformMap.u_pointDiameter).toBeUndefined();
+    });
+
     it("processes BENTLEY_materials_line_style with lineWidth", function () {
       const renderResources = mockRenderResources();
 
@@ -995,50 +1039,6 @@ describe(
 
       expect(renderResources.uniformMap.u_linePattern).toBeDefined();
       expect(renderResources.uniformMap.u_linePattern()).toBe(0xf0f0);
-    });
-    
-    it("adds point diameter uniforms for BENTLEY_materials_point_style extension", async function () {
-      const gltfLoader = await loadGltf(pointStyleTestData);
-      const primitive = gltfLoader.components.nodes[0].primitives[0];
-      const renderResources = mockRenderResources();
-      const { shaderBuilder, uniformMap } = renderResources;
-
-      MaterialPipelineStage.process(renderResources, primitive, mockFrameState);
-
-      ShaderBuilderTester.expectHasVertexDefines(shaderBuilder, [
-        "HAS_POINT_DIAMETER",
-      ]);
-      ShaderBuilderTester.expectHasFragmentDefines(shaderBuilder, [
-        "HAS_BASE_COLOR_FACTOR",
-        "HAS_METALLIC_FACTOR",
-        "HAS_POINT_DIAMETER",
-        "USE_METALLIC_ROUGHNESS",
-      ]);
-      ShaderBuilderTester.expectHasVertexUniforms(shaderBuilder, [
-        "uniform float u_pointDiameter;",
-      ]);
-
-      // The first primitive has pointDiameter of 5, and mockFrameState.pixelRatio is 1.0
-      const expectedPointDiameter = 5 * mockFrameState.pixelRatio;
-      expectUniformMap(uniformMap, {
-        u_pointDiameter: expectedPointDiameter,
-      });
-    });
-
-    it("does not add point diameter uniforms when pointDiameter is undefined", async function () {
-      // Use triangle model which has no BENTLEY_materials_point_style extension
-      const gltfLoader = await loadGltf(triangle);
-      const primitive = gltfLoader.components.nodes[0].primitives[0];
-      const renderResources = mockRenderResources();
-      const { shaderBuilder, uniformMap } = renderResources;
-
-      MaterialPipelineStage.process(renderResources, primitive, mockFrameState);
-
-      ShaderBuilderTester.expectHasVertexDefines(shaderBuilder, []);
-      ShaderBuilderTester.expectHasFragmentDefines(shaderBuilder, [
-        "USE_METALLIC_ROUGHNESS",
-      ]);
-      expect(uniformMap.u_pointDiameter).toBeUndefined();
     });
   },
   "WebGL",
