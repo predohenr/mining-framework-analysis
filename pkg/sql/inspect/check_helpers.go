@@ -170,3 +170,14 @@ func getPredicateAndQueryArgs(
 
 	return predicate, queryArgs, nil
 }
+
+func findIndexByID(
+	tableDesc catalog.TableDescriptor, indexID descpb.IndexID,
+) (catalog.Index, error) {
+	for _, idx := range tableDesc.AllIndexes() {
+		if idx.GetID() == indexID {
+			return idx, nil
+		}
+	}
+	return nil, errors.AssertionFailedf("no index with ID %d found in table %d", indexID, tableDesc.GetID())
+}
