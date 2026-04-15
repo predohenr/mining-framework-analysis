@@ -2194,7 +2194,7 @@ APP.recurrenceRule = {
             $el.find('.tui-full-calendar-confirm').addClass('btn btn-primary').prepend(Icons.get('save'));
             $el.find('input').attr('autocomplete', 'off');
             $el.find('.tui-full-calendar-dropdown-button').addClass('btn btn-secondary');
-            $el.find('.tui-full-calendar-dropdown-arrow').append(Icons.get('chevron-down')).removeClass('tui-full-calendar-dropdown-arrow').addClass('tui-full-calendar-dropdown-arrow-custom');
+            $el.find('.tui-full-calendar-dropdown-arrow').append(h('i.fa.fa-caret-down', {'aria-hidden': 'true'})).removeClass('tui-full-calendar-dropdown-arrow').addClass('tui-full-calendar-dropdown-arrow-custom');
             $el.find('.tui-full-calendar-popup-close').addClass('btn btn-cancel cp-calendar-close').empty();
             $el.find('.tui-full-calendar-popup-close').append(Icons.get('close'));
             $el.find('.tui-full-calendar-section-allday').attr('tabindex', 0);
