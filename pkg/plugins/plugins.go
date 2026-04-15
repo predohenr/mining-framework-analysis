@@ -7,8 +7,17 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/rs/zerolog/log"
+	"github.com/traefik/traefik/v2/pkg/log"
 	"golang.org/x/mod/module"
+)
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/hashicorp/go-multierror"
+	"github.com/rs/zerolog/log"
 )
 
 const localGoPath = "./plugins-local/"
