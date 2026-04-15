@@ -508,15 +508,16 @@ class Utils {
     return computedColor
   }
 
+  /**
+   * @param {number} size
+   * @param {number} dataPointsLen
+   */
+
   static applyOpacityToColor(color, opacity) {
     if (opacity >= 1) return color
     return `color-mix(in srgb, ${color} ${Math.round(opacity * 100)}%, transparent)`
   }
 
-  /**
-   * @param {number} size
-   * @param {number} dataPointsLen
-   */
   static getPolygonPos(size, dataPointsLen) {
     const dotsArray = []
     const angle = (Math.PI * 2) / dataPointsLen
