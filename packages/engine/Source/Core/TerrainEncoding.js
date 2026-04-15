@@ -745,6 +745,10 @@ TerrainEncoding.prototype.getAttributeLocations = function () {
  * @returns {TerrainEncoding|undefined} The cloned encoding.
  */
 TerrainEncoding.clone = function (encoding, result) {
+  //>>includeStart('debug', pragmas.debug);
+  Check.typeOf.object("encoding", encoding);
+  //>>includeEnd('debug');
+
   if (!defined(encoding)) {
     return undefined;
   }
