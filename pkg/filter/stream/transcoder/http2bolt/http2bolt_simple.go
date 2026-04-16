@@ -24,6 +24,7 @@ import (
 	apit "mosn.io/api/extensions/transcoder"
 	mosnctx "mosn.io/mosn/pkg/context"
 	"mosn.io/mosn/pkg/filter/stream/transcoder"
+	"mosn.io/mosn/pkg/protocol"
 	"mosn.io/mosn/pkg/protocol/http"
 	"mosn.io/mosn/pkg/protocol/xprotocol/bolt"
 	"mosn.io/mosn/pkg/types"
@@ -33,8 +34,7 @@ func init() {
 	transcoder.MustRegister("http2bolt_simple", NewTranscoder)
 }
 
-type http2bolt struct {
-}
+type http2bolt struct{}
 
 func NewTranscoder(config map[string]interface{}) apit.Transcoder {
 	return &http2bolt{}
