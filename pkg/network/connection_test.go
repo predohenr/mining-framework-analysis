@@ -178,7 +178,7 @@ func testConnStateBase(addr net.Addr, t *testing.T) {
 		t.Errorf("ConnState should be ConnClosed")
 	}
 
-	cc := NewClientConnection(0, nil, remoteAddr, nil)
+	cc := NewClientConnection(0, nil, addr, nil)
 	if cc.State() != api.ConnInit {
 		t.Errorf("ConnState should be ConnInit")
 	}
