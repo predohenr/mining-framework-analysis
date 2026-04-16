@@ -308,7 +308,7 @@ func (feeder *clusterStateFeeder) GarbageCollectCheckpoints() {
 		// 2. `ignoredNamespaces` is set, but the current namespace is not in the list.
 		// 3. Neither `vpaObjectNamespace` nor `ignoredNamespaces` is set, so all namespaces are included.
 		if feeder.shouldCleanupNamespace(namespace) {
-			feeder.cleanupCheckpointsForNamespace(namespace, allVPAKeys)
+			feeder.cleanupCheckpointsForNamespace(namespace)
 		} else {
 			klog.V(3).InfoS("Skipping namespace; it does not meet cleanup criteria", "namespace", namespace, "vpaObjectNamespace", feeder.vpaObjectNamespace, "ignoredNamespaces", feeder.ignoredNamespaces)
 		}
@@ -328,7 +328,7 @@ func (feeder *clusterStateFeeder) shouldCleanupNamespace(namespace string) bool 
 	return feeder.vpaObjectNamespace == "" && len(feeder.ignoredNamespaces) == 0
 }
 
-func (feeder *clusterStateFeeder) cleanupCheckpointsForNamespace(namespace string, allVPAKeys map[model.VpaID]bool{}) {
+func (feeder *clusterStateFeeder) cleanupCheckpointsForNamespace(namespace string) {
 	checkpointList, err := feeder.vpaCheckpointClient.VerticalPodAutoscalerCheckpoints(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		klog.ErrorS(err, "Cannot list VPA checkpoints", "namespace", namespace)
@@ -337,6 +337,7 @@ func (feeder *clusterStateFeeder) cleanupCheckpointsForNamespace(namespace strin
 	for _, checkpoint := range checkpointList.Items {
 		vpaID := model.VpaID{Namespace: checkpoint.Namespace, VpaName: checkpoint.Spec.VPAObjectName}
 		exists := allVPAKeys[vpaID]
+
 		if !exists {
 			err = feeder.vpaCheckpointClient.VerticalPodAutoscalerCheckpoints(namespace).Delete(context.TODO(), checkpoint.Name, metav1.DeleteOptions{})
 			if err == nil {
