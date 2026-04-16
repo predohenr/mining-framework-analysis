@@ -26,7 +26,7 @@ import (
 	"helm.sh/helm/v4/pkg/chart/loader"
 	"helm.sh/helm/v4/pkg/chartutil"
 	"helm.sh/helm/v4/pkg/getter"
-	"helm.sh/helm/v4/pkg/repo"
+	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v4/pkg/repo/repotest"
 )
 
