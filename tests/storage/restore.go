@@ -2023,7 +2023,7 @@ var _ = Describe(SIG("VirtualMachineRestore Tests", func() {
 				Expect(pvc.OwnerReferences).To(HaveLen(1))
 				Expect(pvc.OwnerReferences[0].Kind).To(Equal("VirtualMachine"))
 				Expect(pvc.OwnerReferences[0].Name).To(Equal(restoreVM.Name))
-      })
+			})
 
       It("with run strategy and snapshot should successfully restore", func() {
 				vm = renderVMWithRegistryImportDataVolume(cd.ContainerDiskFedoraTestTooling, snapshotStorageClass)
