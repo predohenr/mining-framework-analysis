@@ -407,64 +407,6 @@ func TestCreateServiceSysctls(t *testing.T) {
 // inspect the container. If the output of the container inspect contains the
 // capabilities option with the correct value, we can assume that the capabilities has been
 // plumbed correctly.
-func TestCreateServiceCapabilities(t *testing.T) {
-	ctx := setupTest(t)
-
-	d := swarm.NewSwarm(ctx, t, testEnv)
-	defer d.Stop(t)
-	apiClient := d.NewClientT(t)
-	defer apiClient.Close()
-
-	// store the map we're going to be using everywhere.
-	capAdd := []string{"CAP_SYS_CHROOT"}
-	capDrop := []string{"CAP_NET_RAW"}
-
-	// Create the service with the capabilities options
-	var instances uint64 = 1
-	serviceID := swarm.CreateService(ctx, t, d,
-		swarm.ServiceWithCapabilities(capAdd, capDrop),
-	)
-
-	// wait for the service to converge to 1 running task as expected
-	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances))
-
-	// we're going to check 3 things:
-	//
-	//   1. Does the container, when inspected, have the capabilities option set?
-	//   2. Does the task have the capabilities in the spec?
-	//   3. Does the service have the capabilities in the spec?
-	//
-	// if all 3 of these things are true, we know that the capabilities has been
-	// plumbed correctly through the engine.
-	//
-	// We don't actually have to get inside the container and check its
-	// logs or anything. If we see the capabilities set on the container inspect,
-	// we know that the capabilities is plumbed correctly. everything below that
-	// level has been tested elsewhere.
-
-	// get all tasks of the service, so we can get the container
-	taskList, err := apiClient.TaskList(ctx, client.TaskListOptions{
-		Filters: make(client.Filters).Add("service", serviceID),
-	})
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(taskList.Items), 1))
-
-	// verify that the container has the capabilities option set
-	ctnr, err := apiClient.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, ctnr.HostConfig.CapAdd, capAdd)
-	assert.DeepEqual(t, ctnr.HostConfig.CapDrop, capDrop)
-
-	// verify that the task has the capabilities option set in the task object
-	assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.CapabilityAdd, capAdd)
-	assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.CapabilityDrop, capDrop)
-
-	// verify that the service also has the capabilities set in the spec.
-	result, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
-	assert.NilError(t, err)
-	assert.DeepEqual(t, result.Service.Spec.TaskTemplate.ContainerSpec.CapabilityAdd, capAdd)
-	assert.DeepEqual(t, result.Service.Spec.TaskTemplate.ContainerSpec.CapabilityDrop, capDrop)
-}
 
 func TestCreateServiceMemorySwap(t *testing.T) {
 	ctx := setupTest(t)
@@ -623,4 +565,63 @@ func TestCreateServiceMemorySwappiness(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateServiceCapabilities(t *testing.T) {
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
+	defer d.Stop(t)
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	// store the map we're going to be using everywhere.
+	capAdd := []string{"CAP_SYS_CHROOT"}
+	capDrop := []string{"CAP_NET_RAW"}
+
+	// Create the service with the capabilities options
+	var instances uint64 = 1
+	serviceID := swarm.CreateService(ctx, t, d,
+		swarm.ServiceWithCapabilities(capAdd, capDrop),
+	)
+
+	// wait for the service to converge to 1 running task as expected
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances))
+
+	// we're going to check 3 things:
+	//
+	//   1. Does the container, when inspected, have the capabilities option set?
+	//   2. Does the task have the capabilities in the spec?
+	//   3. Does the service have the capabilities in the spec?
+	//
+	// if all 3 of these things are true, we know that the capabilities has been
+	// plumbed correctly through the engine.
+	//
+	// We don't actually have to get inside the container and check its
+	// logs or anything. If we see the capabilities set on the container inspect,
+	// we know that the capabilities is plumbed correctly. everything below that
+	// level has been tested elsewhere.
+
+	// get all tasks of the service, so we can get the container
+	taskList, err := apiClient.TaskList(ctx, client.TaskListOptions{
+		Filters: make(client.Filters).Add("service", serviceID),
+	})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(taskList.Items), 1))
+
+	// verify that the container has the capabilities option set
+	ctnr, err := apiClient.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, ctnr.HostConfig.CapAdd, capAdd)
+	assert.DeepEqual(t, ctnr.HostConfig.CapDrop, capDrop)
+
+	// verify that the task has the capabilities option set in the task object
+	assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.CapabilityAdd, capAdd)
+	assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.CapabilityDrop, capDrop)
+
+	// verify that the service also has the capabilities set in the spec.
+	result, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, result.Service.Spec.TaskTemplate.ContainerSpec.CapabilityAdd, capAdd)
+	assert.DeepEqual(t, result.Service.Spec.TaskTemplate.ContainerSpec.CapabilityDrop, capDrop)
 }
