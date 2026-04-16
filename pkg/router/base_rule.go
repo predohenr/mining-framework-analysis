@@ -131,6 +131,7 @@ func NewRouteRuleImplBase(vHost *VirtualHostImpl, route *v2.Router) (*RouteRuleI
 			numberator:     int(route.Route.RequestMirrorPolicies.FractionalPercent.Numberator),
 			denominatorNum: int(route.Route.RequestMirrorPolicies.FractionalPercent.DenominatorNum),
 			rand:           rand.New(rand.NewSource(time.Now().UnixNano())),
+			amplification:  route.Route.RequestMirrorPolicies.Amplification,
 		}
 	}
 	if base.policy.mirrorPolicy == nil {
