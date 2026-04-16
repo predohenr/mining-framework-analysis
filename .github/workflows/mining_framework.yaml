@@ -1,0 +1,24 @@
+
+name: Mining Framework Check
+on: [push]
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                go-version: 'stable'
+                cache: true
+            - name: Install Dependencies
+              run: go mod download
+            - name: Run Go Tests
+              uses: nick-fields/retry@v3
+              with:
+                timeout_minutes: 30
+                max_attempts: 3
+                command: go test -v ./...
+        
+        
