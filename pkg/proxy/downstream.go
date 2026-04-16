@@ -1406,6 +1406,27 @@ func (s *downStream) setBufferLimit(bufferLimit uint32) {
 	// todo
 }
 
+func (s *downStream) AddStreamReceiverFilter(filter api.StreamReceiverFilter, p api.ReceiverFilterPhase) {
+	var phase types.Phase
+	switch p {
+	case api.BeforeRoute:
+		phase = types.DownFilter
+	case api.AfterRoute:
+		phase = types.DownFilterAfterRoute
+	case api.AfterChooseHost:
+		phase = types.DownFilterAfterChooseHost
+	default:
+		phase = types.DownFilterAfterRoute
+	}
+	sf := newActiveStreamReceiverFilter(s, filter, phase)
+	s.receiverFilters = append(s.receiverFilters, sf)
+}
+
+func (s *downStream) AddStreamSenderFilter(filter api.StreamSenderFilter, p api.SenderFilterPhase) {
+	sf := newActiveStreamSenderFilter(s, filter)
+	s.senderFilters = append(s.senderFilters, sf)
+}
+
 // types.LoadBalancerContext
 func (s *downStream) MetadataMatchCriteria() api.MetadataMatchCriteria {
 	if nil != s.requestInfo.RouteEntry() {
