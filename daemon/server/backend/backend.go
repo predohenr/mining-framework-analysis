@@ -152,10 +152,10 @@ type ExecStartConfig struct {
 // ExecInspect holds information about a running process started
 // with docker exec.
 type ExecInspect = container.ExecInspectResponse
+type ExecProcessConfig = container.ExecProcessConfig
 
 // ExecProcessConfig holds information about the exec process
 // running on the host.
-type ExecProcessConfig = container.ExecProcessConfig
 
 // CreateImageConfig is the configuration for creating an image from a
 // container.
