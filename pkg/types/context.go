@@ -46,6 +46,7 @@ const (
 	ContextKeyConfigDownStreamProtocol
 	ContextKeyConfigUpStreamProtocol
 	ContextKeyDownStreamHeaders
+	ContextKeyMirrorAmplification
 	ContextKeyEnd
 )
 

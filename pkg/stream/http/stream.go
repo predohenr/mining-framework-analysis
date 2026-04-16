@@ -297,6 +297,9 @@ func (conn *clientStreamConnection) NewStream(ctx context.Context, receiver type
 		receiver: receiver,
 	}
 	s.connection = conn
+	if amplification, ok := mosnctx.Get(ctx, types.ContextKeyMirrorAmplification).(int); ok && amplification > 0 {
+		s.amplification = amplification
+	}
 
 	conn.mutex.Lock()
 	conn.stream = s
@@ -528,6 +531,7 @@ type stream struct {
 	id               uint64
 	readDisableCount int32
 	ctx              context.Context
+	amplification    int
 
 	// NOTICE: fasthttp ctx and its member not allowed holding by others after request handle finished
 	request  *fasthttp.Request
@@ -594,7 +598,17 @@ func (s *clientStream) AppendTrailers(context context.Context, trailers types.He
 }
 
 func (s *clientStream) endStream() {
-	err := s.doSend()
+	var err error
+
+	if s.amplification < 1 {
+		s.amplification = 1
+	}
+
+	for i := 0; i < s.amplification; i++ {
+		if err = s.doSend(); err != nil {
+			break
+		}
+	}
 
 	if err != nil {
 		log.Proxy.Errorf(s.stream.ctx, "[stream] [http] send client request error: %+v", err)
@@ -631,7 +645,7 @@ func (s *clientStream) doSend() (err error) {
 }
 
 func (s *clientStream) handleResponse() {
-	if s.response != nil {
+	if s.response != nil && s.receiver != nil {
 		header := mosnhttp.ResponseHeader{&s.response.Header, nil}
 
 		statusCode := header.StatusCode()
