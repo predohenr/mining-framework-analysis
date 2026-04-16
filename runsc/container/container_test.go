@@ -4146,11 +4146,11 @@ func snapshotRootfsUpperLayer(conf *config.Config, spec *specs.Spec) (string, er
 	if err != nil {
 		return "", fmt.Errorf("error creating temp file: %v", err)
 	}
-	defer tarFile.Close()
 
 	if err := cont.TarRootfsUpperLayer(tarFile); err != nil {
 		return "", fmt.Errorf("error serializing rootfs upper layer to tar: %v", err)
 	}
+	tarFile.Close()
 	return tarFile.Name(), nil
 }
 
@@ -4211,11 +4211,11 @@ func TestTarRootfsUpperLayer(t *testing.T) {
 		t.Fatalf("error creating temp file: %v", err)
 	}
 	defer os.Remove(tarFile2.Name())
-	defer tarFile2.Close()
 
 	if err := newCont.TarRootfsUpperLayer(tarFile2); err != nil {
 		t.Fatalf("error serializing rootfs upper layer to tar: %v", err)
 	}
+	tarFile2.Close()
 
 	// List the contents of the tar file using the tar command.
 	snap2, err := exec.Command("tar", "-tvf", tarFile2.Name()).CombinedOutput()
@@ -4318,15 +4318,14 @@ func TestTarRootfsUpperLayerOpaqueDir(t *testing.T) {
 		t.Fatalf("error creating temp file: %v", err)
 	}
 	defer os.Remove(tarFile.Name())
-	defer tarFile.Close()
 
 	if err := cont.TarRootfsUpperLayer(tarFile); err != nil {
 		t.Fatalf("error serializing rootfs upper layer to tar: %v", err)
 	}
+	tarFile.Close()
 
 	// Restore the tar into a new container.
-	spec.Annotations[specutils.AnnotationRootfsUpperTar] = tarFile.Name()
-	conf.AllowRootfsTarAnnotation = true
+	spec.Annotations["dev.gvisor.tar.rootfs.upper"] = tarFile.Name()
 	_, bundleDir2, cleanup2, err := testutil.SetupContainer(spec, conf)
 	if err != nil {
 		t.Fatalf("error setting up restored container: %v", err)
