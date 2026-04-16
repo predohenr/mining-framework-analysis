@@ -18,6 +18,13 @@ package shell
 
 import (
 	"os"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
