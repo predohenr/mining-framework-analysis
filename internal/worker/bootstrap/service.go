@@ -22,9 +22,9 @@ import (
 	"github.com/juju/juju/domain/application"
 	applicationservice "github.com/juju/juju/domain/application/service"
 	"github.com/juju/juju/domain/controllernode"
-	"github.com/juju/juju/domain/deployment/charm"
-	domainstorage "github.com/juju/juju/domain/storage"
 	"github.com/juju/juju/environs/config"
+	domainstorage "github.com/juju/juju/domain/storage"
+	"github.com/juju/juju/domain/deployment/charm"
 )
 
 // AgentPasswordService provides access to agent password management.
