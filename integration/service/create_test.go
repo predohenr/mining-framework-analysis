@@ -407,63 +407,66 @@ func TestCreateServiceSysctls(t *testing.T) {
 // inspect the container. If the output of the container inspect contains the
 // capabilities option with the correct value, we can assume that the capabilities has been
 // plumbed correctly.
-func TestCreateServiceCapabilities(t *testing.T) {
-	ctx := setupTest(t)
 
+func TestCreateServiceMemorySwappiness(t *testing.T) {
+	ctx := setupTest(t)
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	apiClient := d.NewClientT(t)
 	defer apiClient.Close()
 
-	// store the map we're going to be using everywhere.
-	capAdd := []string{"CAP_SYS_CHROOT"}
-	capDrop := []string{"CAP_NET_RAW"}
+	toPtr := func(v int64) *int64 { return &v }
 
-	// Create the service with the capabilities options
-	var instances uint64 = 1
-	serviceID := swarm.CreateService(ctx, t, d,
-		swarm.ServiceWithCapabilities(capAdd, capDrop),
-	)
+	tests := []struct {
+		testName       string
+		swappinessSpec *int64
+	}{
+		{testName: "default"},
+		{testName: "zero memory-swappiness", swappinessSpec: toPtr(0)},
+		{testName: "memory-swappiness", swappinessSpec: toPtr(28)},
+	}
 
-	// wait for the service to converge to 1 running task as expected
-	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances))
+	for _, testCase := range tests {
+		t.Run("service create with "+testCase.testName, func(t *testing.T) {
+			serviceID := swarm.CreateService(
+				ctx, t, d,
+				swarm.ServiceWithMemorySwappiness(testCase.swappinessSpec),
+			)
+			poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1))
 
-	// we're going to check 3 things:
-	//
-	//   1. Does the container, when inspected, have the capabilities option set?
-	//   2. Does the task have the capabilities in the spec?
-	//   3. Does the service have the capabilities in the spec?
-	//
-	// if all 3 of these things are true, we know that the capabilities has been
-	// plumbed correctly through the engine.
-	//
-	// We don't actually have to get inside the container and check its
-	// logs or anything. If we see the capabilities set on the container inspect,
-	// we know that the capabilities is plumbed correctly. everything below that
-	// level has been tested elsewhere.
+			filter := make(client.Filters)
+			filter.Add("service", serviceID)
+			tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
+				Filters: filter,
+			})
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(len(tasks), 1))
+			task := tasks[0]
 
-	// get all tasks of the service, so we can get the container
-	taskList, err := apiClient.TaskList(ctx, client.TaskListOptions{
-		Filters: make(client.Filters).Add("service", serviceID),
-	})
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(taskList.Items), 1))
+			service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+			assert.NilError(t, err)
 
-	// verify that the container has the capabilities option set
-	ctnr, err := apiClient.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, ctnr.HostConfig.CapAdd, capAdd)
-	assert.DeepEqual(t, ctnr.HostConfig.CapDrop, capDrop)
+			// An earlier version of this test also inspected the container
+			// created by Swarm to ensure that MemorySwappiness was set on its
+			// HostConfig. However, on systems that do not support
+			// MemorySwappiness (the Github Actions platform is one, in late
+			// 2025), that field in the HostConfig is nilled out, and a warning
+			// is returned. Swarm doesn't do anything with the warning, so the
+			// setting is silently ignored. Getting the raw SysInfo can show if
+			// MemorySwappiness is supported, but that field is not present in
+			// a regular Info API call, and so is not part of
+			// testEnv.DaemonInfo and cannot be checked (easily) here. So,
+			// ultimately, we'll skip that check in the integration test.
 
-	// verify that the task has the capabilities option set in the task object
-	assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.CapabilityAdd, capAdd)
-	assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.CapabilityDrop, capDrop)
-
-	// verify that the service also has the capabilities set in the spec.
-	result, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
-	assert.NilError(t, err)
-	assert.DeepEqual(t, result.Service.Spec.TaskTemplate.ContainerSpec.CapabilityAdd, capAdd)
-	assert.DeepEqual(t, result.Service.Spec.TaskTemplate.ContainerSpec.CapabilityDrop, capDrop)
+			if testCase.swappinessSpec == nil {
+				assert.Check(t, is.Nil(task.Spec.Resources.MemorySwappiness))
+				assert.Check(t, is.Nil(service.Spec.TaskTemplate.Resources.MemorySwappiness))
+			} else {
+				assert.Equal(t, *testCase.swappinessSpec, *task.Spec.Resources.MemorySwappiness)
+				assert.Equal(t, *testCase.swappinessSpec, *service.Spec.TaskTemplate.Resources.MemorySwappiness)
+			}
+		})
+	}
 }
 
 func TestCreateServiceMemorySwap(t *testing.T) {
@@ -564,63 +567,61 @@ func TestCreateServiceMemorySwap(t *testing.T) {
 	})
 }
 
-func TestCreateServiceMemorySwappiness(t *testing.T) {
+func TestCreateServiceCapabilities(t *testing.T) {
 	ctx := setupTest(t)
+
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	apiClient := d.NewClientT(t)
 	defer apiClient.Close()
 
-	toPtr := func(v int64) *int64 { return &v }
+	// store the map we're going to be using everywhere.
+	capAdd := []string{"CAP_SYS_CHROOT"}
+	capDrop := []string{"CAP_NET_RAW"}
 
-	tests := []struct {
-		testName       string
-		swappinessSpec *int64
-	}{
-		{testName: "default"},
-		{testName: "zero memory-swappiness", swappinessSpec: toPtr(0)},
-		{testName: "memory-swappiness", swappinessSpec: toPtr(28)},
-	}
+	// Create the service with the capabilities options
+	var instances uint64 = 1
+	serviceID := swarm.CreateService(ctx, t, d,
+		swarm.ServiceWithCapabilities(capAdd, capDrop),
+	)
 
-	for _, testCase := range tests {
-		t.Run("service create with "+testCase.testName, func(t *testing.T) {
-			serviceID := swarm.CreateService(
-				ctx, t, d,
-				swarm.ServiceWithMemorySwappiness(testCase.swappinessSpec),
-			)
-			poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1))
+	// wait for the service to converge to 1 running task as expected
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances))
 
-			filter := make(client.Filters)
-			filter.Add("service", serviceID)
-			tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
-				Filters: filter,
-			})
-			assert.NilError(t, err)
-			assert.Check(t, is.Equal(len(tasks), 1))
-			task := tasks[0]
+	// we're going to check 3 things:
+	//
+	//   1. Does the container, when inspected, have the capabilities option set?
+	//   2. Does the task have the capabilities in the spec?
+	//   3. Does the service have the capabilities in the spec?
+	//
+	// if all 3 of these things are true, we know that the capabilities has been
+	// plumbed correctly through the engine.
+	//
+	// We don't actually have to get inside the container and check its
+	// logs or anything. If we see the capabilities set on the container inspect,
+	// we know that the capabilities is plumbed correctly. everything below that
+	// level has been tested elsewhere.
 
-			service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
-			assert.NilError(t, err)
+	// get all tasks of the service, so we can get the container
+	taskList, err := apiClient.TaskList(ctx, client.TaskListOptions{
+		Filters: make(client.Filters).Add("service", serviceID),
+	})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(taskList.Items), 1))
 
-			// An earlier version of this test also inspected the container
-			// created by Swarm to ensure that MemorySwappiness was set on its
-			// HostConfig. However, on systems that do not support
-			// MemorySwappiness (the Github Actions platform is one, in late
-			// 2025), that field in the HostConfig is nilled out, and a warning
-			// is returned. Swarm doesn't do anything with the warning, so the
-			// setting is silently ignored. Getting the raw SysInfo can show if
-			// MemorySwappiness is supported, but that field is not present in
-			// a regular Info API call, and so is not part of
-			// testEnv.DaemonInfo and cannot be checked (easily) here. So,
-			// ultimately, we'll skip that check in the integration test.
+	// verify that the container has the capabilities option set
+	ctnr, err := apiClient.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, ctnr.HostConfig.CapAdd, capAdd)
+	assert.DeepEqual(t, ctnr.HostConfig.CapDrop, capDrop)
 
-			if testCase.swappinessSpec == nil {
-				assert.Check(t, is.Nil(task.Spec.Resources.MemorySwappiness))
-				assert.Check(t, is.Nil(service.Spec.TaskTemplate.Resources.MemorySwappiness))
-			} else {
-				assert.Equal(t, *testCase.swappinessSpec, *task.Spec.Resources.MemorySwappiness)
-				assert.Equal(t, *testCase.swappinessSpec, *service.Spec.TaskTemplate.Resources.MemorySwappiness)
-			}
-		})
-	}
+	// verify that the task has the capabilities option set in the task object
+	assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.CapabilityAdd, capAdd)
+	assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.CapabilityDrop, capDrop)
+
+	// verify that the service also has the capabilities set in the spec.
+	result, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, result.Service.Spec.TaskTemplate.ContainerSpec.CapabilityAdd, capAdd)
+	assert.DeepEqual(t, result.Service.Spec.TaskTemplate.ContainerSpec.CapabilityDrop, capDrop)
 }
