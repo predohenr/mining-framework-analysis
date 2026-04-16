@@ -46,7 +46,7 @@ import (
 	"gvisor.dev/gvisor/test/trace/config"
 	"gvisor.dev/gvisor/test/uds"
 
-	"github.com/creack/pty"
+	"github.com/kr/pty"
 )
 
 var (
