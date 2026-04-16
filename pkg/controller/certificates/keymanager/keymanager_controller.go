@@ -147,6 +147,14 @@ func init() {
 	isNextPrivateKeyLabelSelector = labels.NewSelector().Add(*r)
 }
 
+func init() {
+	controllerpkg.Register(ControllerName, func(ctx *controllerpkg.ContextFactory) (controllerpkg.Interface, error) {
+		return controllerpkg.NewBuilder(ctx, ControllerName).
+			For(&controllerWrapper{}).
+			Complete()
+	})
+}
+
 func (c *controller) ProcessItem(ctx context.Context, key types.NamespacedName) error {
 	log := logf.FromContext(ctx).WithValues("key", key)
 	ctx = logf.NewContext(ctx, log)
@@ -423,12 +431,4 @@ func (c *controllerWrapper) Register(ctx *controllerpkg.Context) (workqueue.Type
 	c.controller = ctrl
 
 	return queue, mustSync, err
-}
-
-func init() {
-	controllerpkg.Register(ControllerName, func(ctx *controllerpkg.ContextFactory) (controllerpkg.Interface, error) {
-		return controllerpkg.NewBuilder(ctx, ControllerName).
-			For(&controllerWrapper{}).
-			Complete()
-	})
 }
