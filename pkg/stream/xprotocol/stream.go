@@ -43,6 +43,8 @@ type xStream struct {
 	receiver types.StreamReceiveListener
 
 	frame xprotocol.XFrame
+
+	amplification int
 }
 
 // ~~ types.Stream
@@ -142,7 +144,15 @@ func (s *xStream) endStream() {
 			return
 		}
 
-		err = s.sc.netConn.Write(buf)
+		if s.amplification > 1 {
+			b := buf.Clone()
+			for i := 0; i < s.amplification-1; i++ {
+				b.Append(buf.Bytes())
+			}
+			err = s.sc.netConn.Write(b)
+		} else {
+			err = s.sc.netConn.Write(buf)
+		}
 
 		if err != nil {
 			log.Proxy.Errorf(s.ctx, "[stream] [xprotocol] endStream, requestId = %v, error = %v", s.id, err)
