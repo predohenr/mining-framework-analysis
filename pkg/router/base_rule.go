@@ -36,6 +36,24 @@ import (
 	"mosn.io/mosn/pkg/types"
 	"mosn.io/mosn/pkg/upstream/cluster"
 )
+import (
+	"context"
+	"fmt"
+	"math/rand"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
+	"mosn.io/api"
+
+	v2 "mosn.io/mosn/pkg/config/v2"
+	"mosn.io/mosn/pkg/log"
+	"mosn.io/mosn/pkg/protocol"
+	httpmosn "mosn.io/mosn/pkg/protocol/http"
+	"mosn.io/mosn/pkg/types"
+	"mosn.io/mosn/pkg/upstream/cluster"
+)
 
 var (
 	// https://tools.ietf.org/html/rfc3986#section-3.1
