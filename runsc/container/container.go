@@ -1410,7 +1410,7 @@ func (c *Container) createGoferProcess(conf *config.Config, mountHints *boot.Pod
 
 	// Handle rootfs (index 0)
 	switch {
-	case c.GoferMountConfs[0].ShouldUseLisafs():
+ 	case c.GoferMountConfs[0].ShouldUseLisafs():
 		if err := createLisafsSocketPair(&sandEnds, &donations); err != nil {
 			return nil, nil, nil, nil, err
 		}
