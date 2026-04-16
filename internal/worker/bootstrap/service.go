@@ -22,9 +22,33 @@ import (
 	"github.com/juju/juju/domain/application"
 	applicationservice "github.com/juju/juju/domain/application/service"
 	"github.com/juju/juju/domain/controllernode"
-	"github.com/juju/juju/domain/deployment/charm"
 	domainstorage "github.com/juju/juju/domain/storage"
 	"github.com/juju/juju/environs/config"
+	"github.com/juju/juju/internal/charm"
+)
+import (
+	"context"
+	"io"
+
+	"github.com/juju/juju/cloud"
+	"github.com/juju/juju/controller"
+	coreagentbinary "github.com/juju/juju/core/agentbinary"
+	coreapplication "github.com/juju/juju/core/application"
+	corecharm "github.com/juju/juju/core/charm"
+	"github.com/juju/juju/core/instance"
+	"github.com/juju/juju/core/machine"
+	"github.com/juju/juju/core/model"
+	"github.com/juju/juju/core/network"
+	"github.com/juju/juju/core/unit"
+	"github.com/juju/juju/core/user"
+	userservice "github.com/juju/juju/domain/access/service"
+	"github.com/juju/juju/domain/application"
+	applicationservice "github.com/juju/juju/domain/application/service"
+	"github.com/juju/juju/domain/controllernode"
+	"github.com/juju/juju/domain/deployment/charm"
+	storageservice "github.com/juju/juju/domain/storage/service"
+	"github.com/juju/juju/environs/config"
+	"github.com/juju/juju/internal/storage"
 )
 
 // AgentPasswordService provides access to agent password management.
