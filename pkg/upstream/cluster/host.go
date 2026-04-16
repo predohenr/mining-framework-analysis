@@ -138,6 +138,20 @@ func (sh *simpleHost) CreateConnection(context context.Context) types.CreateConn
 	}
 }
 
+func (sh *simpleHost) CreateConnection(context context.Context) types.CreateConnectionData {
+	var tlsMng types.TLSContextManager
+	if sh.SupportTLS() {
+		tlsMng = sh.ClusterInfo().TLSMng()
+	}
+	clientConn := network.NewClientConnection(nil, sh.clusterInfo.ConnectTimeout(), tlsMng, sh.Address(), nil)
+	clientConn.SetBufferLimit(sh.clusterInfo.ConnBufferLimitBytes())
+
+	return types.CreateConnectionData{
+		Connection: clientConn,
+		Host:       sh,
+	}
+}
+
 func (sh *simpleHost) CreateUDPConnection(context context.Context) types.CreateConnectionData {
 	clientConn := network.NewClientConnection(nil, sh.clusterInfo.ConnectTimeout(), nil, sh.UDPAddress(), nil)
 	clientConn.SetBufferLimit(sh.clusterInfo.ConnBufferLimitBytes())
