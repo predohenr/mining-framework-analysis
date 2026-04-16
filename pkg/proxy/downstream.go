@@ -267,6 +267,9 @@ func (s *downStream) requestMetrics() {
 		s.proxy.stats.DownstreamUpdateRequestCode(s.requestInfo.ResponseCode())
 		s.proxy.listenerStats.DownstreamUpdateRequestCode(s.requestInfo.ResponseCode())
 
+		s.proxy.stats.DownstreamUpdateRequestCode(s.requestInfo.ResponseCode())
+		s.proxy.listenerStats.DownstreamUpdateRequestCode(s.requestInfo.ResponseCode())
+
 		if s.isRequestFailed() {
 			s.proxy.stats.DownstreamRequestFailed.Inc(1)
 			s.proxy.listenerStats.DownstreamRequestFailed.Inc(1)
