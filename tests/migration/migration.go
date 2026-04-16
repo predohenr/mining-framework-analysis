@@ -2509,7 +2509,6 @@ var _ = Describe(SIG("VM Live Migration", decorators.RequiresTwoSchedulableNodes
 				libvmi.WithMemoryRequest("512Mi"),
 				libvmi.WithNodeAffinityForLabel(testLabel1, "true"),
 			)
-
 			vmi, err := virtClient.VirtualMachineInstance(testsuite.GetTestNamespace(vmi)).Create(context.Background(), vmi, metav1.CreateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 
