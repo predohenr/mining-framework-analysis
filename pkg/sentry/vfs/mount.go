@@ -562,7 +562,18 @@ func (vfs *VirtualFilesystem) BindAt(ctx context.Context, creds *auth.Credential
 	if err != nil {
 		return err
 	}
-	defer targetVd.DecRef(ctx)
+
+	vfs.lockMounts()
+	defer vfs.unlockMounts(ctx)
+	mp, err := vfs.lockMountpoint(targetVd)
+	if err != nil {
+		return err
+	}
+	cleanup := cleanup.Make(func() {
+		mp.dentry.mu.Unlock()
+		vfs.delayDecRef(mp) // +checklocksforce
+	})
+	defer cleanup.Clean()
 
 	// Linux's graft_tree() (fs/namespace.c) returns ENOTDIR if the source and
 	// target have mismatched types (one is a directory, the other is not).
@@ -576,30 +587,18 @@ func (vfs *VirtualFilesystem) BindAt(ctx context.Context, creds *auth.Credential
 		return err
 	}
 	targetStat, err := vfs.StatAt(ctx, creds, &PathOperation{
-		Root:  targetVd,
-		Start: targetVd,
+		Root:  mp,
+		Start: mp,
 	}, &StatOptions{
 		Mask: linux.STATX_MODE,
 	})
 	if err != nil {
 		return err
 	}
-	if linux.FileMode(sourceStat.Mode).IsDir() != linux.FileMode(targetStat.Mode).IsDir() {
+	if sourceStat.Mode&linux.S_IFDIR != targetStat.Mode&linux.S_IFDIR {
 		return linuxerr.ENOTDIR
 	}
 
-	vfs.lockMounts()
-	defer vfs.unlockMounts(ctx)
-	targetVd.IncRef() // consumed by lockMountpoint
-	mp, err := vfs.lockMountpoint(targetVd)
-	if err != nil {
-		return err
-	}
-	cleanup := cleanup.Make(func() {
-		mp.dentry.mu.Unlock()
-		vfs.delayDecRef(mp) // +checklocksforce
-	})
-	defer cleanup.Clean()
 	// Namespace mounts can be binded to other mount points.
 	fsName := sourceVd.mount.Filesystem().FilesystemType().Name()
 	if !vfs.validInMountNS(ctx, sourceVd.mount) && fsName != nsfsName && fsName != cgroupFsName {
