@@ -928,7 +928,7 @@ func autoConvert_certmanager_CertificateSpec_To_v1_CertificateSpec(in *certmanag
 	out.IsCA = in.IsCA
 	out.Usages = *(*[]certmanagerv1.KeyUsage)(unsafe.Pointer(&in.Usages))
 	out.PrivateKey = (*certmanagerv1.CertificatePrivateKey)(unsafe.Pointer(in.PrivateKey))
-	out.SignatureAlgorithm = certmanagerv1.SignatureAlgorithm(in.SignatureAlgorithm)
+	out.SignatureAlgorithm = v1.SignatureAlgorithm(in.SignatureAlgorithm)
 	out.EncodeUsagesInRequest = (*bool)(unsafe.Pointer(in.EncodeUsagesInRequest))
 	out.RevisionHistoryLimit = (*int32)(unsafe.Pointer(in.RevisionHistoryLimit))
 	out.AdditionalOutputFormats = *(*[]certmanagerv1.CertificateAdditionalOutputFormat)(unsafe.Pointer(&in.AdditionalOutputFormats))
