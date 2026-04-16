@@ -30,6 +30,24 @@ import (
 
 	"github.com/pkg/errors"
 
+	"helm.sh/helm/v4/pkg/chart/v2/loader"
+	"helm.sh/helm/v4/pkg/getter"
+	"helm.sh/helm/v4/pkg/helmpath"
+)
+import (
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/pkg/errors"
+
 	"helm.sh/helm/v4/pkg/getter"
 	"helm.sh/helm/v4/pkg/helmpath"
 )
