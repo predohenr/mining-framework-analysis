@@ -77,6 +77,11 @@ type ClusterManager interface {
 	// UpdateTLSManager updates the tls manager which is used to cluster tls config
 	UpdateTLSManager(*v2.TLSConfig)
 
+	// TLSManager is used to cluster tls config
+	GetTLSManager() TLSContextManager
+	// UpdateTLSManager updates the tls manager which is used to cluster tls config
+	UpdateTLSManager(*v2.TLSConfig)
+
 	// Destroy the cluster manager
 	Destroy()
 }
