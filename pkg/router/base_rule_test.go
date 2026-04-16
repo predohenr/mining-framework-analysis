@@ -38,6 +38,26 @@ import (
 	"mosn.io/mosn/pkg/types"
 	"mosn.io/mosn/pkg/variable"
 )
+import (
+	"context"
+	"math/rand"
+	"net"
+	goHttp "net/http"
+	"reflect"
+	"strconv"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/valyala/fasthttp"
+	"mosn.io/api"
+	v2 "mosn.io/mosn/pkg/config/v2"
+	"mosn.io/mosn/pkg/protocol"
+	"mosn.io/mosn/pkg/protocol/http"
+	"mosn.io/mosn/pkg/protocol/http2"
+	"mosn.io/mosn/pkg/types"
+	"mosn.io/mosn/pkg/variable"
+)
 
 func TestNilMetadataMatchCriteria(t *testing.T) {
 	defaultRule := &RouteRuleImplBase{
