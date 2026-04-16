@@ -18,8 +18,8 @@ package shell
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
