@@ -1,59 +1,60 @@
 package com.alibaba.qlexpress4;
-
-import com.alibaba.qlexpress4.aparser.CheckVisitor;
-import com.alibaba.qlexpress4.aparser.GeneratorScope;
-import com.alibaba.qlexpress4.aparser.ImportManager;
 import com.alibaba.qlexpress4.aparser.MacroDefine;
-import com.alibaba.qlexpress4.aparser.OutFunctionVisitor;
-import com.alibaba.qlexpress4.aparser.OutVarNamesVisitor;
-import com.alibaba.qlexpress4.aparser.QCompileCache;
-import com.alibaba.qlexpress4.aparser.QLParser;
-import com.alibaba.qlexpress4.aparser.QvmInstructionVisitor;
-import com.alibaba.qlexpress4.aparser.SyntaxTreeFactory;
-import com.alibaba.qlexpress4.aparser.TraceExpressionVisitor;
-import com.alibaba.qlexpress4.aparser.compiletimefunction.CompileTimeFunction;
-import com.alibaba.qlexpress4.api.BatchAddFunctionResult;
 import com.alibaba.qlexpress4.api.QLFunctionalVarargs;
-import com.alibaba.qlexpress4.exception.PureErrReporter;
+import com.alibaba.qlexpress4.aparser.TraceExpressionVisitor;
 import com.alibaba.qlexpress4.exception.QLException;
-import com.alibaba.qlexpress4.exception.QLSyntaxException;
 import com.alibaba.qlexpress4.runtime.DelegateQContext;
-import com.alibaba.qlexpress4.runtime.QLambda;
-import com.alibaba.qlexpress4.runtime.QLambdaDefinitionInner;
-import com.alibaba.qlexpress4.runtime.QLambdaTrace;
-import com.alibaba.qlexpress4.runtime.QvmGlobalScope;
 import com.alibaba.qlexpress4.runtime.QvmRuntime;
-import com.alibaba.qlexpress4.runtime.ReflectLoader;
-import com.alibaba.qlexpress4.runtime.Value;
 import com.alibaba.qlexpress4.runtime.context.ExpressContext;
-import com.alibaba.qlexpress4.runtime.context.MapExpressContext;
+import java.lang.reflect.InvocationTargetException;
+import com.alibaba.qlexpress4.aparser.ImportManager;
+import com.alibaba.qlexpress4.api.BatchAddFunctionResult;
 import com.alibaba.qlexpress4.runtime.context.ObjectFieldExpressContext;
-import com.alibaba.qlexpress4.runtime.context.QLAliasContext;
 import com.alibaba.qlexpress4.runtime.function.CustomFunction;
 import com.alibaba.qlexpress4.runtime.function.QMethodFunction;
-import com.alibaba.qlexpress4.runtime.instruction.QLInstruction;
-import com.alibaba.qlexpress4.runtime.operator.CustomBinaryOperator;
+import com.alibaba.qlexpress4.aparser.GeneratorScope;
 import com.alibaba.qlexpress4.runtime.operator.OperatorManager;
+import com.alibaba.qlexpress4.runtime.QLambda;
+import com.alibaba.qlexpress4.runtime.QvmGlobalScope;
+import com.alibaba.qlexpress4.runtime.ReflectLoader;
 import com.alibaba.qlexpress4.runtime.trace.ExpressionTrace;
-import com.alibaba.qlexpress4.runtime.trace.QTraces;
-import com.alibaba.qlexpress4.runtime.trace.TracePointTree;
-import com.alibaba.qlexpress4.utils.BasicUtil;
 import com.alibaba.qlexpress4.utils.QLFunctionUtil;
-
-import java.lang.reflect.Method;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
+import com.alibaba.qlexpress4.aparser.SyntaxTreeFactory;
+import com.alibaba.qlexpress4.aparser.OutVarAttrsVisitor;
+import com.alibaba.qlexpress4.aparser.OutVarNamesVisitor;
+import com.alibaba.qlexpress4.aparser.compiletimefunction.CompileTimeFunction;
+import com.alibaba.qlexpress4.runtime.instruction.QLInstruction;
+import com.alibaba.qlexpress4.aparser.QCompileCache;
+import com.alibaba.qlexpress4.runtime.function.ExtensionFunction;
+import com.alibaba.qlexpress4.runtime.Value;
+import com.alibaba.qlexpress4.exception.QLSyntaxException;
+import com.alibaba.qlexpress4.runtime.QLambdaDefinitionInner;
+import com.alibaba.qlexpress4.utils.BasicUtil;
+import com.alibaba.qlexpress4.aparser.QvmInstructionVisitor;
+import com.alibaba.qlexpress4.aparser.OutFunctionVisitor;
+import com.alibaba.qlexpress4.runtime.context.QLAliasContext;
+import com.alibaba.qlexpress4.runtime.trace.QTraces;
+import com.alibaba.qlexpress4.runtime.operator.CustomBinaryOperator;
+import com.alibaba.qlexpress4.runtime.trace.TracePointTree;
+import com.alibaba.qlexpress4.runtime.QLambdaTrace;
+import com.alibaba.qlexpress4.aparser.QLParser;
+import com.alibaba.qlexpress4.exception.PureErrReporter;
+import com.alibaba.qlexpress4.runtime.context.MapExpressContext;
 import java.util.concurrent.FutureTask;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
+import java.lang.reflect.Method;
+import com.alibaba.qlexpress4.aparser.CheckVisitor;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.concurrent.Future;
+import java.util.Set;
+import java.util.Collections;
 import java.util.stream.Collectors;
+import java.util.function.Consumer;
+import java.util.HashMap;
+import java.util.List;
 
 /**
  * Author: DQinYuan
@@ -75,8 +76,7 @@ public class Express4Runner {
     
     public Express4Runner(InitOptions initOptions) {
         this.initOptions = initOptions;
-        this.reflectLoader = new ReflectLoader(initOptions.getSecurityStrategy(), initOptions.getExtensionFunctions(),
-            initOptions.isAllowPrivateAccess());
+        this.reflectLoader = new ReflectLoader(initOptions.getSecurityStrategy(), initOptions.isAllowPrivateAccess());
         SyntaxTreeFactory.warmUp();
     }
     
@@ -99,6 +99,24 @@ public class Express4Runner {
     public QLResult execute(String script, Map<String, Object> context, QLOptions qlOptions)
         throws QLException {
         return execute(script, new MapExpressContext(context), qlOptions);
+    }
+    
+    /**
+     * Execute a template string by wrapping it as a dynamic string literal.
+     * Template does not support newlines in this mode.
+     */
+    public QLResult executeTemplate(String template, Map<String, Object> context, QLOptions qlOptions)
+        throws QLException {
+        String script = wrapAsDynamicString(template);
+        return execute(script, context, qlOptions);
+    }
+    
+    private String wrapAsDynamicString(String template) {
+        if (template == null) {
+            return "\"\"";
+        }
+        String escaped = template.replace("\"", "\\\"");
+        return "\"" + escaped + "\"";
     }
     
     /**
@@ -196,6 +214,18 @@ public class Express4Runner {
         OutVarNamesVisitor outVarNamesVisitor = new OutVarNamesVisitor(inheritDefaultImport());
         programContext.accept(outVarNamesVisitor);
         return outVarNamesVisitor.getOutVars();
+    }
+    
+    /**
+     * get out var attrs in script
+     * @param script
+     * @return out var attrs
+     */
+    public Set<List<String>> getOutVarAttrs(String script) {
+        QLParser.ProgramContext programContext = parseToSyntaxTree(script);
+        OutVarAttrsVisitor outVarAttrsVisitor = new OutVarAttrsVisitor(inheritDefaultImport());
+        programContext.accept(outVarAttrsVisitor);
+        return outVarAttrsVisitor.getOutVarAttrs();
     }
     
     /**
@@ -378,6 +408,54 @@ public class Express4Runner {
         return compileTimeFunctions.putIfAbsent(name, compileTimeFunction) == null;
     }
     
+    /**
+     * add extension function
+     * @param extensionFunction definition of extansion function
+     */
+    public void addExtendFunction(ExtensionFunction extensionFunction) {
+        this.reflectLoader.addExtendFunction(extensionFunction);
+    }
+    
+    /**
+     * add an extension function with variable arguments.
+     * @param name the name of the extension function
+     * @param bindingClass the receiver type (class)
+     * @param functionalVarargs custom logic
+     */
+    public void addExtendFunction(String name, Class<?> bindingClass, QLFunctionalVarargs functionalVarargs) {
+        this.reflectLoader.addExtendFunction(new ExtensionFunction() {
+            @Override
+            public Class<?>[] getParameterTypes() {
+                return new Class[] {Object[].class};
+            }
+            
+            @Override
+            public boolean isVarArgs() {
+                return true;
+            }
+            
+            @Override
+            public String getName() {
+                return name;
+            }
+            
+            @Override
+            public Class<?> getDeclaringClass() {
+                return bindingClass;
+            }
+            
+            @Override
+            public Object invoke(Object obj, Object[] args)
+                throws InvocationTargetException, IllegalAccessException {
+                Object[] extArgs = new Object[args.length + 1];
+                extArgs[0] = obj;
+                Object[] varArgs = (Object[])args[0];
+                System.arraycopy(varArgs, 0, extArgs, 1, varArgs.length);
+                return functionalVarargs.call(extArgs);
+            }
+        });
+    }
+    
     public QLParser.ProgramContext parseToSyntaxTree(String script) {
         return SyntaxTreeFactory.buildTree(script,
             operatorManager,
@@ -515,6 +593,10 @@ public class Express4Runner {
         return operatorManager.addBinaryOperator(operator,
             (left, right) -> biFunction.apply((T)left.get(), (U)right.get()),
             QLPrecedences.MULTI);
+    }
+    
+    public boolean addOperator(String operator, QLFunctionalVarargs functionalVarargs) {
+        return addOperator(operator, (left, right) -> functionalVarargs.call(left.get(), right.get()));
     }
     
     /**
