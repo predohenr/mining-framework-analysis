@@ -4396,7 +4396,6 @@ class OpenStack_2_NodeDriver(OpenStack_1_1_NodeDriver):
             data={"floatingip": {"port_id": None}},
         )
         return resp.status == httplib.OK
-
     def ex_list_leases(self):
         """
         List leases
