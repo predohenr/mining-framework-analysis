@@ -115,9 +115,6 @@ class TestEmployee(ERPNextTestSuite):
 			)
 		)
 
-	def tearDown(self):
-		frappe.db.rollback()
-
 
 def make_employee(user, company=None, **kwargs):
 	if not frappe.db.get_value("User", user):
