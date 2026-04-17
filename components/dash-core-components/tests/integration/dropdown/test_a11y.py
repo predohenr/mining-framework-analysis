@@ -168,7 +168,6 @@ def test_a11y003b_keyboard_navigation_not_searchable(dash_duo):
 
     send_keys(Keys.ARROW_DOWN)  # Expecting the dropdown to open up
     dash_duo.wait_for_element(".dash-dropdown-options")
-    sleep(0.1)
 
     send_keys(Keys.SPACE)  # Expecting to be selecting the focused first option
     value_items = dash_duo.find_elements(".dash-dropdown-value-item")
@@ -176,7 +175,6 @@ def test_a11y003b_keyboard_navigation_not_searchable(dash_duo):
     assert value_items[0].text == "0"
 
     send_keys(Keys.ARROW_DOWN)
-    sleep(0.1)
     send_keys(Keys.SPACE)
     value_items = dash_duo.find_elements(".dash-dropdown-value-item")
     assert len(value_items) == 2
