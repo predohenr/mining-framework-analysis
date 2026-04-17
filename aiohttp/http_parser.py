@@ -95,6 +95,26 @@ SINGLETON_HEADERS: Final[frozenset[str]] = frozenset(
     }
 )
 
+# RFC 9110 singleton headers — duplicates are rejected in strict mode.
+# In lax mode (response parser default), the check is skipped entirely
+# since real-world servers (e.g. Google APIs, Werkzeug) commonly send
+# duplicate headers like Content-Type or Server.
+# Lowercased for case-insensitive matching against wire names.
+SINGLETON_HEADERS: Final[frozenset[str]] = frozenset(
+    {
+        "content-length",
+        "content-location",
+        "content-range",
+        "content-type",
+        "etag",
+        "host",
+        "max-forwards",
+        "server",
+        "transfer-encoding",
+        "user-agent",
+    }
+)
+
 
 class RawRequestMessage(NamedTuple):
     method: str
