@@ -261,8 +261,7 @@ def to_html(
         load_plotlyjs = """\
         {win_config}
         <script charset="utf-8" src="{cdn_url}" integrity="{integrity}" crossorigin="anonymous"></script>\
-    """.format(
-            win_config=_window_plotly_config,
+    """.format(win_config=_window_plotly_config,
             cdn_url=plotly_cdn_url(),
             integrity=sri_hash,
         )
