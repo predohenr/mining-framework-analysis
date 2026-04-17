@@ -225,6 +225,14 @@ class DeviceType(ImageAttachmentsMixin, PrimaryModel, WeightMixin):
     def full_name(self):
         return f"{self.manufacturer} {self.model}"
 
+    @property
+    def is_parent_device(self):
+        return self.subdevice_role == SubdeviceRoleChoices.ROLE_PARENT
+
+    @property
+    def is_child_device(self):
+        return self.subdevice_role == SubdeviceRoleChoices.ROLE_CHILD
+
     def to_yaml(self):
         data = {
             'manufacturer': self.manufacturer.name,
@@ -357,14 +365,6 @@ class DeviceType(ImageAttachmentsMixin, PrimaryModel, WeightMixin):
             self.front_image.delete(save=False)
         if self.rear_image:
             self.rear_image.delete(save=False)
-
-    @property
-    def is_parent_device(self):
-        return self.subdevice_role == SubdeviceRoleChoices.ROLE_PARENT
-
-    @property
-    def is_child_device(self):
-        return self.subdevice_role == SubdeviceRoleChoices.ROLE_CHILD
 
 
 class ModuleType(ImageAttachmentsMixin, PrimaryModel, WeightMixin):
@@ -1097,6 +1097,18 @@ class Device(
     def interfaces_count(self):
         return self.vc_interfaces().count()
 
+    @cached_property
+    def total_weight(self):
+        total_weight = sum(
+            module.module_type._abs_weight
+            for module in Module.objects.filter(device=self)
+            .exclude(module_type___abs_weight__isnull=True)
+            .prefetch_related('module_type')
+        )
+        if self.device_type._abs_weight:
+            total_weight += self.device_type._abs_weight
+        return round(total_weight / 1000, 2)
+
     def get_vc_master(self):
         """
         If this Device is a VirtualChassis member, return the VC master. Otherwise, return None.
@@ -1139,18 +1151,6 @@ class Device(
 
     def get_status_color(self):
         return DeviceStatusChoices.colors.get(self.status)
-
-    @cached_property
-    def total_weight(self):
-        total_weight = sum(
-            module.module_type._abs_weight
-            for module in Module.objects.filter(device=self)
-            .exclude(module_type___abs_weight__isnull=True)
-            .prefetch_related('module_type')
-        )
-        if self.device_type._abs_weight:
-            total_weight += self.device_type._abs_weight
-        return round(total_weight / 1000, 2)
 
 
 class Module(PrimaryModel, ConfigContextModel):
@@ -1531,13 +1531,6 @@ class MACAddress(PrimaryModel):
         self._original_assigned_object_id = self.__dict__.get('assigned_object_id')
         self._original_assigned_object_type_id = self.__dict__.get('assigned_object_type_id')
 
-    @cached_property
-    def is_primary(self):
-        if self.assigned_object and hasattr(self.assigned_object, 'primary_mac_address'):
-            if self.assigned_object.primary_mac_address and self.assigned_object.primary_mac_address.pk == self.pk:
-                return True
-        return False
-
     def clean(self, *args, **kwargs):
         super().clean()
         if self._original_assigned_object_id and self._original_assigned_object_type_id:
@@ -1554,3 +1547,10 @@ class MACAddress(PrimaryModel):
                     raise ValidationError(
                         _("Cannot reassign MAC Address while it is designated as the primary MAC for an object")
                     )
+
+    @cached_property
+    def is_primary(self):
+        if self.assigned_object and hasattr(self.assigned_object, 'primary_mac_address'):
+            if self.assigned_object.primary_mac_address and self.assigned_object.primary_mac_address.pk == self.pk:
+                return True
+        return False
