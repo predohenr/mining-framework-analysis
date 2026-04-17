@@ -26,65 +26,6 @@ class TestBootstrap:
         with pytest.raises(TypeError, match=message):
             bootstrap((xp.asarray([1, 2, 3]),), lambda x: xp.mean(x))
 
-    def test_bootstrap_iv(self, xp):
-        sample = xp.asarray([1, 2, 3])
-
-        message = "`data` must contain at least one sample."
-        with pytest.raises(ValueError, match=message):
-            bootstrap(tuple(), xp.mean)
-
-        message = "each sample in `data` must contain two or more observations..."
-        with pytest.raises(ValueError, match=message):
-            bootstrap((sample, xp.asarray([1])), xp.mean)
-
-        message = ("When `paired is True`, all samples must have the same length ")
-        with pytest.raises(ValueError, match=message):
-            bootstrap((sample, xp.asarray([1, 2, 3, 4])), xp.mean, paired=True)
-
-        message = "`vectorized` must be `True`, `False`, or `None`."
-        with pytest.raises(ValueError, match=message):
-            bootstrap(sample, xp.mean, vectorized='ekki')
-
-        message = "`axis` must be an integer."
-        with pytest.raises(ValueError, match=message):
-            bootstrap((sample,), xp.mean, axis=1.5)
-
-        message = "could not convert string to float"
-        with pytest.raises(ValueError, match=message):
-            bootstrap((sample,), xp.mean, confidence_level='ni')
-
-        message = "`n_resamples` must be a non-negative integer."
-        with pytest.raises(ValueError, match=message):
-            bootstrap((sample,), xp.mean, n_resamples=-1000)
-
-        message = "`n_resamples` must be a non-negative integer."
-        with pytest.raises(ValueError, match=message):
-            bootstrap((sample,), xp.mean, n_resamples=1000.5)
-
-        message = "`batch` must be a positive integer or None."
-        with pytest.raises(ValueError, match=message):
-            bootstrap((sample,), xp.mean, batch=-1000)
-
-        message = "`batch` must be a positive integer or None."
-        with pytest.raises(ValueError, match=message):
-            bootstrap((sample,), xp.mean, batch=1000.5)
-
-        message = "`method` must be in"
-        with pytest.raises(ValueError, match=message):
-            bootstrap((sample,), xp.mean, method='ekki')
-
-        message = "`bootstrap_result` must have attribute `bootstrap_distribution'"
-        with pytest.raises(ValueError, match=message):
-            bootstrap((sample,), xp.mean, bootstrap_result=10)
-
-        message = "Either `bootstrap_result.bootstrap_distribution.size`"
-        with pytest.raises(ValueError, match=message):
-            bootstrap((sample,), xp.mean, n_resamples=0)
-
-        message = "SeedSequence expects int or sequence of ints"
-        with pytest.raises(TypeError, match=message):
-            bootstrap((sample,), xp.mean, rng='herring')
-
     @pytest.mark.parametrize("method", ['basic', 'percentile', 'BCa'])
     @pytest.mark.parametrize("axis", [0, 1, 2])
     def test_bootstrap_batch(self, method, axis, xp):
@@ -205,10 +146,6 @@ class TestBootstrap:
         xp_assert_close(res.confidence_interval.low,
                         xp.asarray(dist.ppf(1-alpha)), rtol=5e-4)
 
-    tests_R = [("basic", 23.77, 79.12),
-               ("percentile", 28.86, 84.21),
-               ("BCa", 32.31, 91.43)]
-
     @pytest.mark.parametrize("method, ref_low, ref_high", tests_R)
     def test_bootstrap_against_R(self, method, ref_low, ref_high, xp):
         # Compare against R's "boot" library
@@ -231,91 +168,6 @@ class TestBootstrap:
         res = bootstrap((x,), xp.mean, n_resamples=1000000, method=method, rng=0)
         xp_assert_close(res.confidence_interval.low, xp.asarray(ref_low), rtol=0.005)
         xp_assert_close(res.confidence_interval.high, xp.asarray(ref_high), rtol=0.005)
-
-    def test_multisample_BCa_against_R(self, xp):
-        # Because bootstrap is stochastic, it's tricky to test against reference
-        # behavior. Here, we show that SciPy's BCa CI matches R wboot's BCa CI
-        # much more closely than the other SciPy CIs do.
-
-        # arbitrary skewed data
-        x = xp.asarray([0.75859206, 0.5910282, -0.4419409, -0.36654601,
-                        0.34955357, -1.38835871, 0.76735821])
-        y = xp.asarray([1.41186073, 0.49775975, 0.08275588, 0.24086388,
-                        0.03567057, 0.52024419, 0.31966611, 1.32067634])
-
-        # a multi-sample statistic for which the BCa CI tends to be different
-        # from the other CIs
-        def statistic(x, y, axis):
-            s1 = stats.skew(x, axis=axis)
-            s2 = stats.skew(y, axis=axis)
-            return s1 - s2
-
-        # compute confidence intervals using each method
-        rng = np.random.default_rng(468865032284792692)
-
-        res_basic = stats.bootstrap((x, y), statistic, method='basic',
-                                    batch=100, rng=rng)
-        res_percent = stats.bootstrap((x, y), statistic, method='percentile',
-                                      batch=100, rng=rng)
-        res_bca = stats.bootstrap((x, y), statistic, method='bca',
-                                  batch=100, rng=rng)
-
-        # compute midpoints so we can compare just one number for each
-        mid_basic = xp.mean(xp.stack(res_basic.confidence_interval))
-        mid_percent = xp.mean(xp.stack(res_percent.confidence_interval))
-        mid_bca = xp.mean(xp.stack(res_bca.confidence_interval))
-
-        # reference for BCA CI computed using R wboot package:
-        # library(wBoot)
-        # library(moments)
-
-        # x = c(0.75859206, 0.5910282, -0.4419409, -0.36654601,
-        #       0.34955357, -1.38835871,  0.76735821)
-        # y = c(1.41186073, 0.49775975, 0.08275588, 0.24086388,
-        #       0.03567057, 0.52024419, 0.31966611, 1.32067634)
-
-        # twoskew <- function(x1, y1) {skewness(x1) - skewness(y1)}
-        # boot.two.bca(x, y, skewness, conf.level = 0.95,
-        #              R = 9999, stacked = FALSE)
-        mid_wboot = -1.5519
-
-        # compute percent difference relative to wboot BCA method
-        diff_basic = (mid_basic - mid_wboot)/abs(mid_wboot)
-        diff_percent = (mid_percent - mid_wboot)/abs(mid_wboot)
-        diff_bca = (mid_bca - mid_wboot)/abs(mid_wboot)
-
-        # SciPy's BCa CI midpoint is much closer than that of the other methods
-        assert diff_basic < -0.15
-        assert diff_percent > 0.15
-        assert abs(diff_bca) < 0.03
-
-    def test_BCa_acceleration_against_reference(self, xp):
-        # Compare the (deterministic) acceleration parameter for a multi-sample
-        # problem against a reference value. The example is from [1], but Efron's
-        # value seems inaccurate. Straightforward code for computing the
-        # reference acceleration (0.011008228344026734) is available at:
-        # https://github.com/scipy/scipy/pull/16455#issuecomment-1193400981
-
-        y = xp.asarray([10., 27., 31., 40., 46., 50., 52., 104., 146.])
-        z = xp.asarray([16., 23., 38., 94., 99., 141., 197.])
-
-        def statistic(z, y, axis=0):
-            return xp.mean(z, axis=axis) - xp.mean(y, axis=axis)
-
-        data = [z, y]
-        res = stats.bootstrap(data, statistic)
-
-        axis = -1
-        alpha = 0.95
-        theta_hat_b = res.bootstrap_distribution
-        batch = 100
-        _, _, a_hat = _resampling._bca_interval(data, statistic, axis, alpha,
-                                                theta_hat_b, batch, xp)
-        xp_assert_close(a_hat, xp.asarray(0.011008228344026734))
-
-    tests_against_itself_1samp = {"basic": 1789,
-                                  "percentile": 1790,
-                                  "BCa": 1789}
 
     @pytest.mark.slow
     @pytest.mark.parametrize("method, expected",
@@ -356,9 +208,6 @@ class TestBootstrap:
         pvalue = stats.binomtest(int(ci_contains_true), n_replications,
                                  confidence_level).pvalue
         assert pvalue > 0.1
-
-    tests_against_itself_2samp = {"basic": 892,
-                                  "percentile": 890}
 
     @pytest.mark.slow
     @pytest.mark.parametrize("method, expected",
@@ -499,22 +348,6 @@ class TestBootstrap:
                         xp.asarray(ref.confidence_interval.high))
         xp_assert_close(res.standard_error, xp.asarray(ref.standard_error))
 
-    def test_bootstrap_min(self, xp):
-        # Check that gh-15883 is fixed: percentileofscore should
-        # behave according to the 'mean' behavior and not trigger nan for BCa
-        rng = np.random.default_rng(1891289180021102)
-        dist = stats.norm(loc=2, scale=4)
-        data = dist.rvs(size=100, random_state=rng)
-        true_min = np.min(data)
-        data = xp.asarray(data)
-        res = bootstrap((data,), xp.min, method="BCa", n_resamples=100,
-                        rng=np.random.default_rng(3942))
-        xp_assert_equal(res.confidence_interval.low, xp.asarray(true_min))
-        res2 = bootstrap((-data,), xp.max, method="BCa", n_resamples=100,
-                         rng=np.random.default_rng(3942))
-        xp_assert_close(-res.confidence_interval.low, res2.confidence_interval.high)
-        xp_assert_close(-res.confidence_interval.high, res2.confidence_interval.low)
-
     @pytest.mark.parametrize("additional_resamples", [0, 1000])
     def test_re_bootstrap(self, additional_resamples, xp):
         # Test behavior of parameter `bootstrap_result`
@@ -567,23 +400,6 @@ class TestBootstrap:
 
         with pytest.raises(ValueError, match='`alternative` must be one of'):
             stats.bootstrap(**config, alternative='ekki-ekki')
-
-    def test_jackknife_resample(self, xp):
-        shape = 3, 4, 5, 6
-        rng = np.random.default_rng(5274950392)
-        x = rng.random(size=shape)
-        y = next(_resampling._jackknife_resample(xp.asarray(x), xp=xp))
-
-        for i in range(shape[-1]):
-            # each resample is indexed along second to last axis
-            # (last axis is the one the statistic will be taken over / consumed)
-            slc = y[..., i, :]
-            expected = np.delete(x, i, axis=-1)
-
-            xp_assert_equal(slc, xp.asarray(expected))
-
-        y2 = list(_resampling._jackknife_resample(xp.asarray(x), batch=2, xp=xp))
-        xp_assert_equal(xp.concat(y2, axis=-2), y)
 
     @pytest.mark.skip_xp_backends("array_api_strict",
                                   reason="Test uses ... + fancy indexing")
@@ -726,8 +542,6 @@ class TestBootstrap:
                         ref.confidence_interval.low, atol=1e-15)
         assert_allclose(res.confidence_interval.high[0],
                         ref.confidence_interval.high, atol=1e-15)
-
-    # torch doesn't have T distribution CDF and can't fall back to NumPy on GPU
     @pytest.mark.skip_xp_backends(np_only=True, exceptions=['cupy'])
     def test_gh_20850(self, xp):
         rng = np.random.default_rng(2085020850)
@@ -746,6 +560,192 @@ class TestBootstrap:
             stats.bootstrap((x, y[:10, 0]), statistic)  # this won't work after 1.16
         stats.bootstrap((x, y[:10, 0:1]), statistic)  # this will
         stats.bootstrap((x.T, y.T[0:1, :10]), statistic, axis=1)  # this will
+
+    def test_bootstrap_iv(self, xp):
+        sample = xp.asarray([1, 2, 3])
+
+        message = "`data` must contain at least one sample."
+        with pytest.raises(ValueError, match=message):
+            bootstrap(tuple(), xp.mean)
+
+        message = "each sample in `data` must contain two or more observations..."
+        with pytest.raises(ValueError, match=message):
+            bootstrap((sample, xp.asarray([1])), xp.mean)
+
+        message = ("When `paired is True`, all samples must have the same length ")
+        with pytest.raises(ValueError, match=message):
+            bootstrap((sample, xp.asarray([1, 2, 3, 4])), xp.mean, paired=True)
+
+        message = "`vectorized` must be `True`, `False`, or `None`."
+        with pytest.raises(ValueError, match=message):
+            bootstrap(sample, xp.mean, vectorized='ekki')
+
+        message = "`axis` must be an integer."
+        with pytest.raises(ValueError, match=message):
+            bootstrap((sample,), xp.mean, axis=1.5)
+
+        message = "could not convert string to float"
+        with pytest.raises(ValueError, match=message):
+            bootstrap((sample,), xp.mean, confidence_level='ni')
+
+        message = "`n_resamples` must be a non-negative integer."
+        with pytest.raises(ValueError, match=message):
+            bootstrap((sample,), xp.mean, n_resamples=-1000)
+
+        message = "`n_resamples` must be a non-negative integer."
+        with pytest.raises(ValueError, match=message):
+            bootstrap((sample,), xp.mean, n_resamples=1000.5)
+
+        message = "`batch` must be a positive integer or None."
+        with pytest.raises(ValueError, match=message):
+            bootstrap((sample,), xp.mean, batch=-1000)
+
+        message = "`batch` must be a positive integer or None."
+        with pytest.raises(ValueError, match=message):
+            bootstrap((sample,), xp.mean, batch=1000.5)
+
+        message = "`method` must be in"
+        with pytest.raises(ValueError, match=message):
+            bootstrap((sample,), xp.mean, method='ekki')
+
+        message = "`bootstrap_result` must have attribute `bootstrap_distribution'"
+        with pytest.raises(ValueError, match=message):
+            bootstrap((sample,), xp.mean, bootstrap_result=10)
+
+        message = "Either `bootstrap_result.bootstrap_distribution.size`"
+        with pytest.raises(ValueError, match=message):
+            bootstrap((sample,), xp.mean, n_resamples=0)
+
+        message = "SeedSequence expects int or sequence of ints"
+        with pytest.raises(TypeError, match=message):
+            bootstrap((sample,), xp.mean, rng='herring')
+
+    tests_R = [("basic", 23.77, 79.12),
+               ("percentile", 28.86, 84.21),
+               ("BCa", 32.31, 91.43)]
+
+    def test_multisample_BCa_against_R(self, xp):
+        # Because bootstrap is stochastic, it's tricky to test against reference
+        # behavior. Here, we show that SciPy's BCa CI matches R wboot's BCa CI
+        # much more closely than the other SciPy CIs do.
+
+        # arbitrary skewed data
+        x = xp.asarray([0.75859206, 0.5910282, -0.4419409, -0.36654601,
+                        0.34955357, -1.38835871, 0.76735821])
+        y = xp.asarray([1.41186073, 0.49775975, 0.08275588, 0.24086388,
+                        0.03567057, 0.52024419, 0.31966611, 1.32067634])
+
+        # a multi-sample statistic for which the BCa CI tends to be different
+        # from the other CIs
+        def statistic(x, y, axis):
+            s1 = stats.skew(x, axis=axis)
+            s2 = stats.skew(y, axis=axis)
+            return s1 - s2
+
+        # compute confidence intervals using each method
+        rng = np.random.default_rng(468865032284792692)
+
+        res_basic = stats.bootstrap((x, y), statistic, method='basic',
+                                    batch=100, rng=rng)
+        res_percent = stats.bootstrap((x, y), statistic, method='percentile',
+                                      batch=100, rng=rng)
+        res_bca = stats.bootstrap((x, y), statistic, method='bca',
+                                  batch=100, rng=rng)
+
+        # compute midpoints so we can compare just one number for each
+        mid_basic = xp.mean(xp.stack(res_basic.confidence_interval))
+        mid_percent = xp.mean(xp.stack(res_percent.confidence_interval))
+        mid_bca = xp.mean(xp.stack(res_bca.confidence_interval))
+
+        # reference for BCA CI computed using R wboot package:
+        # library(wBoot)
+        # library(moments)
+
+        # x = c(0.75859206, 0.5910282, -0.4419409, -0.36654601,
+        #       0.34955357, -1.38835871,  0.76735821)
+        # y = c(1.41186073, 0.49775975, 0.08275588, 0.24086388,
+        #       0.03567057, 0.52024419, 0.31966611, 1.32067634)
+
+        # twoskew <- function(x1, y1) {skewness(x1) - skewness(y1)}
+        # boot.two.bca(x, y, skewness, conf.level = 0.95,
+        #              R = 9999, stacked = FALSE)
+        mid_wboot = -1.5519
+
+        # compute percent difference relative to wboot BCA method
+        diff_basic = (mid_basic - mid_wboot)/abs(mid_wboot)
+        diff_percent = (mid_percent - mid_wboot)/abs(mid_wboot)
+        diff_bca = (mid_bca - mid_wboot)/abs(mid_wboot)
+
+        # SciPy's BCa CI midpoint is much closer than that of the other methods
+        assert diff_basic < -0.15
+        assert diff_percent > 0.15
+        assert abs(diff_bca) < 0.03
+
+    def test_BCa_acceleration_against_reference(self, xp):
+        # Compare the (deterministic) acceleration parameter for a multi-sample
+        # problem against a reference value. The example is from [1], but Efron's
+        # value seems inaccurate. Straightforward code for computing the
+        # reference acceleration (0.011008228344026734) is available at:
+        # https://github.com/scipy/scipy/pull/16455#issuecomment-1193400981
+
+        y = xp.asarray([10., 27., 31., 40., 46., 50., 52., 104., 146.])
+        z = xp.asarray([16., 23., 38., 94., 99., 141., 197.])
+
+        def statistic(z, y, axis=0):
+            return xp.mean(z, axis=axis) - xp.mean(y, axis=axis)
+
+        data = [z, y]
+        res = stats.bootstrap(data, statistic)
+
+        axis = -1
+        alpha = 0.95
+        theta_hat_b = res.bootstrap_distribution
+        batch = 100
+        _, _, a_hat = _resampling._bca_interval(data, statistic, axis, alpha,
+                                                theta_hat_b, batch, xp)
+        xp_assert_close(a_hat, xp.asarray(0.011008228344026734))
+
+    tests_against_itself_1samp = {"basic": 1789,
+                                  "percentile": 1790,
+                                  "BCa": 1789}
+
+    tests_against_itself_2samp = {"basic": 892,
+                                  "percentile": 890}
+
+    def test_bootstrap_min(self, xp):
+        # Check that gh-15883 is fixed: percentileofscore should
+        # behave according to the 'mean' behavior and not trigger nan for BCa
+        rng = np.random.default_rng(1891289180021102)
+        dist = stats.norm(loc=2, scale=4)
+        data = dist.rvs(size=100, random_state=rng)
+        true_min = np.min(data)
+        data = xp.asarray(data)
+        res = bootstrap((data,), xp.min, method="BCa", n_resamples=100,
+                        rng=np.random.default_rng(3942))
+        xp_assert_equal(res.confidence_interval.low, xp.asarray(true_min))
+        res2 = bootstrap((-data,), xp.max, method="BCa", n_resamples=100,
+                         rng=np.random.default_rng(3942))
+        xp_assert_close(-res.confidence_interval.low, res2.confidence_interval.high)
+        xp_assert_close(-res.confidence_interval.high, res2.confidence_interval.low)
+
+    def test_jackknife_resample(self, xp):
+        shape = 3, 4, 5, 6
+        rng = np.random.default_rng(5274950392)
+        x = rng.random(size=shape)
+        y = next(_resampling._jackknife_resample(xp.asarray(x), xp=xp))
+
+        for i in range(shape[-1]):
+            # each resample is indexed along second to last axis
+            # (last axis is the one the statistic will be taken over / consumed)
+            slc = y[..., i, :]
+            expected = np.delete(x, i, axis=-1)
+
+            xp_assert_equal(slc, xp.asarray(expected))
+
+        y2 = list(_resampling._jackknife_resample(xp.asarray(x), batch=2, xp=xp))
+        xp_assert_equal(xp.concat(y2, axis=-2), y)
+
+    # torch doesn't have T distribution CDF and can't fall back to NumPy on GPU
 
 # --- Test Monte Carlo Hypothesis Test --- #
 
@@ -934,10 +934,6 @@ class TestMonteCarloHypothesisTest:
 
         xp_assert_close(res.statistic, xp.asarray(ref.statistic))
         xp_assert_close(res.pvalue, xp.asarray(ref.pvalue), atol=self.atol)
-
-
-    # Tests below involve statistics that are not yet array-API compatible.
-    # They can be converted when the statistics are converted.
     @pytest.mark.slow
     @pytest.mark.parametrize('alternative', ("less", "greater"))
     @pytest.mark.parametrize('a', np.linspace(-0.5, 0.5, 5))  # skewness
@@ -1063,6 +1059,30 @@ class TestMonteCarloHypothesisTest:
         assert_allclose(res.statistic, expected_stat)
         assert_allclose(res.pvalue, expected_p, atol=2*self.atol)
 
+    @pytest.mark.fail_slow(2)
+    @pytest.mark.xfail_on_32bit("Statistic may not depend on sample order on 32-bit")
+    def test_finite_precision_statistic(self):
+        # Some statistics return numerically distinct values when the values
+        # should be equal in theory. Test that `monte_carlo_test` accounts
+        # for this in some way.
+        rng = np.random.default_rng(2549824598234528)
+        n_resamples = 9999
+        def rvs(size):
+            return 1. * stats.bernoulli(p=0.333).rvs(size=size, random_state=rng)
+
+        x = rvs(100)
+        res = stats.monte_carlo_test(x, rvs, np.var, alternative='less',
+                                     n_resamples=n_resamples)
+        # show that having a tolerance matters
+        c0 = np.sum(res.null_distribution <= res.statistic)
+        c1 = np.sum(res.null_distribution <= res.statistic*(1+1e-15))
+        assert c0 != c1
+        assert res.pvalue == (c1 + 1)/(n_resamples + 1)
+
+
+    # Tests below involve statistics that are not yet array-API compatible.
+    # They can be converted when the statistics are converted.
+
     def test_p_never_zero(self):
         # Use biased estimate of p-value to ensure that p-value is never zero
         # per monte_carlo_test reference [1]
@@ -1101,26 +1121,6 @@ class TestMonteCarloHypothesisTest:
 
         assert_allclose(res.statistic, ref.statistic)
         assert_allclose(res.pvalue, ref.pvalue, atol=1e-2)
-
-    @pytest.mark.fail_slow(2)
-    @pytest.mark.xfail_on_32bit("Statistic may not depend on sample order on 32-bit")
-    def test_finite_precision_statistic(self):
-        # Some statistics return numerically distinct values when the values
-        # should be equal in theory. Test that `monte_carlo_test` accounts
-        # for this in some way.
-        rng = np.random.default_rng(2549824598234528)
-        n_resamples = 9999
-        def rvs(size):
-            return 1. * stats.bernoulli(p=0.333).rvs(size=size, random_state=rng)
-
-        x = rvs(100)
-        res = stats.monte_carlo_test(x, rvs, np.var, alternative='less',
-                                     n_resamples=n_resamples)
-        # show that having a tolerance matters
-        c0 = np.sum(res.null_distribution <= res.statistic)
-        c1 = np.sum(res.null_distribution <= res.statistic*(1+1e-15))
-        assert c0 != c1
-        assert res.pvalue == (c1 + 1)/(n_resamples + 1)
 
 
 @make_xp_test_case(power)
@@ -1420,8 +1420,6 @@ class TestPermutationTest:
 
         xp_assert_equal(res1.pvalue, res3.pvalue)
         xp_assert_equal(res2.pvalue, res3.pvalue)
-
-    # SPEC-007 leave at least one call with seed to check it still works
     @pytest.mark.parametrize('random_state', [np.random.RandomState,
                                               np.random.default_rng])
     @pytest.mark.parametrize('permutation_type, exact_size',
@@ -1445,39 +1443,6 @@ class TestPermutationTest:
 
         res = stats.permutation_test((x, y), statistic, **kwds)
         assert xp_size(res.null_distribution) == exact_size
-
-    # -- Randomized Permutation Tests -- #
-
-    # To get reasonable accuracy, these next three tests are somewhat slow.
-    # Originally, I had them passing for all combinations of permutation type,
-    # alternative, and RNG, but that takes too long for CI. Instead, split
-    # into three tests, each testing a particular combination of the three
-    # parameters.
-
-    def test_randomized_test_against_exact_both(self, xp):
-        # check that the randomized and exact tests agree to reasonable
-        # precision for permutation_type='both
-
-        alternative, rng = 'less', 0
-
-        nx, ny, permutations = 8, 9, 24000
-        assert special.binom(nx + ny, nx) > permutations
-
-        rng = np.random.default_rng(8235259808)
-        x = xp.asarray(rng.standard_normal(size=nx))
-        y = xp.asarray(rng.standard_normal(size=ny))
-        data = x, y
-
-        def statistic(x, y, axis):
-            return xp.mean(x, axis=axis) - xp.mean(y, axis=axis)
-
-        kwds = {'vectorized': True, 'permutation_type': 'independent',
-                'batch': 100, 'alternative': alternative, 'rng': rng}
-        res = permutation_test(data, statistic, n_resamples=permutations, **kwds)
-        res2 = permutation_test(data, statistic, n_resamples=xp.inf, **kwds)
-
-        assert res.statistic == res2.statistic
-        xp_assert_close(res.pvalue, res2.pvalue, atol=1e-2)
 
     @pytest.mark.slow()
     def test_randomized_test_against_exact_samples(self, xp):
@@ -1504,8 +1469,6 @@ class TestPermutationTest:
 
         assert res.statistic == res2.statistic
         xp_assert_close(res.pvalue, res2.pvalue, atol=1e-2)
-
-    # I only need to skip torch on GPU because it doesn't have betaincc for pearsonr
     @pytest.mark.skip_xp_backends(cpu_only=True, exceptions=['cupy', 'jax.numpy'])
     def test_randomized_test_against_exact_pairings(self, xp):
         # check that the randomized and exact tests agree to reasonable
@@ -1531,8 +1494,6 @@ class TestPermutationTest:
 
         assert res.statistic == res2.statistic
         xp_assert_close(res.pvalue, res2.pvalue, atol=1e-2)
-
-    # -- Independent (Unpaired) Sample Tests -- #
 
     @pytest.mark.skip_xp_backends(eager_only=True)  # TODO: change to jax_jit=False
     @pytest.mark.parametrize('alternative', ("less", "greater", "two-sided"))
@@ -1665,8 +1626,6 @@ class TestPermutationTest:
         xp_assert_close(res.pvalue, xp.asarray(expected.pvalue), atol=6e-2)
         xp_assert_close(res.pvalue, res2.pvalue, atol=3e-2)
 
-    # -- Paired-Sample Tests -- #
-
     @pytest.mark.skip_xp_backends(eager_only=True)  # TODO: change to jax_jit=False
     @pytest.mark.parametrize('alternative', ("less", "greater", "two-sided"))
     def test_against_wilcoxon(self, alternative, xp):
@@ -1727,8 +1686,6 @@ class TestPermutationTest:
                                      permutation_type='samples', n_resamples=xp.inf,
                                      rng=self.rng, alternative=alternative)
         xp_assert_close(res.pvalue, xp.asarray(expected.pvalue), rtol=self.rtol)
-
-    # -- Exact Association Tests -- #
 
     @pytest.mark.skip_xp_backends(eager_only=True)  # TODO: change to jax_jit=False
     def test_against_kendalltau(self, xp):
@@ -1815,22 +1772,6 @@ class TestPermutationTest:
         assert_allclose(res.statistic, res2.statistic, rtol=self.rtol)
         assert_allclose(res.pvalue, expected_pvalue, rtol=self.rtol)
         assert_allclose(res.pvalue, res2.pvalue, atol=3e-2)
-
-    # -- Test Against External References -- #
-
-    tie_case_1 = {'x': [1, 2, 3, 4], 'y': [1.5, 2, 2.5],
-                  'expected_less': 0.2000000000,
-                  'expected_2sided': 0.4,  # 2*expected_less
-                  'expected_Pr_gte_S_mean': 0.3428571429,  # see note below
-                  'expected_statistic': 7.5,
-                  'expected_avg': 9.142857, 'expected_std': 1.40698}
-    tie_case_2 = {'x': [111, 107, 100, 99, 102, 106, 109, 108],
-                  'y': [107, 108, 106, 98, 105, 103, 110, 105, 104],
-                  'expected_less': 0.1555738379,
-                  'expected_2sided': 0.3111476758,
-                  'expected_Pr_gte_S_mean': 0.2969971205,  # see note below
-                  'expected_statistic': 32.5,
-                  'expected_avg': 38.117647, 'expected_std': 5.172124}
 
     @pytest.mark.skip_xp_backends(eager_only=True)  # TODO: change to jax_jit=False
     @pytest.mark.xslow()  # only the second case is slow, really
@@ -1950,10 +1891,6 @@ class TestPermutationTest:
         with pytest.raises(ValueError, match="`batch` must be positive."):
             list(_resampling._batch_generator([1, 2, 3], batch))
 
-    batch_generator_cases = [(range(0), 3, []),
-                             (range(6), 3, [[0, 1, 2], [3, 4, 5]]),
-                             (range(8), 3, [[0, 1, 2], [3, 4, 5], [6, 7]])]
-
     @pytest.mark.parametrize("iterable, batch, expected",
                              batch_generator_cases)
     def test_batch_generator(self, iterable, batch, expected):
@@ -1985,6 +1922,69 @@ class TestPermutationTest:
         # y = c(2, 4, 6, 8)
         # cor.test(x, y, alternative = "t", method = "spearman")  # 0.333333333
         # cor.test(x, y, alternative = "t", method = "kendall")  # 0.333333333
+
+    # SPEC-007 leave at least one call with seed to check it still works
+
+    # -- Randomized Permutation Tests -- #
+
+    # To get reasonable accuracy, these next three tests are somewhat slow.
+    # Originally, I had them passing for all combinations of permutation type,
+    # alternative, and RNG, but that takes too long for CI. Instead, split
+    # into three tests, each testing a particular combination of the three
+    # parameters.
+
+    def test_randomized_test_against_exact_both(self, xp):
+        # check that the randomized and exact tests agree to reasonable
+        # precision for permutation_type='both
+
+        alternative, rng = 'less', 0
+
+        nx, ny, permutations = 8, 9, 24000
+        assert special.binom(nx + ny, nx) > permutations
+
+        rng = np.random.default_rng(8235259808)
+        x = xp.asarray(rng.standard_normal(size=nx))
+        y = xp.asarray(rng.standard_normal(size=ny))
+        data = x, y
+
+        def statistic(x, y, axis):
+            return xp.mean(x, axis=axis) - xp.mean(y, axis=axis)
+
+        kwds = {'vectorized': True, 'permutation_type': 'independent',
+                'batch': 100, 'alternative': alternative, 'rng': rng}
+        res = permutation_test(data, statistic, n_resamples=permutations, **kwds)
+        res2 = permutation_test(data, statistic, n_resamples=xp.inf, **kwds)
+
+        assert res.statistic == res2.statistic
+        xp_assert_close(res.pvalue, res2.pvalue, atol=1e-2)
+
+    # I only need to skip torch on GPU because it doesn't have betaincc for pearsonr
+
+    # -- Independent (Unpaired) Sample Tests -- #
+
+    # -- Paired-Sample Tests -- #
+
+    # -- Exact Association Tests -- #
+
+    # -- Test Against External References -- #
+
+    tie_case_1 = {'x': [1, 2, 3, 4], 'y': [1.5, 2, 2.5],
+                  'expected_less': 0.2000000000,
+                  'expected_2sided': 0.4,  # 2*expected_less
+                  'expected_Pr_gte_S_mean': 0.3428571429,  # see note below
+                  'expected_statistic': 7.5,
+                  'expected_avg': 9.142857, 'expected_std': 1.40698}
+    tie_case_2 = {'x': [111, 107, 100, 99, 102, 106, 109, 108],
+                  'y': [107, 108, 106, 98, 105, 103, 110, 105, 104],
+                  'expected_less': 0.1555738379,
+                  'expected_2sided': 0.3111476758,
+                  'expected_Pr_gte_S_mean': 0.2969971205,  # see note below
+                  'expected_statistic': 32.5,
+                  'expected_avg': 38.117647, 'expected_std': 5.172124}
+
+    batch_generator_cases = [(range(0), 3, []),
+                             (range(6), 3, [[0, 1, 2], [3, 4, 5]]),
+                             (range(8), 3, [[0, 1, 2], [3, 4, 5], [6, 7]])]
 
 
 def test_all_partitions_concatenated():
