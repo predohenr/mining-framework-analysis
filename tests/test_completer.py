@@ -51,6 +51,714 @@ def jedi_status(status: bool):
         completer.use_jedi = old
 
 
+@contextmanager
+def greedy_completion():
+    ip = get_ipython()
+    greedy_original = ip.Completer.greedy
+    try:
+        ip.Completer.greedy = True
+        yield
+    finally:
+        ip.Completer.greedy = greedy_original
+
+
+@contextmanager
+def evaluation_policy(evaluation: str, **overrides):
+    ip = get_ipython()
+    evaluation_original = ip.Completer.evaluation
+    overrides_original = ip.Completer.policy_overrides
+    try:
+        ip.Completer.evaluation = evaluation
+        ip.Completer.policy_overrides = overrides
+        yield
+    finally:
+        ip.Completer.evaluation = evaluation_original
+        ip.Completer.policy_overrides = overrides_original
+
+
+@contextmanager
+def custom_matchers(matchers):
+    ip = get_ipython()
+    try:
+        ip.Completer.custom_matchers.extend(matchers)
+        yield
+    finally:
+        ip.Completer.custom_matchers.clear()
+
+
+@pytest.mark.parametrize("s1,expected", pairs)
+def test_protect_filename(s1, expected):
+    assert completer.protect_filename(s1) == expected
+
+
+@pytest.mark.parametrize(
+    "use_jedi,evaluation",
+    [
+        [True, "minimal"],
+        [False, "limited"],
+    ],
+)
+@pytest.mark.parametrize(
+    "code,insert_text",
+    [
+        [
+            "\n".join(
+                [
+                    "class NotYetDefined:",
+                    "    def my_method(self) -> str:",
+                    "        return 1",
+                    "my_instance = NotYetDefined()",
+                    "my_insta",
+                ]
+            ),
+            "my_instance",
+        ],
+        [
+            "\n".join(
+                [
+                    "class NotYetDefined:",
+                    "    def my_method(self) -> str:",
+                    "        return 1",
+                    "instance = NotYetDefined()",
+                    "instance.",
+                ]
+            ),
+            "my_method",
+        ],
+        [
+            "\n".join(
+                [
+                    "class NotYetDefined:",
+                    "    def my_method(self) -> str:",
+                    "        return 1",
+                    "my_instance = NotYetDefined()",
+                    "my_instance.my_method().",
+                ]
+            ),
+            "capitalize",
+        ],
+        [
+            "\n".join(
+                [
+                    "class NotYetDefined:",
+                    "    def my_method(self):",
+                    "        return []",
+                    "my_instance = NotYetDefined()",
+                    "my_instance.my_method().",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "class NotYetDefined:",
+                    "    @property",
+                    "    def my_property(self):",
+                    "        return 1.1",
+                    "my_instance = NotYetDefined()",
+                    "my_instance.my_property.",
+                ]
+            ),
+            "as_integer_ratio",
+        ],
+        [
+            "\n".join(
+                [
+                    "my_instance = 1.1",
+                    "assert my_instance.",
+                ]
+            ),
+            "as_integer_ratio",
+        ],
+        [
+            "\n".join(
+                [
+                    "def my_test() -> float:",
+                    "    pass",
+                    "my_test().",
+                ]
+            ),
+            "as_integer_ratio",
+        ],
+        [
+            "\n".join(
+                [
+                    "def my_test():",
+                    "    return {}",
+                    "my_test().",
+                ]
+            ),
+            "keys",
+        ],
+        [
+            "\n".join(
+                [
+                    "l = []",
+                    "def my_test():",
+                    "    return l",
+                    "my_test().",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "num = {1: 'one'}",
+                    "num[2] = 'two'",
+                    "num.",
+                ]
+            ),
+            "keys",
+        ],
+        [
+            "\n".join(
+                [
+                    "num = {1: 'one'}",
+                    "num[2] = ['two']",
+                    "num[2].",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "l = []",
+                    "class NotYetDefined:",
+                    "    def my_method(self):",
+                    "        return l",
+                    "my_instance = NotYetDefined()",
+                    "my_instance.my_method().",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "def string_or_int(flag):",
+                    "    if flag:",
+                    "        return 'test'",
+                    "    return 1",
+                    "string_or_int().",
+                ]
+            ),
+            ["capitalize", "as_integer_ratio"],
+        ],
+        [
+            "\n".join(
+                [
+                    "def foo():",
+                    "    l = []",
+                    "    return l",
+                    "foo().",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "class NotYetDefined:",
+                    "    def __init__(self):",
+                    "        self.test = []",
+                    "instance = NotYetDefined()",
+                    "instance.",
+                ]
+            ),
+            "test",
+        ],
+        [
+            "\n".join(
+                [
+                    "class NotYetDefined:",
+                    "    def __init__(instance):",
+                    "        instance.test = []",
+                    "instance = NotYetDefined()",
+                    "instance.test.",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "class NotYetDefined:",
+                    "    def __init__(this):",
+                    "        this.test:str = []",
+                    "instance = NotYetDefined()",
+                    "instance.test.",
+                ]
+            ),
+            "capitalize",
+        ],
+        [
+            "\n".join(
+                [
+                    "l = []",
+                    "class NotYetDefined:",
+                    "    def __init__(me):",
+                    "        me.test = l",
+                    "instance = NotYetDefined()",
+                    "instance.test.",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "class NotYetDefined:",
+                    "    def test(self):",
+                    "        self.l = []",
+                    "        return self.l",
+                    "instance = NotYetDefined()",
+                    "instance.test().",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "class NotYetDefined:",
+                    "    def test():",
+                    "        return []",
+                    "instance = NotYetDefined()",
+                    "instance.test().",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "def foo():",
+                    "    if some_condition:",
+                    "        return {'top':{'mid':{'leaf': 2}}}",
+                    "    return {'top': {'mid':[]}}",
+                    "foo()['top']['mid'].",
+                ]
+            ),
+            ["keys", "append"],
+        ],
+        [
+            "\n".join(
+                [
+                    "def foo():",
+                    "    if some_condition:",
+                    "        return {'top':{'mid':{'leaf': 2}}}",
+                    "    return {'top': {'mid':[]}}",
+                    "foo()['top']['mid']['leaf'].",
+                ]
+            ),
+            "as_integer_ratio",
+        ],
+        [
+            "\n".join(
+                [
+                    "async def async_func():",
+                    "    return []",
+                    "async_func().",
+                ]
+            ),
+            "cr_await",
+        ],
+        [
+            "\n".join(
+                [
+                    "async def async_func():",
+                    "    return []",
+                    "(await async_func()).",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(["t = []", "if some_condition:", "    t."]),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "t = []",
+                    "if some_condition:",
+                    "    t = 'string'",
+                    "t.",
+                ]
+            ),
+            ["append", "capitalize"],
+        ],
+        [
+            "\n".join(
+                [
+                    "t = []",
+                    "if some_condition:",
+                    "    t = 'string'",
+                    "else:",
+                    "    t.",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "t = []",
+                    "if some_condition:",
+                    "    t = 'string'",
+                    "else:",
+                    "    t = 1",
+                    "t.",
+                ]
+            ),
+            ["append", "capitalize", "as_integer_ratio"],
+        ],
+        [
+            "\n".join(
+                [
+                    "t = []",
+                    "if condition_1:",
+                    "    t = 'string'",
+                    "elif condition_2:",
+                    "    t = 1",
+                    "elif condition_3:",
+                    "    t.",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "t = []",
+                    "if condition_1:",
+                    "    t = 'string'",
+                    "elif condition_2:",
+                    "    t = 1",
+                    "elif condition_3:",
+                    "    t = {}",
+                    "t.",
+                ]
+            ),
+            ["append", "capitalize", "as_integer_ratio", "keys"],
+        ],
+        [
+            "\n".join(
+                [
+                    "t = []",
+                    "if condition_1:",
+                    "    if condition_2:",
+                    "        t = 'nested'",
+                    "t.",
+                ]
+            ),
+            ["append", "capitalize"],
+        ],
+        [
+            "\n".join(
+                [
+                    "a = []",
+                    "while condition:",
+                    "    a.",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "t = []",
+                    "while condition:",
+                    "    t = 'str'",
+                    "t.",
+                ]
+            ),
+            ["append", "capitalize"],
+        ],
+        [
+            "\n".join(
+                [
+                    "t = []",
+                    "while condition_1:",
+                    "    while condition_2:",
+                    "        t = 'str'",
+                    "t.",
+                ]
+            ),
+            ["append", "capitalize"],
+        ],
+        [
+            "\n".join(
+                [
+                    "for i in range(10):",
+                    "    i.",
+                ]
+            ),
+            "bit_length",
+        ],
+        [
+            "\n".join(
+                [
+                    "for i in range(10):",
+                    "    if i % 2 == 0:",
+                    "        i.",
+                ]
+            ),
+            "bit_length",
+        ],
+        [
+            "\n".join(
+                [
+                    "for item in ['a', 'b', 'c']:",
+                    "    item.",
+                ]
+            ),
+            "capitalize",
+        ],
+        [
+            "\n".join(
+                [
+                    "for key, value in {'a': 1, 'b': 2}.items():",
+                    "    key.",
+                ]
+            ),
+            "capitalize",
+        ],
+        [
+            "\n".join(
+                [
+                    "for key, value in {'a': 1, 'b': 2}.items():",
+                    "    value.",
+                ]
+            ),
+            "bit_length",
+        ],
+        [
+            "\n".join(
+                [
+                    "for sublist in [[1, 2], [3, 4]]:",
+                    "    sublist.",
+                ]
+            ),
+            "append",
+        ],
+        [
+            "\n".join(
+                [
+                    "for sublist in [[1, 2], [3, 4]]:",
+                    "    for item in sublist:",
+                    "        item.",
+                ]
+            ),
+            "bit_length",
+        ],
+    ],
+)
+def test_undefined_variables(use_jedi, evaluation, code, insert_text):
+    offset = len(code)
+    ip.Completer.use_jedi = use_jedi
+    ip.Completer.evaluation = evaluation
+
+    with provisionalcompleter():
+        completions = list(ip.Completer.completions(text=code, offset=offset))
+        insert_texts = insert_text if isinstance(insert_text, list) else [insert_text]
+        for text in insert_texts:
+            match = [c for c in completions if c.text.lstrip(".") == text]
+            message_on_fail = f"{text} not found among {[c.text for c in completions]}"
+            assert len(match) == 1, message_on_fail
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "\n".join(
+            [
+                "def my_test() -> float:",
+                "    return 1.1",
+                "my_test().",
+            ]
+        ),
+        "\n".join(
+            [
+                "class MyClass():",
+                "    b: list[str]",
+                "x = MyClass()",
+                "x.b[0].",
+            ]
+        ),
+    ],
+)
+def test_no_file_completions_in_attr_access(code):
+    """Test that files are not suggested during attribute/method completion."""
+    with TemporaryWorkingDirectory():
+        open(".hidden", "w", encoding="utf-8").close()
+        offset = len(code)
+        for use_jedi in (True, False):
+            with provisionalcompleter(), jedi_status(use_jedi):
+                completions = list(ip.Completer.completions(text=code, offset=offset))
+                matches = [c for c in completions if c.text.lstrip(".") == "hidden"]
+                assert (
+                    len(matches) == 0
+                ), f"File '.hidden' should not appear in attribute completion"
+
+
+@pytest.mark.parametrize(
+    "line,expected",
+    [
+        # Basic test cases
+        ("np.", "attribute"),
+        ("np.ran", "attribute"),
+        ("np.random.rand(np.random.ran", "attribute"),
+        ("np.random.rand(n", "global"),
+        ("d['k.e.y.'](ran", "global"),
+        ("d[0].k", "attribute"),
+        ("a = { 'a': np.ran", "attribute"),
+        ("n", "global"),
+        ("", "global"),
+        # Dots in string literals
+        ('some_var = "this is a string with a dot.', "global"),
+        ("text = 'another string with a dot.", "global"),
+        ('f"greeting {user.na', "attribute"),  # Cursor in f-string expression
+        ('t"welcome {guest.na', "attribute"),  # Cursor in t-string expression
+        ('f"hello {name} worl', "global"),  # Cursor in f-string outside expression
+        ('f"hello {{a.', "global"),
+        ('f"hello {{{a.', "attribute"),
+        # Backslash escapes in strings
+        ('var = "string with \\"escaped quote and a dot.', "global"),
+        ("escaped = 'single \\'quote\\' with a dot.", "global"),
+        # Multi-line strings
+        ('multi = """This is line one\nwith a dot.', "global"),
+        ("multi_single = '''Another\nmulti-line\nwith a dot.", "global"),
+        # Inline comments
+        ("x = 5  # This is a comment", "global"),
+        ("y = obj.method()  # Comment after dot.method", "global"),
+        # Hash symbol within string literals should not be treated as comments
+        ("d['#'] = np.", "attribute"),
+        # Nested parentheses with dots
+        ("complex_expr = (func((obj.method(param.attr", "attribute"),
+        ("multiple_nesting = {key: [value.attr", "attribute"),
+        # Numbers
+        ("3.", "global"),
+        ("3.14", "global"),
+        ("-42.14", "global"),
+        ("x = func(3.14", "global"),
+        ("x = func(a3.", "attribute"),
+        ("x = func(a3.12", "global"),
+        ("3.1.", "attribute"),
+        ("-3.1.", "attribute"),
+        ("(3).", "attribute"),
+        # Additional cases
+        ("", "global"),
+        ('str_with_code = "x.attr', "global"),
+        ('f"formatted {obj.attr', "attribute"),
+        ('f"formatted {obj.attr}', "global"),
+        ("dict_with_dots = {'key.with.dots': value.attr", "attribute"),
+        ("d[f'{a}']['{a.", "global"),
+    ],
+)
+def test_completion_context(line, expected):
+    """Test completion context"""
+    ip = get_ipython()
+    get_context = ip.Completer._determine_completion_context
+    result = get_context(line)
+    assert result.value == expected, f"Failed on input: '{line}'"
+
+
+@pytest.mark.xfail(reason="Completion context not yet supported")
+@pytest.mark.parametrize(
+    "line, expected",
+    [
+        ("f'{f'a.", "global"),  # Nested f-string
+        ("3a.", "global"),  # names starting with numbers or other symbols
+        ("$).", "global"),  # random things with dot at end
+    ],
+)
+def test_unsupported_completion_context(line, expected):
+    """Test unsupported completion context"""
+    ip = get_ipython()
+    get_context = ip.Completer._determine_completion_context
+    result = get_context(line)
+    assert result.value == expected, f"Failed on input: '{line}'"
+
+
+@pytest.mark.parametrize(
+    "setup,code,expected,not_expected",
+    [
+        ('a="str"; b=1', "(a, b.", [".bit_count", ".conjugate"], [".count"]),
+        ('a="str"; b=1', "(a, b).", [".count"], [".bit_count", ".capitalize"]),
+        ('x="str"; y=1', "x = {1, y.", [".bit_count"], [".count"]),
+        ('x="str"; y=1', "x = [1, y.", [".bit_count"], [".count"]),
+        ('x="str"; y=1; fun=lambda x:x', "x = fun(1, y.", [".bit_count"], [".count"]),
+    ],
+)
+def test_misc_no_jedi_completions(setup, code, expected, not_expected):
+    ip = get_ipython()
+    c = ip.Completer
+    ip.ex(setup)
+    with provisionalcompleter(), jedi_status(False):
+        matches = c.all_completions(code)
+        assert set(expected) - set(matches) == set(), set(matches)
+        assert set(matches).intersection(set(not_expected)) == set()
+
+
+@pytest.mark.parametrize(
+    "code,expected",
+    [
+        (" (a, b", "b"),
+        ("(a, b", "b"),
+        ("(a, b)", ""),  # trim always start by trimming
+        (" (a, b)", "(a, b)"),
+        (" [a, b]", "[a, b]"),
+        (" a, b", "b"),
+        ("x = {1, y", "y"),
+        ("x = [1, y", "y"),
+        ("x = fun(1, y", "y"),
+        (" assert a", "a"),
+    ],
+)
+def test_trim_expr(code, expected):
+    c = get_ipython().Completer
+    assert c._trim_expr(code) == expected
+
+
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        ["1.234", "1.234"],
+        # should match signed numbers
+        ["+1", "+1"],
+        ["-1", "-1"],
+        ["-1.0", "-1.0"],
+        ["-1.", "-1."],
+        ["+1.", "+1."],
+        [".1", ".1"],
+        # should not match non-numbers
+        ["1..", None],
+        ["..", None],
+        [".1.", None],
+        # should match after comma
+        [",1", "1"],
+        [", 1", "1"],
+        [", .1", ".1"],
+        [", +.1", "+.1"],
+        # should not match after trailing spaces
+        [".1 ", None],
+        # some complex cases
+        ["0b_0011_1111_0100_1110", "0b_0011_1111_0100_1110"],
+        ["0xdeadbeef", "0xdeadbeef"],
+        ["0b_1110_0101", "0b_1110_0101"],
+        # should not match if in an operation
+        ["1 + 1", None],
+        [", 1 + 1", None],
+    ],
+)
+def test_match_numeric_literal_for_dict_key(input, expected):
+    assert _match_number_in_dict_key_prefix(input) == expected
+
+
 # -----------------------------------------------------------------------------
 # Test functions
 # -----------------------------------------------------------------------------
@@ -130,41 +838,6 @@ def test_unicode_range():
     assert len_exp <= 148853, message
 
 
-@contextmanager
-def greedy_completion():
-    ip = get_ipython()
-    greedy_original = ip.Completer.greedy
-    try:
-        ip.Completer.greedy = True
-        yield
-    finally:
-        ip.Completer.greedy = greedy_original
-
-
-@contextmanager
-def evaluation_policy(evaluation: str, **overrides):
-    ip = get_ipython()
-    evaluation_original = ip.Completer.evaluation
-    overrides_original = ip.Completer.policy_overrides
-    try:
-        ip.Completer.evaluation = evaluation
-        ip.Completer.policy_overrides = overrides
-        yield
-    finally:
-        ip.Completer.evaluation = evaluation_original
-        ip.Completer.policy_overrides = overrides_original
-
-
-@contextmanager
-def custom_matchers(matchers):
-    ip = get_ipython()
-    try:
-        ip.Completer.custom_matchers.extend(matchers)
-        yield
-    finally:
-        ip.Completer.custom_matchers.clear()
-
-
 if sys.platform == "win32":
     pairs = [
         ("abc", "abc"),
@@ -199,11 +872,6 @@ else:
         ("a^bc", r"a\^bc"),
         ("a&bc", r"a\&bc"),
     ]
-
-
-@pytest.mark.parametrize("s1,expected", pairs)
-def test_protect_filename(s1, expected):
-    assert completer.protect_filename(s1) == expected
 
 
 def check_line_split(splitter, test_specs):
@@ -410,52 +1078,6 @@ class TestCompleter(unittest.TestCase):
             c = ip.complete(prefix, cmd)[1]
             comp = [prefix + s for s in suffixes]
             self.assertEqual(c, comp)
-
-    def test_local_file_completions(self):
-        ip = get_ipython()
-        with TemporaryWorkingDirectory():
-            prefix = "./foo"
-            suffixes = ["1", "2"]
-            names = [prefix + s for s in suffixes]
-            for n in names:
-                open(n, "w", encoding="utf-8").close()
-
-            # Check simple completion
-            c = ip.complete(prefix)[1]
-            self.assertEqual(c, names)
-
-            # Now check with a function call
-            cmd = 'a = f("%s' % prefix
-            c = ip.complete(prefix, cmd)[1]
-            comp = {prefix + s for s in suffixes}
-            self.assertTrue(comp.issubset(set(c)))
-
-    def test_quoted_file_completions(self):
-        ip = get_ipython()
-
-        def _(text):
-            return ip.Completer._complete(
-                cursor_line=0, cursor_pos=len(text), full_text=text
-            )["IPCompleter.file_matcher"]["completions"]
-
-        with TemporaryWorkingDirectory():
-            name = "foo'bar"
-            open(name, "w", encoding="utf-8").close()
-
-            # Don't escape Windows
-            escaped = name if sys.platform == "win32" else "foo\\'bar"
-
-            # Single quote matches embedded single quote
-            c = _("open('foo")[0]
-            self.assertEqual(c.text, escaped)
-
-            # Double quote requires no escape
-            c = _('open("foo')[0]
-            self.assertEqual(c.text, name)
-
-            # No quote requires an escape
-            c = _("%ls foo")[0]
-            self.assertEqual(c.text, escaped)
 
     @pytest.mark.xfail(
         sys.version_info.releaselevel in ("alpha",),
@@ -694,6 +1316,141 @@ class TestCompleter(unittest.TestCase):
                 "Should have completed on `b + c.`: %s",
                 Completion(6, 6, "hex"),
             )
+
+    @dec.skip_without("numpy")
+    def test_struct_array_key_completion(self):
+        """Test dict key completion applies to numpy struct arrays"""
+        import numpy
+
+        ip = get_ipython()
+        complete = ip.Completer.complete
+        ip.user_ns["d"] = numpy.array([], dtype=[("hello", "f"), ("world", "f")])
+        _, matches = complete(line_buffer="d['")
+        self.assertIn("hello", matches)
+        self.assertIn("world", matches)
+        # complete on the numpy struct itself
+        dt = numpy.dtype(
+            [("my_head", [("my_dt", ">u4"), ("my_df", ">u4")]), ("my_data", ">f4", 5)]
+        )
+        x = numpy.zeros(2, dtype=dt)
+        ip.user_ns["d"] = x[1]
+        _, matches = complete(line_buffer="d['")
+        self.assertIn("my_head", matches)
+        self.assertIn("my_data", matches)
+
+        def completes_on_nested():
+            ip.user_ns["d"] = numpy.zeros(2, dtype=dt)
+            _, matches = complete(line_buffer="d[1]['my_head']['")
+            self.assertTrue(any(["my_dt" in m for m in matches]))
+            self.assertTrue(any(["my_df" in m for m in matches]))
+
+        # complete on a nested level
+        with greedy_completion():
+            completes_on_nested()
+
+        with evaluation_policy("limited"):
+            completes_on_nested()
+
+        with evaluation_policy("minimal"):
+            with pytest.raises(AssertionError):
+                completes_on_nested()
+
+    @dec.skip_without("pandas")
+    def test_dataframe_key_completion(self):
+        """Test dict key completion applies to pandas DataFrames"""
+        import pandas
+
+        ip = get_ipython()
+        complete = ip.Completer.complete
+        ip.user_ns["d"] = pandas.DataFrame({"hello": [1], "world": [2]})
+        _, matches = complete(line_buffer="d['")
+        self.assertIn("hello", matches)
+        self.assertIn("world", matches)
+        _, matches = complete(line_buffer="d.loc[:, '")
+        self.assertIn("hello", matches)
+        self.assertIn("world", matches)
+        _, matches = complete(line_buffer="d.loc[1:, '")
+        self.assertIn("hello", matches)
+        _, matches = complete(line_buffer="d.loc[1:1, '")
+        self.assertIn("hello", matches)
+        _, matches = complete(line_buffer="d.loc[1:1:-1, '")
+        self.assertIn("hello", matches)
+        _, matches = complete(line_buffer="d.loc[::, '")
+        self.assertIn("hello", matches)
+
+    @pytest.mark.xfail(
+        sys.version_info.releaselevel in ("alpha",),
+        reason="Parso does not yet parse 3.13",
+    )
+    def test_matcher_suppression_with_jedi(self):
+        ip = get_ipython()
+        c = ip.Completer
+        c.use_jedi = True
+
+        def configure(suppression_config):
+            cfg = Config()
+            cfg.IPCompleter.suppress_competing_matchers = suppression_config
+            c.update_config(cfg)
+
+        def _():
+            with provisionalcompleter():
+                matches = [completion.text for completion in c.completions("dict.", 5)]
+                self.assertIn("keys", matches)
+
+        configure(False)
+        _()
+
+        configure(True)
+        _()
+
+        configure(None)
+        _()
+
+    def test_local_file_completions(self):
+        ip = get_ipython()
+        with TemporaryWorkingDirectory():
+            prefix = "./foo"
+            suffixes = ["1", "2"]
+            names = [prefix + s for s in suffixes]
+            for n in names:
+                open(n, "w", encoding="utf-8").close()
+
+            # Check simple completion
+            c = ip.complete(prefix)[1]
+            self.assertEqual(c, names)
+
+            # Now check with a function call
+            cmd = 'a = f("%s' % prefix
+            c = ip.complete(prefix, cmd)[1]
+            comp = {prefix + s for s in suffixes}
+            self.assertTrue(comp.issubset(set(c)))
+
+    def test_quoted_file_completions(self):
+        ip = get_ipython()
+
+        def _(text):
+            return ip.Completer._complete(
+                cursor_line=0, cursor_pos=len(text), full_text=text
+            )["IPCompleter.file_matcher"]["completions"]
+
+        with TemporaryWorkingDirectory():
+            name = "foo'bar"
+            open(name, "w", encoding="utf-8").close()
+
+            # Don't escape Windows
+            escaped = name if sys.platform == "win32" else "foo\\'bar"
+
+            # Single quote matches embedded single quote
+            c = _("open('foo")[0]
+            self.assertEqual(c.text, escaped)
+
+            # Double quote requires no escape
+            c = _('open("foo')[0]
+            self.assertEqual(c.text, name)
+
+            # No quote requires an escape
+            c = _("%ls foo")[0]
+            self.assertEqual(c.text, escaped)
 
     def test_omit__names(self):
         # also happens to test IPCompleter as a configurable
@@ -1674,67 +2431,6 @@ class TestCompleter(unittest.TestCase):
             _, matches = complete(line_buffer="d['a\u05d0")
             self.assertIn("d['a\u05d0']", matches)
 
-    @dec.skip_without("numpy")
-    def test_struct_array_key_completion(self):
-        """Test dict key completion applies to numpy struct arrays"""
-        import numpy
-
-        ip = get_ipython()
-        complete = ip.Completer.complete
-        ip.user_ns["d"] = numpy.array([], dtype=[("hello", "f"), ("world", "f")])
-        _, matches = complete(line_buffer="d['")
-        self.assertIn("hello", matches)
-        self.assertIn("world", matches)
-        # complete on the numpy struct itself
-        dt = numpy.dtype(
-            [("my_head", [("my_dt", ">u4"), ("my_df", ">u4")]), ("my_data", ">f4", 5)]
-        )
-        x = numpy.zeros(2, dtype=dt)
-        ip.user_ns["d"] = x[1]
-        _, matches = complete(line_buffer="d['")
-        self.assertIn("my_head", matches)
-        self.assertIn("my_data", matches)
-
-        def completes_on_nested():
-            ip.user_ns["d"] = numpy.zeros(2, dtype=dt)
-            _, matches = complete(line_buffer="d[1]['my_head']['")
-            self.assertTrue(any(["my_dt" in m for m in matches]))
-            self.assertTrue(any(["my_df" in m for m in matches]))
-
-        # complete on a nested level
-        with greedy_completion():
-            completes_on_nested()
-
-        with evaluation_policy("limited"):
-            completes_on_nested()
-
-        with evaluation_policy("minimal"):
-            with pytest.raises(AssertionError):
-                completes_on_nested()
-
-    @dec.skip_without("pandas")
-    def test_dataframe_key_completion(self):
-        """Test dict key completion applies to pandas DataFrames"""
-        import pandas
-
-        ip = get_ipython()
-        complete = ip.Completer.complete
-        ip.user_ns["d"] = pandas.DataFrame({"hello": [1], "world": [2]})
-        _, matches = complete(line_buffer="d['")
-        self.assertIn("hello", matches)
-        self.assertIn("world", matches)
-        _, matches = complete(line_buffer="d.loc[:, '")
-        self.assertIn("hello", matches)
-        self.assertIn("world", matches)
-        _, matches = complete(line_buffer="d.loc[1:, '")
-        self.assertIn("hello", matches)
-        _, matches = complete(line_buffer="d.loc[1:1, '")
-        self.assertIn("hello", matches)
-        _, matches = complete(line_buffer="d.loc[1:1:-1, '")
-        self.assertIn("hello", matches)
-        _, matches = complete(line_buffer="d.loc[::, '")
-        self.assertIn("hello", matches)
-
     def test_dict_key_completion_invalids(self):
         """Smoke test cases dict key completion can't handle"""
         ip = get_ipython()
@@ -1985,34 +2681,6 @@ class TestCompleter(unittest.TestCase):
             configure(None)
             _("--", ["completion_iter", "completion_list"])
 
-    @pytest.mark.xfail(
-        sys.version_info.releaselevel in ("alpha",),
-        reason="Parso does not yet parse 3.13",
-    )
-    def test_matcher_suppression_with_jedi(self):
-        ip = get_ipython()
-        c = ip.Completer
-        c.use_jedi = True
-
-        def configure(suppression_config):
-            cfg = Config()
-            cfg.IPCompleter.suppress_competing_matchers = suppression_config
-            c.update_config(cfg)
-
-        def _():
-            with provisionalcompleter():
-                matches = [completion.text for completion in c.completions("dict.", 5)]
-                self.assertIn("keys", matches)
-
-        configure(False)
-        _()
-
-        configure(True)
-        _()
-
-        configure(None)
-        _()
-
     def test_matcher_disabling(self):
         @completion_matcher(identifier="a_matcher")
         def a_matcher(text):
@@ -2061,671 +2729,3 @@ class TestCompleter(unittest.TestCase):
             _(["completion_b"])
             a_matcher.matcher_priority = 3
             _(["completion_a"])
-
-
-@pytest.mark.parametrize(
-    "use_jedi,evaluation",
-    [
-        [True, "minimal"],
-        [False, "limited"],
-    ],
-)
-@pytest.mark.parametrize(
-    "code,insert_text",
-    [
-        [
-            "\n".join(
-                [
-                    "class NotYetDefined:",
-                    "    def my_method(self) -> str:",
-                    "        return 1",
-                    "my_instance = NotYetDefined()",
-                    "my_insta",
-                ]
-            ),
-            "my_instance",
-        ],
-        [
-            "\n".join(
-                [
-                    "class NotYetDefined:",
-                    "    def my_method(self) -> str:",
-                    "        return 1",
-                    "instance = NotYetDefined()",
-                    "instance.",
-                ]
-            ),
-            "my_method",
-        ],
-        [
-            "\n".join(
-                [
-                    "class NotYetDefined:",
-                    "    def my_method(self) -> str:",
-                    "        return 1",
-                    "my_instance = NotYetDefined()",
-                    "my_instance.my_method().",
-                ]
-            ),
-            "capitalize",
-        ],
-        [
-            "\n".join(
-                [
-                    "class NotYetDefined:",
-                    "    def my_method(self):",
-                    "        return []",
-                    "my_instance = NotYetDefined()",
-                    "my_instance.my_method().",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "class NotYetDefined:",
-                    "    @property",
-                    "    def my_property(self):",
-                    "        return 1.1",
-                    "my_instance = NotYetDefined()",
-                    "my_instance.my_property.",
-                ]
-            ),
-            "as_integer_ratio",
-        ],
-        [
-            "\n".join(
-                [
-                    "my_instance = 1.1",
-                    "assert my_instance.",
-                ]
-            ),
-            "as_integer_ratio",
-        ],
-        [
-            "\n".join(
-                [
-                    "def my_test() -> float:",
-                    "    pass",
-                    "my_test().",
-                ]
-            ),
-            "as_integer_ratio",
-        ],
-        [
-            "\n".join(
-                [
-                    "def my_test():",
-                    "    return {}",
-                    "my_test().",
-                ]
-            ),
-            "keys",
-        ],
-        [
-            "\n".join(
-                [
-                    "l = []",
-                    "def my_test():",
-                    "    return l",
-                    "my_test().",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "num = {1: 'one'}",
-                    "num[2] = 'two'",
-                    "num.",
-                ]
-            ),
-            "keys",
-        ],
-        [
-            "\n".join(
-                [
-                    "num = {1: 'one'}",
-                    "num[2] = ['two']",
-                    "num[2].",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "l = []",
-                    "class NotYetDefined:",
-                    "    def my_method(self):",
-                    "        return l",
-                    "my_instance = NotYetDefined()",
-                    "my_instance.my_method().",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "def string_or_int(flag):",
-                    "    if flag:",
-                    "        return 'test'",
-                    "    return 1",
-                    "string_or_int().",
-                ]
-            ),
-            ["capitalize", "as_integer_ratio"],
-        ],
-        [
-            "\n".join(
-                [
-                    "def foo():",
-                    "    l = []",
-                    "    return l",
-                    "foo().",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "class NotYetDefined:",
-                    "    def __init__(self):",
-                    "        self.test = []",
-                    "instance = NotYetDefined()",
-                    "instance.",
-                ]
-            ),
-            "test",
-        ],
-        [
-            "\n".join(
-                [
-                    "class NotYetDefined:",
-                    "    def __init__(instance):",
-                    "        instance.test = []",
-                    "instance = NotYetDefined()",
-                    "instance.test.",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "class NotYetDefined:",
-                    "    def __init__(this):",
-                    "        this.test:str = []",
-                    "instance = NotYetDefined()",
-                    "instance.test.",
-                ]
-            ),
-            "capitalize",
-        ],
-        [
-            "\n".join(
-                [
-                    "l = []",
-                    "class NotYetDefined:",
-                    "    def __init__(me):",
-                    "        me.test = l",
-                    "instance = NotYetDefined()",
-                    "instance.test.",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "class NotYetDefined:",
-                    "    def test(self):",
-                    "        self.l = []",
-                    "        return self.l",
-                    "instance = NotYetDefined()",
-                    "instance.test().",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "class NotYetDefined:",
-                    "    def test():",
-                    "        return []",
-                    "instance = NotYetDefined()",
-                    "instance.test().",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "def foo():",
-                    "    if some_condition:",
-                    "        return {'top':{'mid':{'leaf': 2}}}",
-                    "    return {'top': {'mid':[]}}",
-                    "foo()['top']['mid'].",
-                ]
-            ),
-            ["keys", "append"],
-        ],
-        [
-            "\n".join(
-                [
-                    "def foo():",
-                    "    if some_condition:",
-                    "        return {'top':{'mid':{'leaf': 2}}}",
-                    "    return {'top': {'mid':[]}}",
-                    "foo()['top']['mid']['leaf'].",
-                ]
-            ),
-            "as_integer_ratio",
-        ],
-        [
-            "\n".join(
-                [
-                    "async def async_func():",
-                    "    return []",
-                    "async_func().",
-                ]
-            ),
-            "cr_await",
-        ],
-        [
-            "\n".join(
-                [
-                    "async def async_func():",
-                    "    return []",
-                    "(await async_func()).",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(["t = []", "if some_condition:", "    t."]),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "t = []",
-                    "if some_condition:",
-                    "    t = 'string'",
-                    "t.",
-                ]
-            ),
-            ["append", "capitalize"],
-        ],
-        [
-            "\n".join(
-                [
-                    "t = []",
-                    "if some_condition:",
-                    "    t = 'string'",
-                    "else:",
-                    "    t.",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "t = []",
-                    "if some_condition:",
-                    "    t = 'string'",
-                    "else:",
-                    "    t = 1",
-                    "t.",
-                ]
-            ),
-            ["append", "capitalize", "as_integer_ratio"],
-        ],
-        [
-            "\n".join(
-                [
-                    "t = []",
-                    "if condition_1:",
-                    "    t = 'string'",
-                    "elif condition_2:",
-                    "    t = 1",
-                    "elif condition_3:",
-                    "    t.",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "t = []",
-                    "if condition_1:",
-                    "    t = 'string'",
-                    "elif condition_2:",
-                    "    t = 1",
-                    "elif condition_3:",
-                    "    t = {}",
-                    "t.",
-                ]
-            ),
-            ["append", "capitalize", "as_integer_ratio", "keys"],
-        ],
-        [
-            "\n".join(
-                [
-                    "t = []",
-                    "if condition_1:",
-                    "    if condition_2:",
-                    "        t = 'nested'",
-                    "t.",
-                ]
-            ),
-            ["append", "capitalize"],
-        ],
-        [
-            "\n".join(
-                [
-                    "a = []",
-                    "while condition:",
-                    "    a.",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "t = []",
-                    "while condition:",
-                    "    t = 'str'",
-                    "t.",
-                ]
-            ),
-            ["append", "capitalize"],
-        ],
-        [
-            "\n".join(
-                [
-                    "t = []",
-                    "while condition_1:",
-                    "    while condition_2:",
-                    "        t = 'str'",
-                    "t.",
-                ]
-            ),
-            ["append", "capitalize"],
-        ],
-        [
-            "\n".join(
-                [
-                    "for i in range(10):",
-                    "    i.",
-                ]
-            ),
-            "bit_length",
-        ],
-        [
-            "\n".join(
-                [
-                    "for i in range(10):",
-                    "    if i % 2 == 0:",
-                    "        i.",
-                ]
-            ),
-            "bit_length",
-        ],
-        [
-            "\n".join(
-                [
-                    "for item in ['a', 'b', 'c']:",
-                    "    item.",
-                ]
-            ),
-            "capitalize",
-        ],
-        [
-            "\n".join(
-                [
-                    "for key, value in {'a': 1, 'b': 2}.items():",
-                    "    key.",
-                ]
-            ),
-            "capitalize",
-        ],
-        [
-            "\n".join(
-                [
-                    "for key, value in {'a': 1, 'b': 2}.items():",
-                    "    value.",
-                ]
-            ),
-            "bit_length",
-        ],
-        [
-            "\n".join(
-                [
-                    "for sublist in [[1, 2], [3, 4]]:",
-                    "    sublist.",
-                ]
-            ),
-            "append",
-        ],
-        [
-            "\n".join(
-                [
-                    "for sublist in [[1, 2], [3, 4]]:",
-                    "    for item in sublist:",
-                    "        item.",
-                ]
-            ),
-            "bit_length",
-        ],
-    ],
-)
-def test_undefined_variables(use_jedi, evaluation, code, insert_text):
-    offset = len(code)
-    ip.Completer.use_jedi = use_jedi
-    ip.Completer.evaluation = evaluation
-
-    with provisionalcompleter():
-        completions = list(ip.Completer.completions(text=code, offset=offset))
-        insert_texts = insert_text if isinstance(insert_text, list) else [insert_text]
-        for text in insert_texts:
-            match = [c for c in completions if c.text.lstrip(".") == text]
-            message_on_fail = f"{text} not found among {[c.text for c in completions]}"
-            assert len(match) == 1, message_on_fail
-
-
-@pytest.mark.parametrize(
-    "code",
-    [
-        "\n".join(
-            [
-                "def my_test() -> float:",
-                "    return 1.1",
-                "my_test().",
-            ]
-        ),
-        "\n".join(
-            [
-                "class MyClass():",
-                "    b: list[str]",
-                "x = MyClass()",
-                "x.b[0].",
-            ]
-        ),
-    ],
-)
-def test_no_file_completions_in_attr_access(code):
-    """Test that files are not suggested during attribute/method completion."""
-    with TemporaryWorkingDirectory():
-        open(".hidden", "w", encoding="utf-8").close()
-        offset = len(code)
-        for use_jedi in (True, False):
-            with provisionalcompleter(), jedi_status(use_jedi):
-                completions = list(ip.Completer.completions(text=code, offset=offset))
-                matches = [c for c in completions if c.text.lstrip(".") == "hidden"]
-                assert (
-                    len(matches) == 0
-                ), f"File '.hidden' should not appear in attribute completion"
-
-
-@pytest.mark.parametrize(
-    "line,expected",
-    [
-        # Basic test cases
-        ("np.", "attribute"),
-        ("np.ran", "attribute"),
-        ("np.random.rand(np.random.ran", "attribute"),
-        ("np.random.rand(n", "global"),
-        ("d['k.e.y.'](ran", "global"),
-        ("d[0].k", "attribute"),
-        ("a = { 'a': np.ran", "attribute"),
-        ("n", "global"),
-        ("", "global"),
-        # Dots in string literals
-        ('some_var = "this is a string with a dot.', "global"),
-        ("text = 'another string with a dot.", "global"),
-        ('f"greeting {user.na', "attribute"),  # Cursor in f-string expression
-        ('t"welcome {guest.na', "attribute"),  # Cursor in t-string expression
-        ('f"hello {name} worl', "global"),  # Cursor in f-string outside expression
-        ('f"hello {{a.', "global"),
-        ('f"hello {{{a.', "attribute"),
-        # Backslash escapes in strings
-        ('var = "string with \\"escaped quote and a dot.', "global"),
-        ("escaped = 'single \\'quote\\' with a dot.", "global"),
-        # Multi-line strings
-        ('multi = """This is line one\nwith a dot.', "global"),
-        ("multi_single = '''Another\nmulti-line\nwith a dot.", "global"),
-        # Inline comments
-        ("x = 5  # This is a comment", "global"),
-        ("y = obj.method()  # Comment after dot.method", "global"),
-        # Hash symbol within string literals should not be treated as comments
-        ("d['#'] = np.", "attribute"),
-        # Nested parentheses with dots
-        ("complex_expr = (func((obj.method(param.attr", "attribute"),
-        ("multiple_nesting = {key: [value.attr", "attribute"),
-        # Numbers
-        ("3.", "global"),
-        ("3.14", "global"),
-        ("-42.14", "global"),
-        ("x = func(3.14", "global"),
-        ("x = func(a3.", "attribute"),
-        ("x = func(a3.12", "global"),
-        ("3.1.", "attribute"),
-        ("-3.1.", "attribute"),
-        ("(3).", "attribute"),
-        # Additional cases
-        ("", "global"),
-        ('str_with_code = "x.attr', "global"),
-        ('f"formatted {obj.attr', "attribute"),
-        ('f"formatted {obj.attr}', "global"),
-        ("dict_with_dots = {'key.with.dots': value.attr", "attribute"),
-        ("d[f'{a}']['{a.", "global"),
-    ],
-)
-def test_completion_context(line, expected):
-    """Test completion context"""
-    ip = get_ipython()
-    get_context = ip.Completer._determine_completion_context
-    result = get_context(line)
-    assert result.value == expected, f"Failed on input: '{line}'"
-
-
-@pytest.mark.xfail(reason="Completion context not yet supported")
-@pytest.mark.parametrize(
-    "line, expected",
-    [
-        ("f'{f'a.", "global"),  # Nested f-string
-        ("3a.", "global"),  # names starting with numbers or other symbols
-        ("$).", "global"),  # random things with dot at end
-    ],
-)
-def test_unsupported_completion_context(line, expected):
-    """Test unsupported completion context"""
-    ip = get_ipython()
-    get_context = ip.Completer._determine_completion_context
-    result = get_context(line)
-    assert result.value == expected, f"Failed on input: '{line}'"
-
-
-@pytest.mark.parametrize(
-    "setup,code,expected,not_expected",
-    [
-        ('a="str"; b=1', "(a, b.", [".bit_count", ".conjugate"], [".count"]),
-        ('a="str"; b=1', "(a, b).", [".count"], [".bit_count", ".capitalize"]),
-        ('x="str"; y=1', "x = {1, y.", [".bit_count"], [".count"]),
-        ('x="str"; y=1', "x = [1, y.", [".bit_count"], [".count"]),
-        ('x="str"; y=1; fun=lambda x:x', "x = fun(1, y.", [".bit_count"], [".count"]),
-    ],
-)
-def test_misc_no_jedi_completions(setup, code, expected, not_expected):
-    ip = get_ipython()
-    c = ip.Completer
-    ip.ex(setup)
-    with provisionalcompleter(), jedi_status(False):
-        matches = c.all_completions(code)
-        assert set(expected) - set(matches) == set(), set(matches)
-        assert set(matches).intersection(set(not_expected)) == set()
-
-
-@pytest.mark.parametrize(
-    "code,expected",
-    [
-        (" (a, b", "b"),
-        ("(a, b", "b"),
-        ("(a, b)", ""),  # trim always start by trimming
-        (" (a, b)", "(a, b)"),
-        (" [a, b]", "[a, b]"),
-        (" a, b", "b"),
-        ("x = {1, y", "y"),
-        ("x = [1, y", "y"),
-        ("x = fun(1, y", "y"),
-        (" assert a", "a"),
-    ],
-)
-def test_trim_expr(code, expected):
-    c = get_ipython().Completer
-    assert c._trim_expr(code) == expected
-
-
-@pytest.mark.parametrize(
-    "input, expected",
-    [
-        ["1.234", "1.234"],
-        # should match signed numbers
-        ["+1", "+1"],
-        ["-1", "-1"],
-        ["-1.0", "-1.0"],
-        ["-1.", "-1."],
-        ["+1.", "+1."],
-        [".1", ".1"],
-        # should not match non-numbers
-        ["1..", None],
-        ["..", None],
-        [".1.", None],
-        # should match after comma
-        [",1", "1"],
-        [", 1", "1"],
-        [", .1", ".1"],
-        [", +.1", "+.1"],
-        # should not match after trailing spaces
-        [".1 ", None],
-        # some complex cases
-        ["0b_0011_1111_0100_1110", "0b_0011_1111_0100_1110"],
-        ["0xdeadbeef", "0xdeadbeef"],
-        ["0b_1110_0101", "0b_1110_0101"],
-        # should not match if in an operation
-        ["1 + 1", None],
-        [", 1 + 1", None],
-    ],
-)
-def test_match_numeric_literal_for_dict_key(input, expected):
-    assert _match_number_in_dict_key_prefix(input) == expected
