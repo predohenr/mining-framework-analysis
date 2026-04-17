@@ -210,6 +210,18 @@ class Tick(martist.Artist):
     def _pad(self):
         return self._base_pad + self.get_tick_padding()
 
+    @martist.allow_rasterization
+    def draw(self, renderer):
+        if not self.get_visible():
+            self.stale = False
+            return
+        renderer.open_group(self.__name__, gid=self.get_gid())
+        for artist in [self.gridline, self.tick1line, self.tick2line,
+                       self.label1, self.label2]:
+            artist.draw(renderer)
+        renderer.close_group(self.__name__)
+        self.stale = False
+
     def _apply_tickdir(self, tickdir):
         """Set tick direction.  Valid values are 'out', 'in', 'inout'."""
         # This method is responsible for verifying input and, in subclasses, for setting
@@ -270,18 +282,6 @@ class Tick(martist.Artist):
     def get_loc(self):
         """Return the tick location (data coords) as a scalar."""
         return self._loc
-
-    @martist.allow_rasterization
-    def draw(self, renderer):
-        if not self.get_visible():
-            self.stale = False
-            return
-        renderer.open_group(self.__name__, gid=self.get_gid())
-        for artist in [self.gridline, self.tick1line, self.tick2line,
-                       self.label1, self.label2]:
-            artist.draw(renderer)
-        renderer.close_group(self.__name__)
-        self.stale = False
 
     def set_url(self, url):
         """
