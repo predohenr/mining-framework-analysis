@@ -34,6 +34,19 @@ class NavlibClient(parent_class):
         if pynav:
             super().put_profile_hint(hint)
 
+    def __init__(self, scene, renderer) -> None:
+        if not pynav:
+            return
+
+        super().__init__(False, pynav.NavlibOptions.RowMajorOrder)
+        self._scene = scene
+        self._renderer = renderer
+        self._pointer_pick = None
+        self._was_pick = False
+        self._hit_selection_only = False
+        self._picking_pass = None
+        self._pivot_node = OverlayNode(node=SceneNode(), image_path=Resources.getPath(Resources.Images, "3dx_pivot.png"), size=3.)
+
     def enable_navigation(self, enabled) -> None:
         if pynav:
             super().enable_navigation(enabled)
