@@ -280,7 +280,11 @@ class MetadataBox(QtWidgets.QTableWidget):
                 value = self.tag_diff.new[tag]
 
             if tag == '~length':
-                value = [format_time(value), ]
+                try:
+                    value = [format_time(value), ]
+                except (TypeError, ValueError) as why:
+                    log.warning(why)
+                    value = ['']
             return value
 
         # We can't handle copying data from multiple files
