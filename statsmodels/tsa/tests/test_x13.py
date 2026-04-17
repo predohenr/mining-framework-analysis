@@ -1,5 +1,6 @@
 from statsmodels.compat.pandas import MONTH_END
-
+import tempfile
+import os
 import tempfile
 
 import numpy as np
@@ -84,11 +85,6 @@ def test_x13_arima_plot(dataset):
     res.plot()
 
 
-def test_x13_arima_plot_no_pandas(dataset):
-    res = x13_arima_analysis(dataset)
-    res.plot()
-
-
 @pytest.mark.smoke
 def test_log_diagnostics(dataset):
     res = x13_arima_analysis(dataset, log_diagnostics=True)
@@ -103,6 +99,11 @@ def test_log_diagnostics_false(dataset):
     assert isinstance(res.x13_diagnostic, dict)
     assert list(res.x13_diagnostic.keys())[0] == "F-D8"
     assert list(res.x13_diagnostic.values())[0] == "Log diagnostics not retrieved."
+
+
+def test_x13_arima_plot_no_pandas(dataset):
+    res = x13_arima_analysis(dataset)
+    res.plot()
 
 
 def test_x13_arima_rawspec_arg():
@@ -233,6 +234,7 @@ history {
         ft.seek(0)
 
         x13_arima_analysis(dataset, rawspec=ft.name)
+
 
 
 def test_x13_arima_invalid_rawspec(dataset):
