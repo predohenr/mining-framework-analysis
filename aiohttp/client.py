@@ -331,7 +331,9 @@ class ClientSession:
             )
 
         if connector is None:
-            connector = TCPConnector(ssl_shutdown_timeout=ssl_shutdown_timeout)
+            connector = TCPConnector(
+                loop=loop, ssl_shutdown_timeout=ssl_shutdown_timeout
+            )
         # Initialize these three attrs before raising any exception,
         # they are used in __del__
         self._connector = connector
