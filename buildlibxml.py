@@ -3,6 +3,7 @@ import os, re, sys, platform
 import tarfile
 import time
 from contextlib import closing
+from distutils import log
 from ftplib import FTP
 
 import urllib.error
