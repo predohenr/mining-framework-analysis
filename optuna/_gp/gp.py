@@ -157,9 +157,9 @@ class GPRegressor:
         self._cov_Y_Y = cov_Y_Y_new
 
         with torch.no_grad():
-            self._cov_Y_Y[n_train:, :n_train] = self.kernel(X_running).detach().cpu().numpy()
-            self._cov_Y_Y[:n_train, n_train:] = self.kernel(X_running).T.detach().cpu().numpy()
-            kernel_running_running = self.kernel(X_running, X_running).detach().cpu().numpy()
+            self._cov_Y_Y[n_train:, :n_train] = self.kernel(X_running).detach().numpy()
+            self._cov_Y_Y[:n_train, n_train:] = self.kernel(X_running).T.detach().numpy()
+            kernel_running_running = self.kernel(X_running, X_running).detach().numpy()
             kernel_running_running[np.diag_indices(n_running)] += self.noise_var.item()
             self._cov_Y_Y[n_train:, n_train:] = kernel_running_running
 
@@ -167,7 +167,7 @@ class GPRegressor:
         # cov_Y_Y_inv @ y = v --> y = cov_Y_Y @ v --> y = cov_Y_Y_chol @ cov_Y_Y_chol.T @ v
         # NOTE(nabenabe): Don't use np.linalg.inv because it is too slow und unstable.
         # cf. https://github.com/optuna/optuna/issues/6230
-        y_total = torch.cat([self._y_train, y_running], dim=0).cpu().numpy()
+        y_total = torch.cat([self._y_train, y_running], dim=0).numpy()
         cov_Y_Y_inv_Y = scipy.linalg.solve_triangular(
             cov_Y_Y_chol.T,
             scipy.linalg.solve_triangular(cov_Y_Y_chol, y_total, lower=True),
