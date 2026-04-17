@@ -401,6 +401,45 @@ def test_duplicate_host_header_different_casing_rejected(
         parser.feed_data(text)
 
 
+@pytest.mark.parametrize(
+    ("hdr1", "hdr2"),
+    (
+        ("content-length", "Content-Length"),
+        ("Content-Length", "content-length"),
+        ("transfer-encoding", "Transfer-Encoding"),
+        ("Transfer-Encoding", "transfer-encoding"),
+    ),
+)
+def test_duplicate_singleton_header_different_casing_rejected(
+    parser: HttpRequestParser, hdr1: str, hdr2: str
+) -> None:
+    """Singleton check must be case-insensitive per RFC 9110."""
+    val1, val2 = ("1", "2") if "content-length" in hdr1.lower() else ("v1", "v2")
+    text = (
+        f"GET /test HTTP/1.1\r\n"
+        f"Host: example.com\r\n"
+        f"{hdr1}: {val1}\r\n"
+        f"{hdr2}: {val2}\r\n"
+        "\r\n"
+    ).encode()
+    with pytest.raises(http_exceptions.BadHttpMessage, match="Duplicate"):
+        parser.feed_data(text)
+
+
+def test_duplicate_host_header_different_casing_rejected(
+    parser: HttpRequestParser,
+) -> None:
+    """Duplicate Host with different casing must also be rejected."""
+    text = (
+        b"GET /test HTTP/1.1\r\n"
+        b"host: evil.example\r\n"
+        b"Host: good.example\r\n"
+        b"\r\n"
+    )
+    with pytest.raises(http_exceptions.BadHttpMessage, match="Duplicate"):
+        parser.feed_data(text)
+
+
 def test_bad_chunked(parser: HttpRequestParser) -> None:
     """Test that invalid chunked encoding doesn't allow content-length to be used."""
     text = (
@@ -2162,6 +2201,79 @@ class TestParsePayload:
         )
         p.feed_data(compressed)
         assert b"zstd data" == out._buffer[0]
+        assert out.is_eof()
+
+    @pytest.mark.skipif(zstandard is None, reason="zstandard is not installed")
+    async def test_http_payload_zstandard_multi_frame(
+        self, protocol: BaseProtocol
+    ) -> None:
+        frame1 = zstandard.compress(b"first")
+        frame2 = zstandard.compress(b"second")
+        payload = frame1 + frame2
+        out = aiohttp.StreamReader(protocol, 2**16, loop=asyncio.get_running_loop())
+        p = HttpPayloadParser(
+            out,
+            length=len(payload),
+            compression="zstd",
+            headers_parser=HeadersParser(),
+        )
+        p.feed_data(payload)
+        assert b"firstsecond" == b"".join(out._buffer)
+        assert out.is_eof()
+
+    @pytest.mark.skipif(zstandard is None, reason="zstandard is not installed")
+    async def test_http_payload_zstandard_multi_frame_chunked(
+        self, protocol: BaseProtocol
+    ) -> None:
+        frame1 = zstandard.compress(b"chunk1")
+        frame2 = zstandard.compress(b"chunk2")
+        out = aiohttp.StreamReader(protocol, 2**16, loop=asyncio.get_running_loop())
+        p = HttpPayloadParser(
+            out,
+            length=len(frame1) + len(frame2),
+            compression="zstd",
+            headers_parser=HeadersParser(),
+        )
+        p.feed_data(frame1)
+        p.feed_data(frame2)
+        assert b"chunk1chunk2" == b"".join(out._buffer)
+        assert out.is_eof()
+
+    @pytest.mark.skipif(zstandard is None, reason="zstandard is not installed")
+    async def test_http_payload_zstandard_frame_split_mid_chunk(
+        self, protocol: BaseProtocol
+    ) -> None:
+        frame1 = zstandard.compress(b"AAAA")
+        frame2 = zstandard.compress(b"BBBB")
+        combined = frame1 + frame2
+        split_point = len(frame1) + 3  # 3 bytes into frame2
+        out = aiohttp.StreamReader(protocol, 2**16, loop=asyncio.get_running_loop())
+        p = HttpPayloadParser(
+            out,
+            length=len(combined),
+            compression="zstd",
+            headers_parser=HeadersParser(),
+        )
+        p.feed_data(combined[:split_point])
+        p.feed_data(combined[split_point:])
+        assert b"AAAABBBB" == b"".join(out._buffer)
+        assert out.is_eof()
+
+    @pytest.mark.skipif(zstandard is None, reason="zstandard is not installed")
+    async def test_http_payload_zstandard_many_small_frames(
+        self, protocol: BaseProtocol
+    ) -> None:
+        parts = [f"part{i}".encode() for i in range(10)]
+        payload = b"".join(zstandard.compress(p) for p in parts)
+        out = aiohttp.StreamReader(protocol, 2**16, loop=asyncio.get_running_loop())
+        p = HttpPayloadParser(
+            out,
+            length=len(payload),
+            compression="zstd",
+            headers_parser=HeadersParser(),
+        )
+        p.feed_data(payload)
+        assert b"".join(parts) == b"".join(out._buffer)
         assert out.is_eof()
 
     @pytest.mark.skipif(zstandard is None, reason="zstandard is not installed")
