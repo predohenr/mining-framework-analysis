@@ -13760,4 +13760,3 @@ class KeyboardButtonRequestManagedBot(JsonSerializable):
         if self.suggested_username:
             data['suggested_username'] = self.suggested_username
         return data
-    
