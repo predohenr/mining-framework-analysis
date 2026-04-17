@@ -121,6 +121,23 @@ class MainPanel(QtWidgets.QSplitter):
             # Replace the view in the splitter with the container
             self.replaceWidget(self.indexOf(view), container)
 
+        # Create a layout for each view to include the find box
+        for view in self._views:
+            container = QtWidgets.QWidget(self)
+            layout = QtWidgets.QVBoxLayout(container)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+
+            # Create and add find box
+            find_box = view.setup_find_box()
+            layout.addWidget(find_box)
+
+            # Add view
+            layout.addWidget(view)
+
+            # Replace the view in the splitter with the container
+            self.replaceWidget(self.indexOf(view), container)
+
         def _view_update_selection(view):
             if not self._ignore_selection_changes:
                 self._ignore_selection_changes = True
