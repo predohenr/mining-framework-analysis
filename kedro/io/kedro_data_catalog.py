@@ -249,14 +249,14 @@ class KedroDataCatalog(CatalogProtocol):
         if lazy_dataset:
             self[key] = lazy_dataset.materialize()
 
-        dataset = self._datasets.get(key, None) or default
+        dataset = self._datasets.get(key, None)
 
         if version and isinstance(dataset, AbstractVersionedDataset):
             # we only want to return a similar-looking dataset,
             # not modify the one stored in the current catalog
             dataset = dataset._copy(_version=version)
 
-        return dataset
+        return dataset or default
 
     def _ipython_key_completions_(self) -> list[str]:
         return self.keys()
