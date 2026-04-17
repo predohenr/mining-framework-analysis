@@ -787,6 +787,32 @@ public final class DBReader {
         return result;
     }
 
+    public static List<FeedItem> searchFeedItems(final long feedId, final String query, int state) {
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (FeedItemCursor searchResult = new FeedItemCursor(adapter.searchItems(feedId, query, state))) {
+            List<FeedItem> items = extractItemlistFromCursor(searchResult);
+            loadAdditionalFeedItemListData(items);
+            return items;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    public static List<Feed> searchFeeds(final String query, int state) {
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (FeedCursor cursor = new FeedCursor(adapter.searchFeeds(query, state))) {
+            List<Feed> items = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                items.add(cursor.getFeed());
+            }
+            return items;
+        } finally {
+            adapter.close();
+        }
+    }
+
     public static List<NavDrawerData.TagItem> getAllTags(int feedState) {
         Map<String, NavDrawerData.TagItem> tags = new HashMap<>();
         List<Feed> allFeeds = getFeedList();
@@ -824,31 +850,5 @@ public final class DBReader {
         }
         tagsSorted.add(0, rootTag);
         return tagsSorted;
-    }
-
-    public static List<FeedItem> searchFeedItems(final long feedId, final String query, int state) {
-        PodDBAdapter adapter = PodDBAdapter.getInstance();
-        adapter.open();
-        try (FeedItemCursor searchResult = new FeedItemCursor(adapter.searchItems(feedId, query, state))) {
-            List<FeedItem> items = extractItemlistFromCursor(searchResult);
-            loadAdditionalFeedItemListData(items);
-            return items;
-        } finally {
-            adapter.close();
-        }
-    }
-
-    public static List<Feed> searchFeeds(final String query, int state) {
-        PodDBAdapter adapter = PodDBAdapter.getInstance();
-        adapter.open();
-        try (FeedCursor cursor = new FeedCursor(adapter.searchFeeds(query, state))) {
-            List<Feed> items = new ArrayList<>();
-            while (cursor.moveToNext()) {
-                items.add(cursor.getFeed());
-            }
-            return items;
-        } finally {
-            adapter.close();
-        }
     }
 }
