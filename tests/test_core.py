@@ -397,4 +397,4 @@ def test_soft_hyphen():
     # Test SOFT HYPHEN, category 'Cf' usually are zero-width, but most
     # implementations agree to draw it was '1' cell, visually
     # indistinguishable from a space, ' ' in Konsole, for example.
-    assert wcwidth.wcwidth(chr(0x000ad)) == 1
+    assert wcwidth.wcwidth(unichr(0x000ad)) == 1
