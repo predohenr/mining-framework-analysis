@@ -39,7 +39,6 @@ from jax._src import effects
 from jax._src import mesh as mesh_lib
 from jax._src.interpreters import mlir
 from jax._src.interpreters import pxla
-from jax._src.lax import linalg
 from jax._src.lib import xla_client
 from jax._src.lib import _jax
 from jax._src.lib.mlir import ir, passmanager
@@ -1773,7 +1772,8 @@ mlir.register_lowering(call_exported_p, _call_exported_lowering)
 def _ensure_backends_initialized(platforms: tuple[str,...]):
   """Ensure FFI handlers are initialized for the given platforms"""
   if "cpu" in platforms:
-    linalg.initialize_lapack()
+    from jaxlib.cpu import _lapack
+    _lapack.initialize()
 
 def wrap_with_sharding(
     ctx: mlir.LoweringRuleContext,
