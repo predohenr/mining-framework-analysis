@@ -761,6 +761,11 @@ class CuraConan(ConanFile):
             cura_private_data = self.dependencies["cura_private_data"].cpp_info
             copy(self, "*", cura_private_data.resdirs[0], self.package_folder)
 
+        # Copy internal resources
+        if self.options.internal:
+            cura_private_data = self.dependencies["cura_private_data"].cpp_info
+            copy(self, "*", cura_private_data.resdirs[0], self.package_folder)
+
     def package_info(self):
         self.runenv_info.append_path("PYTHONPATH", os.path.join(self.package_folder, "site-packages"))
         self.runenv_info.append_path("PYTHONPATH", os.path.join(self.package_folder, "plugins"))
