@@ -1863,7 +1863,6 @@ class Key:
             return False
         else:
             return True
-
     def isSecurityKey(self):
         """
         Return True if key is an OpenSSH security key.
