@@ -744,7 +744,7 @@ class App(Scaffold):
         """
         if callable(name):
             self.add_template_test(name)
-            return name
+            return name  # type: ignore[return-value]
 
         def decorator(f: T_template_test) -> T_template_test:
             self.add_template_test(f, name=name)
