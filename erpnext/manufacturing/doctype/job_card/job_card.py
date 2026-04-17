@@ -1686,10 +1686,6 @@ def make_stock_entry(source_name, target_doc=None):
 	return doclist
 
 
-def time_diff_in_minutes(string_ed_date, string_st_date):
-	return time_diff(string_ed_date, string_st_date).total_seconds() / 60
-
-
 @frappe.whitelist()
 def get_job_details(start, end, filters=None):
 	events = []
@@ -1768,3 +1764,7 @@ def make_corrective_job_card(source_name, operation=None, for_operation=None, ta
 	)
 
 	return doclist
+
+
+def time_diff_in_minutes(string_ed_date, string_st_date):
+	return time_diff(string_ed_date, string_st_date).total_seconds() / 60
