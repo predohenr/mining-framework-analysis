@@ -4,7 +4,6 @@ import math
 from typing import TYPE_CHECKING
 
 import numpy as np
-
 from optuna.logging import get_logger
 
 
