@@ -76,62 +76,6 @@ def test_arithmetics_data(data1, data2, meth):
     assert nd.mask is None
     assert len(nd.meta) == 0
     assert nd.wcs is None
-
-
-# Test numpy functions that use astropy functions first
-def test_arithmetics_ccddata():
-    ccd1 = CCDData([1, 2, 3], unit="adu")
-    ccd2 = CCDData([1.1, 2.2, 3.3], unit="adu")
-    ccd3 = CCDData([1.1, 2.2, 3.3, 4.4], unit="adu")
-    nd1 = NDDataArithmetic(ccd1)
-    nd3 = NDDataArithmetic(ccd3)
-
-    assert np.min(ccd1).data == ccd1.min().data
-    assert np.min(ccd2).data == ccd2.min().data
-
-    assert np.max(ccd1).data == ccd1.max().data
-    assert np.max(ccd2).data == ccd2.max().data
-
-    assert np.sum(ccd1).data == ccd1.sum().data
-    assert np.sum(ccd2).data == ccd2.sum().data
-
-    assert np.mean(ccd1).data == ccd1.mean().data
-    assert np.mean(ccd2).data == ccd2.mean().data
-
-
-# Ensure exceptions are raised for numpy keys that are not None
-def test_arithmetics_ccddata_errors():
-    ccd1 = CCDData([1, 2, 3], unit="adu")
-    ccd2 = CCDData([1.1, 2.2, 3.3, 4.4], unit="adu")
-    nd1 = NDDataArithmetic(ccd1)
-    nd2 = NDDataArithmetic(ccd2)
-
-    with pytest.raises(ValueError):
-        np.mean(ccd1, out=nd1)
-
-    with pytest.raises(ValueError):
-        np.mean(ccd2, out=nd2)
-
-    with pytest.raises(ValueError):
-        np.mean(ccd1, out=nd1, dtype=int)
-
-    with pytest.raises(ValueError):
-        np.mean(ccd2, dtype=int)
-
-
-# Invalid arithmetic operations for data covering:
-# not broadcastable data
-def test_arithmetics_data_invalid():
-    nd1 = NDDataArithmetic([1, 2, 3])
-    nd2 = NDDataArithmetic([1, 2])
-    with pytest.raises(ValueError):
-        nd1.add(nd2)
-
-
-# Test with Data and unit and covers:
-# identical units (even dimensionless unscaled vs. no unit),
-# equivalent units (such as meter and kilometer)
-# equivalent composite units (such as m/s and km/h)
 @pytest.mark.filterwarnings("ignore:divide by zero encountered.*")
 @pytest.mark.parametrize(
     ("data1", "data2"),
@@ -170,11 +114,6 @@ def test_arithmetics_data_unit_identical(data1, data2, meth):
     assert nd.mask is None
     assert len(nd.meta) == 0
     assert nd.wcs is None
-
-
-# Test with Data and unit and covers:
-# not identical not convertible units
-# one with unit (which is not dimensionless) and one without
 @pytest.mark.parametrize(
     ("data1", "data2"),
     [
@@ -206,13 +145,6 @@ def test_arithmetics_data_unit_not_identical(data1, data2, meth):
         assert nd.mask is None
         assert len(nd.meta) == 0
         assert nd.wcs is None
-
-
-# Tests with wcs (not very sensible because there is no operation between them
-# covering:
-# both set and identical/not identical
-# one set
-# None set
 @pytest.mark.parametrize(
     ("wcs1", "wcs2"),
     [
@@ -245,11 +177,6 @@ def test_arithmetics_data_wcs(wcs1, wcs2, meth):
     assert nd.uncertainty is None
     assert len(nd.meta) == 0
     assert nd.mask is None
-
-
-# Masks are completely separated in the NDArithmetics from the data so we need
-# no correlated tests but covering:
-# masks 1D, 2D and mixed cases with broadcasting
 @pytest.mark.parametrize(
     ("mask1", "mask2"),
     [
@@ -299,9 +226,6 @@ def test_arithmetics_data_masks(mask1, mask2, meth):
     assert nd.uncertainty is None
     assert len(nd.meta) == 0
     assert nd.wcs is None
-
-
-# Check that masks are preserved+propagated in NDData collapse operations
 @pytest.mark.parametrize(
     ("collapse_axis", "mask_sum", "unit"),
     [(0, [3, 0, 3, 0], "Jy"), (1, [2, 0, 2, 0], None), (2, [2, 2, 2], "Jy")],
@@ -317,83 +241,6 @@ def test_collapse_masks(collapse_axis, mask_sum, unit):
 
     # if no mask is given, the collapse result should have no mask:
     assert nd_nomask.sum(axis=collapse_axis).mask is None
-
-
-# One additional case which can not be easily incorporated in the test above
-# what happens if the masks are numpy ndarrays are not broadcastable
-def test_arithmetics_data_masks_invalid():
-    nd1 = NDDataArithmetic(1, mask=np.array([1, 0], dtype=np.bool_))
-    nd2 = NDDataArithmetic(1, mask=np.array([1, 0, 1], dtype=np.bool_))
-
-    with pytest.raises(ValueError):
-        nd1.add(nd2)
-    with pytest.raises(ValueError):
-        nd1.multiply(nd2)
-    with pytest.raises(ValueError):
-        nd1.subtract(nd2)
-    with pytest.raises(ValueError):
-        nd1.divide(nd2)
-
-
-# Covering:
-# both have uncertainties (data and uncertainty without unit)
-# tested against manually determined resulting uncertainties to verify the
-# implemented formulas
-# this test only works as long as data1 and data2 do not contain any 0
-def test_arithmetics_stddevuncertainty_basic():
-    nd1 = NDDataArithmetic([1, 2, 3], uncertainty=StdDevUncertainty([1, 1, 3]))
-    nd2 = NDDataArithmetic([2, 2, 2], uncertainty=StdDevUncertainty([2, 2, 2]))
-    nd3 = nd1.add(nd2)
-    nd4 = nd2.add(nd1)
-    # Inverse operation should result in the same uncertainty
-    assert_array_equal(nd3.uncertainty.array, nd4.uncertainty.array)
-    # Compare it to the theoretical uncertainty
-    ref_uncertainty = np.sqrt(np.array([1, 1, 3]) ** 2 + np.array([2, 2, 2]) ** 2)
-    assert_array_equal(nd3.uncertainty.array, ref_uncertainty)
-
-    nd3 = nd1.subtract(nd2)
-    nd4 = nd2.subtract(nd1)
-    # Inverse operation should result in the same uncertainty
-    assert_array_equal(nd3.uncertainty.array, nd4.uncertainty.array)
-    # Compare it to the theoretical uncertainty (same as for add)
-    assert_array_equal(nd3.uncertainty.array, ref_uncertainty)
-
-    # Multiplication and Division only work with almost equal array comparisons
-    # since the formula implemented and the formula used as reference are
-    # slightly different.
-    nd3 = nd1.multiply(nd2)
-    nd4 = nd2.multiply(nd1)
-    # Inverse operation should result in the same uncertainty
-    assert_array_almost_equal(nd3.uncertainty.array, nd4.uncertainty.array)
-    # Compare it to the theoretical uncertainty
-    ref_uncertainty = np.abs(np.array([2, 4, 6])) * np.sqrt(
-        (np.array([1, 1, 3]) / np.array([1, 2, 3])) ** 2
-        + (np.array([2, 2, 2]) / np.array([2, 2, 2])) ** 2
-    )
-    assert_array_almost_equal(nd3.uncertainty.array, ref_uncertainty)
-
-    nd3 = nd1.divide(nd2)
-    nd4 = nd2.divide(nd1)
-    # Inverse operation gives a different uncertainty!
-    # Compare it to the theoretical uncertainty
-    ref_uncertainty_1 = np.abs(np.array([1 / 2, 2 / 2, 3 / 2])) * np.sqrt(
-        (np.array([1, 1, 3]) / np.array([1, 2, 3])) ** 2
-        + (np.array([2, 2, 2]) / np.array([2, 2, 2])) ** 2
-    )
-    assert_array_almost_equal(nd3.uncertainty.array, ref_uncertainty_1)
-    ref_uncertainty_2 = np.abs(np.array([2, 1, 2 / 3])) * np.sqrt(
-        (np.array([1, 1, 3]) / np.array([1, 2, 3])) ** 2
-        + (np.array([2, 2, 2]) / np.array([2, 2, 2])) ** 2
-    )
-    assert_array_almost_equal(nd4.uncertainty.array, ref_uncertainty_2)
-
-
-# Tests for correlation, covering
-# correlation between -1 and 1 with correlation term being positive / negative
-# also with one data being once positive and once completely negative
-# The point of this test is to compare the used formula to the theoretical one.
-# TODO: Maybe covering units too but I think that should work because of
-# the next tests. Also this may be reduced somehow.
 @pytest.mark.parametrize(
     ("cor", "uncert1", "data2"),
     [
@@ -485,14 +332,6 @@ def test_arithmetics_stddevuncertainty_basic_with_correlation(cor, uncert1, data
         - (2 * cor * np.abs(uncert1 * uncert2) / (data1 * data2))
     )
     assert_array_almost_equal(nd4.uncertainty.array, ref_uncertainty_2)
-
-
-# Tests for correlation, covering
-# correlation between -1 and 1 with correlation term being positive / negative
-# also with one data being once positive and once completely negative
-# The point of this test is to compare the used formula to the theoretical one.
-# TODO: Maybe covering units too but I think that should work because of
-# the next tests. Also this may be reduced somehow.
 @pytest.mark.parametrize(
     ("cor", "uncert1", "data2"),
     [
@@ -578,14 +417,6 @@ def test_arithmetics_varianceuncertainty_basic_with_correlation(cor, uncert1, da
     assert_array_almost_equal(nd3.uncertainty.array, ref_uncertainty_1)
     ref_uncertainty_2 = (data2 / data1) ** 2 * ref_common
     assert_array_almost_equal(nd4.uncertainty.array, ref_uncertainty_2)
-
-
-# Tests for correlation, covering
-# correlation between -1 and 1 with correlation term being positive / negative
-# also with one data being once positive and once completely negative
-# The point of this test is to compare the used formula to the theoretical one.
-# TODO: Maybe covering units too but I think that should work because of
-# the next tests. Also this may be reduced somehow.
 @pytest.mark.filterwarnings("ignore:divide by zero encountered.*")
 @pytest.mark.parametrize(
     ("cor", "uncert1", "data2"),
@@ -681,97 +512,6 @@ def test_arithmetics_inversevarianceuncertainty_basic_with_correlation(
     assert_array_almost_equal(nd3.uncertainty.array, ref_uncertainty_1)
     ref_uncertainty_2 = 1 / ((data2 / data1) ** 2 * ref_common)
     assert_array_almost_equal(nd4.uncertainty.array, ref_uncertainty_2)
-
-
-# Covering:
-# just an example that a np.ndarray works as correlation, no checks for
-# the right result since these were basically done in the function above.
-def test_arithmetics_stddevuncertainty_basic_with_correlation_array():
-    data1 = np.array([1, 2, 3])
-    data2 = np.array([1, 1, 1])
-    uncert1 = np.array([1, 1, 1])
-    uncert2 = np.array([2, 2, 2])
-    cor = np.array([0, 0.25, 0])
-    nd1 = NDDataArithmetic(data1, uncertainty=StdDevUncertainty(uncert1))
-    nd2 = NDDataArithmetic(data2, uncertainty=StdDevUncertainty(uncert2))
-    nd1.add(nd2, uncertainty_correlation=cor)
-
-
-# Covering:
-# That propagate throws an exception when correlation is given but the
-# uncertainty does not support correlation.
-def test_arithmetics_with_correlation_unsupported():
-    data1 = np.array([1, 2, 3])
-    data2 = np.array([1, 1, 1])
-    uncert1 = np.array([1, 1, 1])
-    uncert2 = np.array([2, 2, 2])
-    cor = 3
-    nd1 = NDDataArithmetic(data1, uncertainty=StdDevUncertaintyUncorrelated(uncert1))
-    nd2 = NDDataArithmetic(data2, uncertainty=StdDevUncertaintyUncorrelated(uncert2))
-
-    with pytest.raises(ValueError):
-        nd1.add(nd2, uncertainty_correlation=cor)
-
-
-# Covering:
-# only one has an uncertainty (data and uncertainty without unit)
-# tested against the case where the other one has zero uncertainty. (this case
-# must be correct because we tested it in the last case)
-# Also verify that if the result of the data has negative values the resulting
-# uncertainty has no negative values.
-def test_arithmetics_stddevuncertainty_one_missing():
-    nd1 = NDDataArithmetic([1, -2, 3])
-    nd1_ref = NDDataArithmetic([1, -2, 3], uncertainty=StdDevUncertainty([0, 0, 0]))
-    nd2 = NDDataArithmetic([2, 2, -2], uncertainty=StdDevUncertainty([2, 2, 2]))
-
-    # Addition
-    nd3 = nd1.add(nd2)
-    nd3_ref = nd1_ref.add(nd2)
-    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
-    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
-
-    nd3 = nd2.add(nd1)
-    nd3_ref = nd2.add(nd1_ref)
-    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
-    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
-
-    # Subtraction
-    nd3 = nd1.subtract(nd2)
-    nd3_ref = nd1_ref.subtract(nd2)
-    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
-    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
-
-    nd3 = nd2.subtract(nd1)
-    nd3_ref = nd2.subtract(nd1_ref)
-    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
-    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
-
-    # Multiplication
-    nd3 = nd1.multiply(nd2)
-    nd3_ref = nd1_ref.multiply(nd2)
-    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
-    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
-
-    nd3 = nd2.multiply(nd1)
-    nd3_ref = nd2.multiply(nd1_ref)
-    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
-    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
-
-    # Division
-    nd3 = nd1.divide(nd2)
-    nd3_ref = nd1_ref.divide(nd2)
-    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
-    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
-
-    nd3 = nd2.divide(nd1)
-    nd3_ref = nd2.divide(nd1_ref)
-    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
-    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
-
-
-# Covering:
-# data with unit and uncertainty with unit (but equivalent units)
-# compared against correctly scaled NDDatas
 @pytest.mark.filterwarnings("ignore:.*encountered in.*divide.*")
 @pytest.mark.parametrize(
     ("uncert1", "uncert2"),
@@ -874,11 +614,6 @@ def test_arithmetics_stddevuncertainty_with_units(uncert1, uncert2):
     assert nd3.unit == nd3_ref.unit
     assert nd3.uncertainty.unit == nd3_ref.uncertainty.unit
     assert_array_equal(nd3.uncertainty.array, nd3.uncertainty.array)
-
-
-# Covering:
-# data with unit and uncertainty with unit (but equivalent units)
-# compared against correctly scaled NDDatas
 @pytest.mark.filterwarnings("ignore:.*encountered in.*divide.*")
 @pytest.mark.parametrize(
     ("uncert1", "uncert2"),
@@ -981,11 +716,6 @@ def test_arithmetics_varianceuncertainty_with_units(uncert1, uncert2):
     assert nd3.unit == nd3_ref.unit
     assert nd3.uncertainty.unit == nd3_ref.uncertainty.unit
     assert_array_equal(nd3.uncertainty.array, nd3.uncertainty.array)
-
-
-# Covering:
-# data with unit and uncertainty with unit (but equivalent units)
-# compared against correctly scaled NDDatas
 @pytest.mark.filterwarnings("ignore:.*encountered in.*divide.*")
 @pytest.mark.parametrize(
     ("uncert1", "uncert2"),
@@ -1088,9 +818,6 @@ def test_arithmetics_inversevarianceuncertainty_with_units(uncert1, uncert2):
     assert nd3.unit == nd3_ref.unit
     assert nd3.uncertainty.unit == nd3_ref.uncertainty.unit
     assert_array_equal(nd3.uncertainty.array, nd3.uncertainty.array)
-
-
-# Test abbreviation and long name for taking the first found meta, mask, wcs
 @pytest.mark.parametrize("use_abbreviation", ["ff", "first_found"])
 def test_arithmetics_handle_switches(use_abbreviation):
     meta1 = {"a": 1}
@@ -1149,6 +876,489 @@ def test_arithmetics_handle_switches(use_abbreviation):
     assert nd_.meta == meta1
     assert nd_.mask == mask1
     assert_array_equal(nd_.uncertainty.array, uncertainty1.array)
+
+
+@pytest.mark.parametrize("meth", ["add", "subtract", "divide", "multiply"])
+def test_two_argument_useage(meth):
+    ndd1 = NDDataArithmetic(np.ones((3, 3)))
+    ndd2 = NDDataArithmetic(np.ones((3, 3)))
+
+    # Call add on the class (not the instance) and compare it with already
+    # tested usage:
+    ndd3 = getattr(NDDataArithmetic, meth)(ndd1, ndd2)
+    ndd4 = getattr(ndd1, meth)(ndd2)
+    np.testing.assert_array_equal(ndd3.data, ndd4.data)
+
+    # And the same done on an unrelated instance...
+    ndd3 = getattr(NDDataArithmetic(-100), meth)(ndd1, ndd2)
+    ndd4 = getattr(ndd1, meth)(ndd2)
+    np.testing.assert_array_equal(ndd3.data, ndd4.data)
+
+
+@pytest.mark.parametrize("meth", ["add", "subtract", "divide", "multiply"])
+def test_two_argument_useage_non_nddata_first_arg(meth):
+    data1 = 50
+    data2 = 100
+
+    # Call add on the class (not the instance)
+    ndd3 = getattr(NDDataArithmetic, meth)(data1, data2)
+
+    # Compare it with the instance-useage and two identical NDData-like
+    # classes:
+    ndd1 = NDDataArithmetic(data1)
+    ndd2 = NDDataArithmetic(data2)
+    ndd4 = getattr(ndd1, meth)(ndd2)
+    np.testing.assert_array_equal(ndd3.data, ndd4.data)
+
+    # and check it's also working when called on an instance
+    ndd3 = getattr(NDDataArithmetic(-100), meth)(data1, data2)
+    ndd4 = getattr(ndd1, meth)(ndd2)
+    np.testing.assert_array_equal(ndd3.data, ndd4.data)
+@pytest.mark.parametrize(
+    "ndd_type",
+    (
+        pytest.param(np.uint16),
+        pytest.param(np.float32),
+        pytest.param(np.float64),
+    ),
+)
+@pytest.mark.parametrize(
+    "scalar_type",
+    (
+        pytest.param(int, id="int"),
+        pytest.param(float, id="float"),
+        pytest.param(np.uint8, id="uint8"),
+        pytest.param(np.int16, id="int16"),
+        pytest.param(np.float32, id="float32"),
+        pytest.param(np.float64, id="float64"),
+        pytest.param(lambda v: np.array(v, dtype=np.int16), id="int16_0D_array"),
+        pytest.param(lambda v: np.array(v, dtype=np.float32), id="float32_0D_array"),
+    ),
+)
+@pytest.mark.parametrize("meth", STR_TO_OPERATOR)
+def test_arithmetics_dtypes_with_scalar(ndd_type, scalar_type, meth):
+    nddata = NDDataRef(np.array([1, 2, 3, 4], dtype=ndd_type))
+    scalar = scalar_type(2)
+
+    out = getattr(nddata, meth)(scalar)
+    ref = STR_TO_OPERATOR[meth](nddata.data, scalar)
+
+    # Enforce the same behaviour as NumPy, rather than fixed behaviour:
+    assert out.data.shape == ref.shape
+    assert out.data.dtype == ref.dtype
+    assert_array_equal(out.data, ref)
+@pytest.mark.parametrize("ndd_type", (np.uint16, np.float32, np.float64))
+@pytest.mark.parametrize("meth", ("add", "subtract"))
+def test_add_quantity_matching_dtype(ndd_type, meth):
+    nddata = NDDataRef(np.array([1, 2, 3, 4], dtype=ndd_type), unit=u.adu)
+    quantity = u.Quantity(2, dtype=ndd_type, unit=u.adu)
+
+    out = getattr(nddata, meth)(quantity)
+    ref = STR_TO_OPERATOR[meth](nddata.data, quantity.value)
+
+    assert out.data.shape == nddata.data.shape == ref.shape
+    assert out.data.dtype == nddata.data.dtype == ref.dtype
+    assert_array_equal(out.data, ref)
+@pytest.mark.parametrize("ndd_type", (np.uint16, np.float32, np.float64))
+@pytest.mark.parametrize("scalar_type", (int, float, np.uint16, np.float32, np.float64))
+@pytest.mark.parametrize("meth", ("multiply", "divide"))
+def test_scale_dtypes_with_units(ndd_type, scalar_type, meth):
+    nddata = NDDataRef(np.array([1, 2, 3, 4], dtype=ndd_type), unit=u.adu)
+    scalar = scalar_type(2)
+
+    out = getattr(nddata, meth)(scalar)
+    ref = STR_TO_OPERATOR[meth](nddata.data, scalar)
+
+    assert out.data.shape == ref.shape
+    assert out.data.dtype == ref.dtype
+    assert_array_almost_equal(out.data, ref)
+@pytest.mark.parametrize("meth", ("add", "subtract"))
+def test_add_quantity_default_dtypes(meth):
+    nddata = NDDataRef(np.array([1.0, 2.0, 3.0, 4.0]), unit=u.adu)
+    quantity = 2.0 * u.adu
+
+    out = getattr(nddata, meth)(quantity)
+    ref = STR_TO_OPERATOR[meth](nddata.data, quantity.value)
+
+    assert out.data.shape == nddata.data.shape
+    assert out.data.dtype == nddata.data.dtype
+    assert_array_equal(out.data, ref)
+
+
+@pytest.fixture(params=NDDATA_REF_PARAMS)
+def nddata_ref1(request):
+    return deepcopy(request.param)
+
+
+@pytest.fixture(params=NDDATA_REF_PARAMS)
+def nddata_ref2(request):
+    return deepcopy(request.param)
+@pytest.mark.parametrize(
+    "scalar_type",
+    (
+        pytest.param(int, id="int"),
+        pytest.param(float, id="float"),
+        pytest.param(np.uint16, id="uint16"),
+        pytest.param(np.float32, id="float32"),
+        pytest.param(lambda v: np.array(v, dtype=np.uint16), id="uint16_0D_array"),
+        pytest.param(lambda v: np.array(v, dtype=np.float32), id="float32_0D_array"),
+    ),
+)
+@pytest.mark.parametrize("meth", STR_TO_OPERATOR)
+def test_dtypes_uncert_mask_with_scalars(nddata_ref1, scalar_type, meth):
+    nddata = nddata_ref1
+    scalar = scalar_type(2)
+
+    out = getattr(nddata, meth)(scalar)
+
+    ref_dat = STR_TO_OPERATOR[meth](nddata.data, scalar)
+
+    if meth in ("multiply", "divide"):
+        vscale = scalar
+        if isinstance(nddata.uncertainty, VarianceUncertainty):
+            vscale = vscale * scalar  # copy to avoid modifying scalar
+        ref_unc = STR_TO_OPERATOR[meth](nddata.uncertainty.array, vscale)
+    else:
+        ref_unc = nddata.uncertainty.array
+
+    ref_msk = nddata.mask
+
+    # Enforce the same behaviour as NumPy, rather than fixed behaviour:
+    assert out.data.shape == ref_dat.shape
+    assert out.data.dtype == ref_dat.dtype
+    if not (
+        NUMPY_LT_2_0
+        and nddata.uncertainty.array.dtype.kind in "biu"
+        and isinstance(scalar, (np.float16, np.float32))
+    ):
+        # A quirk of NumPy 1 arithmetic causes int uncertainty (admittedly a corner
+        # case) to get cast to float64 when float32 is expected (see #18392):
+        assert out.uncertainty.array.dtype == ref_unc.dtype
+    assert out.mask.dtype == ref_msk.dtype
+    assert np.ma.allclose(out.data, ref_dat)
+    assert np.ma.allclose(out.uncertainty.array, ref_unc)
+    assert_array_equal(out.mask, ref_msk)
+@pytest.mark.parametrize("meth", STR_TO_OPERATOR)
+def test_arithmetics_dtypes_uncert_mask(nddata_ref1, nddata_ref2, meth):
+    nd1 = nddata_ref1
+    nd2 = nddata_ref2
+    ref_dat = STR_TO_OPERATOR[meth](nd1.data, nd2.data)
+
+    # Deal with uncertainty, converting the nd2 uncertainty class to match
+    # nd1, otherwise arithmetic fails. With both operands being arrays, we
+    # cannot use NumPy as a reference for the "correct" output dtype for
+    # uncertainty, since it doesn't natively propagate errors and the result
+    # type depends on the exact calculation used, but we can check that the
+    # values are close those expected, given the input dtypes. Establishing
+    # the intended casting behaviour for uncertainty is left for other tests.
+    if isinstance(nd1.uncertainty, VarianceUncertainty):
+        if isinstance(nd2.uncertainty, StdDevUncertainty):
+            nd2.uncertainty = VarianceUncertainty(
+                np.multiply(nd2.uncertainty.array, nd2.uncertainty.array)
+            )
+        if meth in ("multiply", "divide"):
+            ref_unc = ref_dat**2 * (
+                nd1.uncertainty.array / nd1.data**2
+                + nd2.uncertainty.array / nd2.data**2
+            )
+        else:
+            ref_unc = nd1.uncertainty.array + nd2.uncertainty.array
+    else:
+        if isinstance(nd2.uncertainty, VarianceUncertainty):
+            nd2.uncertainty = StdDevUncertainty(np.sqrt(nd2.uncertainty.array))
+        if meth in ("multiply", "divide"):
+            ref_unc = ref_dat * np.sqrt(
+                (nd1.uncertainty.array / nd1.data) ** 2
+                + (nd2.uncertainty.array / nd2.data) ** 2
+            )
+        else:
+            ref_unc = np.sqrt(nd1.uncertainty.array**2 + nd2.uncertainty.array**2)
+
+    ref_msk = np.logical_or(nd1.mask, nd2.mask)  # default op for arith mixin
+
+    out = getattr(nd1, meth)(nd2)
+
+    # Enforce the same behaviour as NumPy, rather than fixed behaviour:
+    assert out.data.shape == ref_dat.shape
+    assert out.data.dtype == ref_dat.dtype
+    # see above comment regarding uncertainty dtype
+    assert out.mask.dtype == ref_msk.dtype
+    assert np.ma.allclose(out.data, ref_dat)
+    assert np.ma.allclose(out.uncertainty.array, ref_unc)
+    assert_array_equal(out.mask, ref_msk)
+
+
+# Test numpy functions that use astropy functions first
+def test_arithmetics_ccddata():
+    ccd1 = CCDData([1, 2, 3], unit="adu")
+    ccd2 = CCDData([1.1, 2.2, 3.3], unit="adu")
+    ccd3 = CCDData([1.1, 2.2, 3.3, 4.4], unit="adu")
+    nd1 = NDDataArithmetic(ccd1)
+    nd3 = NDDataArithmetic(ccd3)
+
+    assert np.min(ccd1).data == ccd1.min().data
+    assert np.min(ccd2).data == ccd2.min().data
+
+    assert np.max(ccd1).data == ccd1.max().data
+    assert np.max(ccd2).data == ccd2.max().data
+
+    assert np.sum(ccd1).data == ccd1.sum().data
+    assert np.sum(ccd2).data == ccd2.sum().data
+
+    assert np.mean(ccd1).data == ccd1.mean().data
+    assert np.mean(ccd2).data == ccd2.mean().data
+
+
+# Ensure exceptions are raised for numpy keys that are not None
+def test_arithmetics_ccddata_errors():
+    ccd1 = CCDData([1, 2, 3], unit="adu")
+    ccd2 = CCDData([1.1, 2.2, 3.3, 4.4], unit="adu")
+    nd1 = NDDataArithmetic(ccd1)
+    nd2 = NDDataArithmetic(ccd2)
+
+    with pytest.raises(ValueError):
+        np.mean(ccd1, out=nd1)
+
+    with pytest.raises(ValueError):
+        np.mean(ccd2, out=nd2)
+
+    with pytest.raises(ValueError):
+        np.mean(ccd1, out=nd1, dtype=int)
+
+    with pytest.raises(ValueError):
+        np.mean(ccd2, dtype=int)
+
+
+# Invalid arithmetic operations for data covering:
+# not broadcastable data
+def test_arithmetics_data_invalid():
+    nd1 = NDDataArithmetic([1, 2, 3])
+    nd2 = NDDataArithmetic([1, 2])
+    with pytest.raises(ValueError):
+        nd1.add(nd2)
+
+
+# Test with Data and unit and covers:
+# identical units (even dimensionless unscaled vs. no unit),
+# equivalent units (such as meter and kilometer)
+# equivalent composite units (such as m/s and km/h)
+
+
+# Test with Data and unit and covers:
+# not identical not convertible units
+# one with unit (which is not dimensionless) and one without
+
+
+# Tests with wcs (not very sensible because there is no operation between them
+# covering:
+# both set and identical/not identical
+# one set
+# None set
+
+
+# Masks are completely separated in the NDArithmetics from the data so we need
+# no correlated tests but covering:
+# masks 1D, 2D and mixed cases with broadcasting
+
+
+# Check that masks are preserved+propagated in NDData collapse operations
+
+
+# One additional case which can not be easily incorporated in the test above
+# what happens if the masks are numpy ndarrays are not broadcastable
+def test_arithmetics_data_masks_invalid():
+    nd1 = NDDataArithmetic(1, mask=np.array([1, 0], dtype=np.bool_))
+    nd2 = NDDataArithmetic(1, mask=np.array([1, 0, 1], dtype=np.bool_))
+
+    with pytest.raises(ValueError):
+        nd1.add(nd2)
+    with pytest.raises(ValueError):
+        nd1.multiply(nd2)
+    with pytest.raises(ValueError):
+        nd1.subtract(nd2)
+    with pytest.raises(ValueError):
+        nd1.divide(nd2)
+
+
+# Covering:
+# both have uncertainties (data and uncertainty without unit)
+# tested against manually determined resulting uncertainties to verify the
+# implemented formulas
+# this test only works as long as data1 and data2 do not contain any 0
+def test_arithmetics_stddevuncertainty_basic():
+    nd1 = NDDataArithmetic([1, 2, 3], uncertainty=StdDevUncertainty([1, 1, 3]))
+    nd2 = NDDataArithmetic([2, 2, 2], uncertainty=StdDevUncertainty([2, 2, 2]))
+    nd3 = nd1.add(nd2)
+    nd4 = nd2.add(nd1)
+    # Inverse operation should result in the same uncertainty
+    assert_array_equal(nd3.uncertainty.array, nd4.uncertainty.array)
+    # Compare it to the theoretical uncertainty
+    ref_uncertainty = np.sqrt(np.array([1, 1, 3]) ** 2 + np.array([2, 2, 2]) ** 2)
+    assert_array_equal(nd3.uncertainty.array, ref_uncertainty)
+
+    nd3 = nd1.subtract(nd2)
+    nd4 = nd2.subtract(nd1)
+    # Inverse operation should result in the same uncertainty
+    assert_array_equal(nd3.uncertainty.array, nd4.uncertainty.array)
+    # Compare it to the theoretical uncertainty (same as for add)
+    assert_array_equal(nd3.uncertainty.array, ref_uncertainty)
+
+    # Multiplication and Division only work with almost equal array comparisons
+    # since the formula implemented and the formula used as reference are
+    # slightly different.
+    nd3 = nd1.multiply(nd2)
+    nd4 = nd2.multiply(nd1)
+    # Inverse operation should result in the same uncertainty
+    assert_array_almost_equal(nd3.uncertainty.array, nd4.uncertainty.array)
+    # Compare it to the theoretical uncertainty
+    ref_uncertainty = np.abs(np.array([2, 4, 6])) * np.sqrt(
+        (np.array([1, 1, 3]) / np.array([1, 2, 3])) ** 2
+        + (np.array([2, 2, 2]) / np.array([2, 2, 2])) ** 2
+    )
+    assert_array_almost_equal(nd3.uncertainty.array, ref_uncertainty)
+
+    nd3 = nd1.divide(nd2)
+    nd4 = nd2.divide(nd1)
+    # Inverse operation gives a different uncertainty!
+    # Compare it to the theoretical uncertainty
+    ref_uncertainty_1 = np.abs(np.array([1 / 2, 2 / 2, 3 / 2])) * np.sqrt(
+        (np.array([1, 1, 3]) / np.array([1, 2, 3])) ** 2
+        + (np.array([2, 2, 2]) / np.array([2, 2, 2])) ** 2
+    )
+    assert_array_almost_equal(nd3.uncertainty.array, ref_uncertainty_1)
+    ref_uncertainty_2 = np.abs(np.array([2, 1, 2 / 3])) * np.sqrt(
+        (np.array([1, 1, 3]) / np.array([1, 2, 3])) ** 2
+        + (np.array([2, 2, 2]) / np.array([2, 2, 2])) ** 2
+    )
+    assert_array_almost_equal(nd4.uncertainty.array, ref_uncertainty_2)
+
+
+# Tests for correlation, covering
+# correlation between -1 and 1 with correlation term being positive / negative
+# also with one data being once positive and once completely negative
+# The point of this test is to compare the used formula to the theoretical one.
+# TODO: Maybe covering units too but I think that should work because of
+# the next tests. Also this may be reduced somehow.
+
+
+# Tests for correlation, covering
+# correlation between -1 and 1 with correlation term being positive / negative
+# also with one data being once positive and once completely negative
+# The point of this test is to compare the used formula to the theoretical one.
+# TODO: Maybe covering units too but I think that should work because of
+# the next tests. Also this may be reduced somehow.
+
+
+# Tests for correlation, covering
+# correlation between -1 and 1 with correlation term being positive / negative
+# also with one data being once positive and once completely negative
+# The point of this test is to compare the used formula to the theoretical one.
+# TODO: Maybe covering units too but I think that should work because of
+# the next tests. Also this may be reduced somehow.
+
+
+# Covering:
+# just an example that a np.ndarray works as correlation, no checks for
+# the right result since these were basically done in the function above.
+def test_arithmetics_stddevuncertainty_basic_with_correlation_array():
+    data1 = np.array([1, 2, 3])
+    data2 = np.array([1, 1, 1])
+    uncert1 = np.array([1, 1, 1])
+    uncert2 = np.array([2, 2, 2])
+    cor = np.array([0, 0.25, 0])
+    nd1 = NDDataArithmetic(data1, uncertainty=StdDevUncertainty(uncert1))
+    nd2 = NDDataArithmetic(data2, uncertainty=StdDevUncertainty(uncert2))
+    nd1.add(nd2, uncertainty_correlation=cor)
+
+
+# Covering:
+# That propagate throws an exception when correlation is given but the
+# uncertainty does not support correlation.
+def test_arithmetics_with_correlation_unsupported():
+    data1 = np.array([1, 2, 3])
+    data2 = np.array([1, 1, 1])
+    uncert1 = np.array([1, 1, 1])
+    uncert2 = np.array([2, 2, 2])
+    cor = 3
+    nd1 = NDDataArithmetic(data1, uncertainty=StdDevUncertaintyUncorrelated(uncert1))
+    nd2 = NDDataArithmetic(data2, uncertainty=StdDevUncertaintyUncorrelated(uncert2))
+
+    with pytest.raises(ValueError):
+        nd1.add(nd2, uncertainty_correlation=cor)
+
+
+# Covering:
+# only one has an uncertainty (data and uncertainty without unit)
+# tested against the case where the other one has zero uncertainty. (this case
+# must be correct because we tested it in the last case)
+# Also verify that if the result of the data has negative values the resulting
+# uncertainty has no negative values.
+def test_arithmetics_stddevuncertainty_one_missing():
+    nd1 = NDDataArithmetic([1, -2, 3])
+    nd1_ref = NDDataArithmetic([1, -2, 3], uncertainty=StdDevUncertainty([0, 0, 0]))
+    nd2 = NDDataArithmetic([2, 2, -2], uncertainty=StdDevUncertainty([2, 2, 2]))
+
+    # Addition
+    nd3 = nd1.add(nd2)
+    nd3_ref = nd1_ref.add(nd2)
+    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
+    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
+
+    nd3 = nd2.add(nd1)
+    nd3_ref = nd2.add(nd1_ref)
+    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
+    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
+
+    # Subtraction
+    nd3 = nd1.subtract(nd2)
+    nd3_ref = nd1_ref.subtract(nd2)
+    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
+    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
+
+    nd3 = nd2.subtract(nd1)
+    nd3_ref = nd2.subtract(nd1_ref)
+    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
+    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
+
+    # Multiplication
+    nd3 = nd1.multiply(nd2)
+    nd3_ref = nd1_ref.multiply(nd2)
+    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
+    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
+
+    nd3 = nd2.multiply(nd1)
+    nd3_ref = nd2.multiply(nd1_ref)
+    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
+    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
+
+    # Division
+    nd3 = nd1.divide(nd2)
+    nd3_ref = nd1_ref.divide(nd2)
+    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
+    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
+
+    nd3 = nd2.divide(nd1)
+    nd3_ref = nd2.divide(nd1_ref)
+    assert_array_equal(nd3.uncertainty.array, nd3_ref.uncertainty.array)
+    assert_array_equal(np.abs(nd3.uncertainty.array), nd3.uncertainty.array)
+
+
+# Covering:
+# data with unit and uncertainty with unit (but equivalent units)
+# compared against correctly scaled NDDatas
+
+
+# Covering:
+# data with unit and uncertainty with unit (but equivalent units)
+# compared against correctly scaled NDDatas
+
+
+# Covering:
+# data with unit and uncertainty with unit (but equivalent units)
+# compared against correctly scaled NDDatas
+
+
+# Test abbreviation and long name for taking the first found meta, mask, wcs
 
 
 def test_arithmetics_meta_func():
@@ -1247,44 +1457,6 @@ def test_arithmetics_mask_func():
         nd1.add(nd2, handle_mask=mask_sad_func, fun=1)
 
 
-@pytest.mark.parametrize("meth", ["add", "subtract", "divide", "multiply"])
-def test_two_argument_useage(meth):
-    ndd1 = NDDataArithmetic(np.ones((3, 3)))
-    ndd2 = NDDataArithmetic(np.ones((3, 3)))
-
-    # Call add on the class (not the instance) and compare it with already
-    # tested usage:
-    ndd3 = getattr(NDDataArithmetic, meth)(ndd1, ndd2)
-    ndd4 = getattr(ndd1, meth)(ndd2)
-    np.testing.assert_array_equal(ndd3.data, ndd4.data)
-
-    # And the same done on an unrelated instance...
-    ndd3 = getattr(NDDataArithmetic(-100), meth)(ndd1, ndd2)
-    ndd4 = getattr(ndd1, meth)(ndd2)
-    np.testing.assert_array_equal(ndd3.data, ndd4.data)
-
-
-@pytest.mark.parametrize("meth", ["add", "subtract", "divide", "multiply"])
-def test_two_argument_useage_non_nddata_first_arg(meth):
-    data1 = 50
-    data2 = 100
-
-    # Call add on the class (not the instance)
-    ndd3 = getattr(NDDataArithmetic, meth)(data1, data2)
-
-    # Compare it with the instance-useage and two identical NDData-like
-    # classes:
-    ndd1 = NDDataArithmetic(data1)
-    ndd2 = NDDataArithmetic(data2)
-    ndd4 = getattr(ndd1, meth)(ndd2)
-    np.testing.assert_array_equal(ndd3.data, ndd4.data)
-
-    # and check it's also working when called on an instance
-    ndd3 = getattr(NDDataArithmetic(-100), meth)(data1, data2)
-    ndd4 = getattr(ndd1, meth)(ndd2)
-    np.testing.assert_array_equal(ndd3.data, ndd4.data)
-
-
 def test_arithmetics_unknown_uncertainties():
     # Not giving any uncertainty class means it is saved as UnknownUncertainty
     ndd1 = NDDataArithmetic(
@@ -1374,70 +1546,12 @@ def test_nddata_bitmask_arithmetic():
 
 # Covers different dtypes with various types of scalars as the 2nd operand
 # (issue #18384):
-@pytest.mark.parametrize(
-    "ndd_type",
-    (
-        pytest.param(np.uint16),
-        pytest.param(np.float32),
-        pytest.param(np.float64),
-    ),
-)
-@pytest.mark.parametrize(
-    "scalar_type",
-    (
-        pytest.param(int, id="int"),
-        pytest.param(float, id="float"),
-        pytest.param(np.uint8, id="uint8"),
-        pytest.param(np.int16, id="int16"),
-        pytest.param(np.float32, id="float32"),
-        pytest.param(np.float64, id="float64"),
-        pytest.param(lambda v: np.array(v, dtype=np.int16), id="int16_0D_array"),
-        pytest.param(lambda v: np.array(v, dtype=np.float32), id="float32_0D_array"),
-    ),
-)
-@pytest.mark.parametrize("meth", STR_TO_OPERATOR)
-def test_arithmetics_dtypes_with_scalar(ndd_type, scalar_type, meth):
-    nddata = NDDataRef(np.array([1, 2, 3, 4], dtype=ndd_type))
-    scalar = scalar_type(2)
-
-    out = getattr(nddata, meth)(scalar)
-    ref = STR_TO_OPERATOR[meth](nddata.data, scalar)
-
-    # Enforce the same behaviour as NumPy, rather than fixed behaviour:
-    assert out.data.shape == ref.shape
-    assert out.data.dtype == ref.dtype
-    assert_array_equal(out.data, ref)
 
 
 # Covers adding scalar quantity with matching, non-default dtypes:
-@pytest.mark.parametrize("ndd_type", (np.uint16, np.float32, np.float64))
-@pytest.mark.parametrize("meth", ("add", "subtract"))
-def test_add_quantity_matching_dtype(ndd_type, meth):
-    nddata = NDDataRef(np.array([1, 2, 3, 4], dtype=ndd_type), unit=u.adu)
-    quantity = u.Quantity(2, dtype=ndd_type, unit=u.adu)
-
-    out = getattr(nddata, meth)(quantity)
-    ref = STR_TO_OPERATOR[meth](nddata.data, quantity.value)
-
-    assert out.data.shape == nddata.data.shape == ref.shape
-    assert out.data.dtype == nddata.data.dtype == ref.dtype
-    assert_array_equal(out.data, ref)
 
 
 # Covers scaling with units and non-default dtypes:
-@pytest.mark.parametrize("ndd_type", (np.uint16, np.float32, np.float64))
-@pytest.mark.parametrize("scalar_type", (int, float, np.uint16, np.float32, np.float64))
-@pytest.mark.parametrize("meth", ("multiply", "divide"))
-def test_scale_dtypes_with_units(ndd_type, scalar_type, meth):
-    nddata = NDDataRef(np.array([1, 2, 3, 4], dtype=ndd_type), unit=u.adu)
-    scalar = scalar_type(2)
-
-    out = getattr(nddata, meth)(scalar)
-    ref = STR_TO_OPERATOR[meth](nddata.data, scalar)
-
-    assert out.data.shape == ref.shape
-    assert out.data.dtype == ref.dtype
-    assert_array_almost_equal(out.data, ref)
 
 
 # Covers adding scalar Quantity to NDData with default float dtypes for both.
@@ -1445,17 +1559,6 @@ def test_scale_dtypes_with_units(ndd_type, scalar_type, meth):
 # we'd probably like to know about the unlikely event of their becoming
 # inconsistent, which could break downstream assumptions. This also checks
 # Quantity constructed in the common way, rather than programmatically as above.
-@pytest.mark.parametrize("meth", ("add", "subtract"))
-def test_add_quantity_default_dtypes(meth):
-    nddata = NDDataRef(np.array([1.0, 2.0, 3.0, 4.0]), unit=u.adu)
-    quantity = 2.0 * u.adu
-
-    out = getattr(nddata, meth)(quantity)
-    ref = STR_TO_OPERATOR[meth](nddata.data, quantity.value)
-
-    assert out.data.shape == nddata.data.shape
-    assert out.data.dtype == nddata.data.dtype
-    assert_array_equal(out.data, ref)
 
 
 # Provide input for the following test sets without lots of replication:
@@ -1491,110 +1594,7 @@ NDDATA_REF_PARAMS = [
 ]
 
 
-@pytest.fixture(params=NDDATA_REF_PARAMS)
-def nddata_ref1(request):
-    return deepcopy(request.param)
-
-
-@pytest.fixture(params=NDDATA_REF_PARAMS)
-def nddata_ref2(request):
-    return deepcopy(request.param)
-
-
 # Covers non-default dtypes + uncert + mask with various scalar types
-@pytest.mark.parametrize(
-    "scalar_type",
-    (
-        pytest.param(int, id="int"),
-        pytest.param(float, id="float"),
-        pytest.param(np.uint16, id="uint16"),
-        pytest.param(np.float32, id="float32"),
-        pytest.param(lambda v: np.array(v, dtype=np.uint16), id="uint16_0D_array"),
-        pytest.param(lambda v: np.array(v, dtype=np.float32), id="float32_0D_array"),
-    ),
-)
-@pytest.mark.parametrize("meth", STR_TO_OPERATOR)
-def test_dtypes_uncert_mask_with_scalars(nddata_ref1, scalar_type, meth):
-    nddata = nddata_ref1
-    scalar = scalar_type(2)
-
-    out = getattr(nddata, meth)(scalar)
-
-    ref_dat = STR_TO_OPERATOR[meth](nddata.data, scalar)
-
-    if meth in ("multiply", "divide"):
-        vscale = scalar
-        if isinstance(nddata.uncertainty, VarianceUncertainty):
-            vscale = vscale * scalar  # copy to avoid modifying scalar
-        ref_unc = STR_TO_OPERATOR[meth](nddata.uncertainty.array, vscale)
-    else:
-        ref_unc = nddata.uncertainty.array
-
-    ref_msk = nddata.mask
-
-    # Enforce the same behaviour as NumPy, rather than fixed behaviour:
-    assert out.data.shape == ref_dat.shape
-    assert out.data.dtype == ref_dat.dtype
-    if not (
-        NUMPY_LT_2_0
-        and nddata.uncertainty.array.dtype.kind in "biu"
-        and isinstance(scalar, (np.float16, np.float32))
-    ):
-        # A quirk of NumPy 1 arithmetic causes int uncertainty (admittedly a corner
-        # case) to get cast to float64 when float32 is expected (see #18392):
-        assert out.uncertainty.array.dtype == ref_unc.dtype
-    assert out.mask.dtype == ref_msk.dtype
-    assert np.ma.allclose(out.data, ref_dat)
-    assert np.ma.allclose(out.uncertainty.array, ref_unc)
-    assert_array_equal(out.mask, ref_msk)
 
 
 # Covers arithmetic with different dtype pairs + uncert + mask
-@pytest.mark.parametrize("meth", STR_TO_OPERATOR)
-def test_arithmetics_dtypes_uncert_mask(nddata_ref1, nddata_ref2, meth):
-    nd1 = nddata_ref1
-    nd2 = nddata_ref2
-    ref_dat = STR_TO_OPERATOR[meth](nd1.data, nd2.data)
-
-    # Deal with uncertainty, converting the nd2 uncertainty class to match
-    # nd1, otherwise arithmetic fails. With both operands being arrays, we
-    # cannot use NumPy as a reference for the "correct" output dtype for
-    # uncertainty, since it doesn't natively propagate errors and the result
-    # type depends on the exact calculation used, but we can check that the
-    # values are close those expected, given the input dtypes. Establishing
-    # the intended casting behaviour for uncertainty is left for other tests.
-    if isinstance(nd1.uncertainty, VarianceUncertainty):
-        if isinstance(nd2.uncertainty, StdDevUncertainty):
-            nd2.uncertainty = VarianceUncertainty(
-                np.multiply(nd2.uncertainty.array, nd2.uncertainty.array)
-            )
-        if meth in ("multiply", "divide"):
-            ref_unc = ref_dat**2 * (
-                nd1.uncertainty.array / nd1.data**2
-                + nd2.uncertainty.array / nd2.data**2
-            )
-        else:
-            ref_unc = nd1.uncertainty.array + nd2.uncertainty.array
-    else:
-        if isinstance(nd2.uncertainty, VarianceUncertainty):
-            nd2.uncertainty = StdDevUncertainty(np.sqrt(nd2.uncertainty.array))
-        if meth in ("multiply", "divide"):
-            ref_unc = ref_dat * np.sqrt(
-                (nd1.uncertainty.array / nd1.data) ** 2
-                + (nd2.uncertainty.array / nd2.data) ** 2
-            )
-        else:
-            ref_unc = np.sqrt(nd1.uncertainty.array**2 + nd2.uncertainty.array**2)
-
-    ref_msk = np.logical_or(nd1.mask, nd2.mask)  # default op for arith mixin
-
-    out = getattr(nd1, meth)(nd2)
-
-    # Enforce the same behaviour as NumPy, rather than fixed behaviour:
-    assert out.data.shape == ref_dat.shape
-    assert out.data.dtype == ref_dat.dtype
-    # see above comment regarding uncertainty dtype
-    assert out.mask.dtype == ref_msk.dtype
-    assert np.ma.allclose(out.data, ref_dat)
-    assert np.ma.allclose(out.uncertainty.array, ref_unc)
-    assert_array_equal(out.mask, ref_msk)
