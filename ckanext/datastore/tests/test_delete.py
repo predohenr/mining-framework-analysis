@@ -254,7 +254,7 @@ class TestDatastoreRecordsDelete(object):
         assert err == expected
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
-    @pytest.mark.usefixtures("clean_datastore", "with_plugins", "with_request_context")
+    @pytest.mark.usefixtures("clean_datastore", "with_plugins")
     def test_delete_records_does_not_include_records_by_default(self):
         resource = factories.Resource(url_type="datastore")
         data = {
@@ -277,7 +277,7 @@ class TestDatastoreRecordsDelete(object):
         assert 'deleted_records' not in result
 
     @pytest.mark.ckan_config("ckan.plugins", "datastore")
-    @pytest.mark.usefixtures("clean_datastore", "with_plugins", "with_request_context")
+    @pytest.mark.usefixtures("clean_datastore", "with_plugins")
     def test_delete_records_include_records_return(self):
         resource = factories.Resource(url_type="datastore")
         data = {
