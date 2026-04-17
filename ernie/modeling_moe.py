@@ -1912,6 +1912,9 @@ class Ernie4_5_MoeForCausalLM(Ernie4_5_PretrainedModel):
         if attention_mask is not None and attention_mask.dtype != paddle.bool:
             attention_mask = paddle.cast(attention_mask, paddle.bool)
 
+        if attention_mask is not None and attention_mask.dtype != paddle.bool:
+            attention_mask = paddle.cast(attention_mask, paddle.bool)
+
         outputs = self.ernie(
             input_ids,
             position_ids=position_ids,
