@@ -104,26 +104,6 @@ class ImportAdminIntegrationTest(AdminTestMixin, TestCase):
                 )
                 self.assertEqual(file_name, "books.csv")
 
-    def test_delete_from_admin(self):
-        # test delete from admin site (see #432)
-
-        # create a book which can be deleted
-        b = Book.objects.create(id=1)
-
-        response = self._do_import_post(self.book_import_url, "books-for-delete.csv")
-        self.assertEqual(response.status_code, 200)
-        confirm_form = response.context["confirm_form"]
-        data = confirm_form.initial
-        self._prepend_form_prefix(data)
-        self._post_url_response(self.book_process_import_url, data, follow=True)
-
-        # check the LogEntry was created as expected
-        deleted_entry = LogEntry.objects.latest("id")
-        self.assertEqual("delete through import_export", deleted_entry.change_message)
-        self.assertEqual(DELETION, deleted_entry.action_flag)
-        self.assertEqual(b.id, int(deleted_entry.object_id))
-        self.assertEqual("", deleted_entry.object_repr)
-
     @override_settings(TEMPLATE_STRING_IF_INVALID="INVALID_VARIABLE")
     @patch("import_export.admin.ImportMixin.choose_import_resource_class")
     def test_import_passes_correct_kwargs_to_constructor(
@@ -148,6 +128,49 @@ class ImportAdminIntegrationTest(AdminTestMixin, TestCase):
 
         response = self._do_import_post(self.book_import_url, "books.csv")
         self.assertEqual(response.status_code, 200)
+
+    @override_settings(IMPORT_FORMATS=[base_formats.XLSX, base_formats.XLS])
+    def test_import_admin_uses_import_format_settings(self):
+        """
+        Test that import form only avails the formats provided by the
+        IMPORT_FORMATS setting
+        """
+        request = self._get_url_response(self.book_import_url).wsgi_request
+        mock_site = mock.MagicMock()
+        import_form = BookAdmin(Book, mock_site).create_import_form(request)
+
+        file_format = import_form.fields["format"]
+        choices = file_format.choices
+
+        self.assertEqual(len(choices), 3)
+        self.assertEqual(choices[0][1], "---")
+        self.assertEqual(choices[1][1], "xlsx")
+        self.assertEqual(choices[2][1], "xls")
+
+    @override_settings(IMPORT_FORMATS=[])
+    def test_export_empty_import_formats(self):
+        with self.assertRaisesRegex(ValueError, "invalid formats list"):
+            self._get_url_response(self.book_import_url)
+
+    def test_delete_from_admin(self):
+        # test delete from admin site (see #432)
+
+        # create a book which can be deleted
+        b = Book.objects.create(id=1)
+
+        response = self._do_import_post(self.book_import_url, "books-for-delete.csv")
+        self.assertEqual(response.status_code, 200)
+        confirm_form = response.context["confirm_form"]
+        data = confirm_form.initial
+        self._prepend_form_prefix(data)
+        self._post_url_response(self.book_process_import_url, data, follow=True)
+
+        # check the LogEntry was created as expected
+        deleted_entry = LogEntry.objects.latest("id")
+        self.assertEqual("delete through import_export", deleted_entry.change_message)
+        self.assertEqual(DELETION, deleted_entry.action_flag)
+        self.assertEqual(b.id, int(deleted_entry.object_id))
+        self.assertEqual("", deleted_entry.object_repr)
 
     def test_get_tmp_storage_class_attribute(self):
         """Mock dynamically loading a class defined by an attribute"""
@@ -183,29 +206,6 @@ class ImportAdminIntegrationTest(AdminTestMixin, TestCase):
     def test_get_context_data_returns_empty_dict(self):
         m = ExportMixin()
         self.assertEqual({}, m.get_context_data())
-
-    @override_settings(IMPORT_FORMATS=[base_formats.XLSX, base_formats.XLS])
-    def test_import_admin_uses_import_format_settings(self):
-        """
-        Test that import form only avails the formats provided by the
-        IMPORT_FORMATS setting
-        """
-        request = self._get_url_response(self.book_import_url).wsgi_request
-        mock_site = mock.MagicMock()
-        import_form = BookAdmin(Book, mock_site).create_import_form(request)
-
-        file_format = import_form.fields["format"]
-        choices = file_format.choices
-
-        self.assertEqual(len(choices), 3)
-        self.assertEqual(choices[0][1], "---")
-        self.assertEqual(choices[1][1], "xlsx")
-        self.assertEqual(choices[2][1], "xls")
-
-    @override_settings(IMPORT_FORMATS=[])
-    def test_export_empty_import_formats(self):
-        with self.assertRaisesRegex(ValueError, "invalid formats list"):
-            self._get_url_response(self.book_import_url)
 
 
 class ImportFileHandlingTests(AdminTestMixin, TestCase):
