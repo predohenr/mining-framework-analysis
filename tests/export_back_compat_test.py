@@ -182,9 +182,7 @@ class CompatTest(bctu.CompatTestBase):
       "AllocateBuffer",  # tested in pallas/export_back_compat_pallas_test.py
       "__gpu$xla.gpu.triton",  # tested in pallas/export_back_compat_pallas_test.py
       # The following require ROCm to test
-      "hipsolver_getrf_ffi",
-      "hipsolver_geqrf_ffi", "hipsolver_orgqr_ffi", "hipsolver_syevd_ffi",
-      "hipsolver_gesvd_ffi", "hipsolver_gesvdj_ffi",
+      "hipsolver_getrf_ffi", "hipsolver_gesvd_ffi", "hipsolver_syevd_ffi", "hipsolver_gesvdj_ffi", "hipsolver_orgqr_ffi", "hipsolver_geqrf_ffi",
     })
     not_covered = targets_to_cover.difference(covered_targets)
     self.assertEmpty(not_covered,
