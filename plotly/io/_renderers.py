@@ -32,8 +32,6 @@ ipython = optional_imports.get_module("IPython")
 ipython_display = optional_imports.get_module("IPython.display")
 nbformat = optional_imports.get_module("nbformat")
 
-from plotly import optional_imports
-
 import warnings
 
 
