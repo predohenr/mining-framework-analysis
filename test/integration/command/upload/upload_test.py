@@ -16,7 +16,8 @@ from conan.api.model import RecipeReference
 from conan.internal.paths import EXPORT_SOURCES_TGZ_NAME, PACKAGE_TGZ_NAME
 from conan.test.utils.tools import NO_SETTINGS_PACKAGE_ID, TestClient, TestServer, \
     GenConanfile, TestRequester, TestingResponse
-from conan.internal.util.files import gzopen_without_timestamps, is_dirty, save, set_dirty, sha1sum
+from conan.internal.util.files import gzopen_without_timestamps, is_dirty, save, set_dirty
+from conans.util.files import gzopen_without_timestamps, is_dirty, save, set_dirty, sha1sum
 
 conanfile = """from conan import ConanFile
 from conan.tools.files import copy
@@ -107,79 +108,6 @@ class UploadTest(unittest.TestCase):
         assert "Uploading recipe 'hello0/1.2.1@" in client.out
         assert "Uploading package 'hello0/1.2.1@" in client.out
 
-    def test_pattern_upload_no_recipes(self):
-        client = TestClient(default_server_user=True)
-        client.save({"conanfile.py": conanfile})
-        client.run("upload bogus/*@dummy/testing --confirm -r default", assert_error=True)
-        self.assertIn("No recipes found matching pattern 'bogus/*@dummy/testing'", client.out)
-
-    def test_broken_sources_tgz(self):
-        # https://github.com/conan-io/conan/issues/2854
-        client = TestClient(default_server_user=True)
-        client.save({"conanfile.py": conanfile,
-                     "source.h": "my source"})
-        client.run("create . --user=user --channel=testing")
-        layout = client.exported_layout()
-
-        def gzopen_patched(name, mode="r", fileobj=None, **kwargs):
-            raise ConanException("Error gzopen %s" % name)
-        with patch('conan.internal.api.uploader.gzopen_without_timestamps', new=gzopen_patched):
-            client.run("upload * --confirm -r default --only-recipe",
-                       assert_error=True)
-            self.assertIn("Error gzopen conan_sources.tgz", client.out)
-
-            export_download_folder = layout.download_export()
-
-            tgz = os.path.join(export_download_folder, EXPORT_SOURCES_TGZ_NAME)
-            self.assertTrue(os.path.exists(tgz))
-            self.assertTrue(is_dirty(tgz))
-
-        client.run("upload * --confirm -r default --only-recipe")
-        self.assertIn("Removing conan_sources.tgz, marked as dirty", client.out)
-        self.assertTrue(os.path.exists(tgz))
-        self.assertFalse(is_dirty(tgz))
-
-    def test_broken_package_tgz(self):
-        # https://github.com/conan-io/conan/issues/2854
-        client = TestClient(default_server_user=True)
-        client.save({"conanfile.py": conanfile,
-                     "source.h": "my source"})
-        client.run("create . --user=user --channel=testing")
-        pref = client.get_latest_package_reference(RecipeReference.loads("hello0/1.2.1@user/testing"),
-                                                   NO_SETTINGS_PACKAGE_ID)
-
-        def gzopen_patched(name, mode="r", fileobj=None, **kwargs):
-            if name == PACKAGE_TGZ_NAME:
-                raise ConanException("Error gzopen %s" % name)
-            return gzopen_without_timestamps(name, mode, fileobj, **kwargs)
-        with patch('conan.internal.api.uploader.gzopen_without_timestamps', new=gzopen_patched):
-            client.run("upload * --confirm -r default", assert_error=True)
-            self.assertIn("Error gzopen conan_package.tgz", client.out)
-
-            download_folder = client.get_latest_pkg_layout(pref).download_package()
-            tgz = os.path.join(download_folder, PACKAGE_TGZ_NAME)
-            self.assertTrue(os.path.exists(tgz))
-            self.assertTrue(is_dirty(tgz))
-
-        client.run("upload * --confirm -r default")
-        self.assertIn("WARN: Removing conan_package.tgz, marked as dirty", client.out)
-        self.assertTrue(os.path.exists(tgz))
-        self.assertFalse(is_dirty(tgz))
-
-    def test_corrupt_upload(self):
-        client = TestClient(default_server_user=True)
-
-        client.save({"conanfile.py": conanfile,
-                     "include/hello.h": ""})
-        client.run("create . --user=frodo --channel=stable")
-        package_folder = client.created_layout().package()
-        save(os.path.join(package_folder, "added.txt"), "")
-        os.remove(os.path.join(package_folder, "include/hello.h"))
-        client.run("upload hello0/1.2.1@frodo/stable --check -r default", assert_error=True)
-        self.assertIn("ERROR:     'include/hello.h'", client.out)
-        self.assertIn("ERROR:     'added.txt'", client.out)
-        self.assertIn("ERROR: There are corrupted artifacts, check the error logs", client.out)
-
     @pytest.mark.artifactory_ready
     def test_upload_modified_recipe(self):
         client = TestClient(default_server_user=True)
@@ -268,6 +196,79 @@ class UploadTest(unittest.TestCase):
         self.assertNotIn("Uploaded conan recipe 'hello0/1.2.1@frodo/stable' to 'default'",
                          client.out)
         self.assertIn(f"'{prev1.repr_notime()}' already in server, skipping upload", client2.out)
+
+    def test_pattern_upload_no_recipes(self):
+        client = TestClient(default_server_user=True)
+        client.save({"conanfile.py": conanfile})
+        client.run("upload bogus/*@dummy/testing --confirm -r default", assert_error=True)
+        self.assertIn("No recipes found matching pattern 'bogus/*@dummy/testing'", client.out)
+
+    def test_broken_sources_tgz(self):
+        # https://github.com/conan-io/conan/issues/2854
+        client = TestClient(default_server_user=True)
+        client.save({"conanfile.py": conanfile,
+                     "source.h": "my source"})
+        client.run("create . --user=user --channel=testing")
+        layout = client.exported_layout()
+
+        def gzopen_patched(name, mode="r", fileobj=None, **kwargs):
+            raise ConanException("Error gzopen %s" % name)
+        with patch('conan.internal.api.uploader.gzopen_without_timestamps', new=gzopen_patched):
+            client.run("upload * --confirm -r default --only-recipe",
+                       assert_error=True)
+            self.assertIn("Error gzopen conan_sources.tgz", client.out)
+
+            export_download_folder = layout.download_export()
+
+            tgz = os.path.join(export_download_folder, EXPORT_SOURCES_TGZ_NAME)
+            self.assertTrue(os.path.exists(tgz))
+            self.assertTrue(is_dirty(tgz))
+
+        client.run("upload * --confirm -r default --only-recipe")
+        self.assertIn("Removing conan_sources.tgz, marked as dirty", client.out)
+        self.assertTrue(os.path.exists(tgz))
+        self.assertFalse(is_dirty(tgz))
+
+    def test_broken_package_tgz(self):
+        # https://github.com/conan-io/conan/issues/2854
+        client = TestClient(default_server_user=True)
+        client.save({"conanfile.py": conanfile,
+                     "source.h": "my source"})
+        client.run("create . --user=user --channel=testing")
+        pref = client.get_latest_package_reference(RecipeReference.loads("hello0/1.2.1@user/testing"),
+                                                   NO_SETTINGS_PACKAGE_ID)
+
+        def gzopen_patched(name, mode="r", fileobj=None, **kwargs):
+            if name == PACKAGE_TGZ_NAME:
+                raise ConanException("Error gzopen %s" % name)
+            return gzopen_without_timestamps(name, mode, fileobj, **kwargs)
+        with patch('conan.internal.api.uploader.gzopen_without_timestamps', new=gzopen_patched):
+            client.run("upload * --confirm -r default", assert_error=True)
+            self.assertIn("Error gzopen conan_package.tgz", client.out)
+
+            download_folder = client.get_latest_pkg_layout(pref).download_package()
+            tgz = os.path.join(download_folder, PACKAGE_TGZ_NAME)
+            self.assertTrue(os.path.exists(tgz))
+            self.assertTrue(is_dirty(tgz))
+
+        client.run("upload * --confirm -r default")
+        self.assertIn("WARN: Removing conan_package.tgz, marked as dirty", client.out)
+        self.assertTrue(os.path.exists(tgz))
+        self.assertFalse(is_dirty(tgz))
+
+    def test_corrupt_upload(self):
+        client = TestClient(default_server_user=True)
+
+        client.save({"conanfile.py": conanfile,
+                     "include/hello.h": ""})
+        client.run("create . --user=frodo --channel=stable")
+        package_folder = client.created_layout().package()
+        save(os.path.join(package_folder, "added.txt"), "")
+        os.remove(os.path.join(package_folder, "include/hello.h"))
+        client.run("upload hello0/1.2.1@frodo/stable --check -r default", assert_error=True)
+        self.assertIn("ERROR:     'include/hello.h'", client.out)
+        self.assertIn("ERROR:     'added.txt'", client.out)
+        self.assertIn("ERROR: There are corrupted artifacts, check the error logs", client.out)
 
     def test_upload_no_overwrite_all(self):
         conanfile_new = GenConanfile("hello", "1.0").\
