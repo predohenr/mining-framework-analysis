@@ -2160,64 +2160,6 @@ class BaseModelView(BaseView, ActionsMixin):
             self.column_formatters_detail,  # type: ignore[arg-type]
             self.column_type_formatters_detail,  # type: ignore[arg-type]
         )
-
-    def get_export_value(self, model: T_ORM_MODEL, name: T_COLUMN) -> t.Any:
-        """
-        Returns the value to be displayed in export.
-        Allows export to use different (non HTML) formatters.
-
-        :param model:
-            Model instance
-        :param name:
-            Field name
-        """
-        return self._get_list_value(
-            None,
-            model,
-            name,  # type: ignore[arg-type]
-            self.column_formatters_export,  # type: ignore[arg-type]
-            self.column_type_formatters_export,  # type: ignore[arg-type]
-        )
-
-    def get_export_name(self, export_type: str = "csv") -> str:
-        """
-        :return: The exported csv file name.
-        """
-        filename = "{}_{}.{}".format(
-            self.name,
-            time.strftime("%Y-%m-%d_%H-%M-%S"),
-            export_type,
-        )
-        return filename
-
-    # AJAX references
-    def _process_ajax_references(self) -> dict[str, AjaxModelLoader]:
-        """
-        Process `form_ajax_refs` and generate model loaders that
-        will be used by the `ajax_lookup` view.
-        """
-        result = {}
-
-        if self.form_ajax_refs:
-            for name, options in iteritems(self.form_ajax_refs):
-                if isinstance(options, dict):
-                    result[name] = self._create_ajax_loader(name, options)
-                elif isinstance(options, AjaxModelLoader):
-                    result[name] = options
-                else:
-                    raise ValueError(
-                        f"{self}.form_ajax_refs can not handle {type(options)} types"
-                    )
-
-        return result
-
-    def _create_ajax_loader(self, name: str, options: dict) -> AjaxModelLoader:
-        """
-        Model backend will override this to implement AJAX model loading.
-        """
-        raise NotImplementedError()
-
-    # Views
     @expose("/")
     def index_view(self) -> str:
         """
@@ -2526,6 +2468,146 @@ class BaseModelView(BaseView, ActionsMixin):
         """
         return self.handle_action()
 
+    @expose("/export/<export_type>/")
+    def export(self, export_type: str) -> T_RESPONSE:
+        return_url = get_redirect_target() or self.get_url(".index_view")
+
+        if not self.can_export or (export_type not in self.export_types):
+            flash(gettext("Permission denied."), "error")
+            return redirect(return_url)
+
+        if export_type == "csv":
+            return self._export_csv(return_url)
+        else:
+            return self._export_tablib(export_type, return_url)
+
+    @expose("/ajax/lookup/")
+    def ajax_lookup(self) -> T_RESPONSE:
+        name = request.args.get("name")
+        query = request.args.get("query")
+        offset = request.args.get("offset", type=int)
+        limit = request.args.get("limit", 10, type=int)
+
+        loader = self._form_ajax_refs.get(name)  # type: ignore[arg-type]
+
+        if not loader:
+            abort(404)
+
+        data = [
+            loader.format(m)
+            for m in loader.get_list(
+                query,  # type: ignore[arg-type]
+                offset,  # type: ignore[arg-type]
+                limit,
+            )
+        ]
+        return Response(json.dumps(data), mimetype="application/json")
+
+    @expose("/ajax/update/", methods=("POST",))
+    def ajax_update(self) -> t.Union[None, tuple[str, int], str]:
+        """
+        Edits a single column of a record in list view.
+        """
+        if not self.column_editable_list:
+            abort(404)
+
+        form = self.list_form()
+
+        # prevent validation issues due to submitting a single field
+        # delete all fields except the submitted fields and csrf token
+        for field in list(form):
+            if (field.name in request.form) or (field.name == "csrf_token"):
+                pass
+            else:
+                form.__delitem__(field.name)
+
+        if self.validate_form(form):
+            pk = form.list_form_pk.data  # type: ignore[attr-defined]
+            record = self.get_one(pk)
+
+            if record is None:
+                return gettext("Record does not exist."), 500
+
+            record = record
+            if self.update_model(form, record):
+                # Success
+                return gettext("Record was successfully saved.")
+            else:
+                # Error: No records changed, or problem saving to database.
+                msgs = ", ".join([msg for msg in get_flashed_messages()])
+                return gettext("Failed to update record. %(error)s", error=msgs), 500
+        else:
+            for field in form:
+                for error in field.errors:
+                    # return validation error to x-editable
+                    if isinstance(error, list):
+                        return gettext(
+                            "Failed to update record. %(error)s", error=", ".join(error)
+                        ), 500
+                    else:
+                        return gettext(
+                            "Failed to update record. %(error)s", error=error
+                        ), 500
+        return None
+
+    def get_export_value(self, model: T_ORM_MODEL, name: T_COLUMN) -> t.Any:
+        """
+        Returns the value to be displayed in export.
+        Allows export to use different (non HTML) formatters.
+
+        :param model:
+            Model instance
+        :param name:
+            Field name
+        """
+        return self._get_list_value(
+            None,
+            model,
+            name,  # type: ignore[arg-type]
+            self.column_formatters_export,  # type: ignore[arg-type]
+            self.column_type_formatters_export,  # type: ignore[arg-type]
+        )
+
+    def get_export_name(self, export_type: str = "csv") -> str:
+        """
+        :return: The exported csv file name.
+        """
+        filename = "{}_{}.{}".format(
+            self.name,
+            time.strftime("%Y-%m-%d_%H-%M-%S"),
+            export_type,
+        )
+        return filename
+
+    # AJAX references
+    def _process_ajax_references(self) -> dict[str, AjaxModelLoader]:
+        """
+        Process `form_ajax_refs` and generate model loaders that
+        will be used by the `ajax_lookup` view.
+        """
+        result = {}
+
+        if self.form_ajax_refs:
+            for name, options in iteritems(self.form_ajax_refs):
+                if isinstance(options, dict):
+                    result[name] = self._create_ajax_loader(name, options)
+                elif isinstance(options, AjaxModelLoader):
+                    result[name] = options
+                else:
+                    raise ValueError(
+                        f"{self}.form_ajax_refs can not handle {type(options)} types"
+                    )
+
+        return result
+
+    def _create_ajax_loader(self, name: str, options: dict) -> AjaxModelLoader:
+        """
+        Model backend will override this to implement AJAX model loading.
+        """
+        raise NotImplementedError()
+
+    # Views
+
     def _export_data(self) -> tuple[int, list]:
         # Macros in column_formatters are not supported.
         # Macros will have a function name 'inner'
@@ -2565,19 +2647,6 @@ class BaseModelView(BaseView, ActionsMixin):
         )
 
         return count, data
-
-    @expose("/export/<export_type>/")
-    def export(self, export_type: str) -> T_RESPONSE:
-        return_url = get_redirect_target() or self.get_url(".index_view")
-
-        if not self.can_export or (export_type not in self.export_types):
-            flash(gettext("Permission denied."), "error")
-            return redirect(return_url)
-
-        if export_type == "csv":
-            return self._export_csv(return_url)
-        else:
-            return self._export_tablib(export_type, return_url)
 
     def _export_csv(self, return_url: t.Any) -> T_RESPONSE:
         """
@@ -2671,72 +2740,3 @@ class BaseModelView(BaseView, ActionsMixin):
             headers={"Content-Disposition": disposition},
             mimetype=mimetype,
         )
-
-    @expose("/ajax/lookup/")
-    def ajax_lookup(self) -> T_RESPONSE:
-        name = request.args.get("name")
-        query = request.args.get("query")
-        offset = request.args.get("offset", type=int)
-        limit = request.args.get("limit", 10, type=int)
-
-        loader = self._form_ajax_refs.get(name)  # type: ignore[arg-type]
-
-        if not loader:
-            abort(404)
-
-        data = [
-            loader.format(m)
-            for m in loader.get_list(
-                query,  # type: ignore[arg-type]
-                offset,  # type: ignore[arg-type]
-                limit,
-            )
-        ]
-        return Response(json.dumps(data), mimetype="application/json")
-
-    @expose("/ajax/update/", methods=("POST",))
-    def ajax_update(self) -> t.Union[None, tuple[str, int], str]:
-        """
-        Edits a single column of a record in list view.
-        """
-        if not self.column_editable_list:
-            abort(404)
-
-        form = self.list_form()
-
-        # prevent validation issues due to submitting a single field
-        # delete all fields except the submitted fields and csrf token
-        for field in list(form):
-            if (field.name in request.form) or (field.name == "csrf_token"):
-                pass
-            else:
-                form.__delitem__(field.name)
-
-        if self.validate_form(form):
-            pk = form.list_form_pk.data  # type: ignore[attr-defined]
-            record = self.get_one(pk)
-
-            if record is None:
-                return gettext("Record does not exist."), 500
-
-            record = record
-            if self.update_model(form, record):
-                # Success
-                return gettext("Record was successfully saved.")
-            else:
-                # Error: No records changed, or problem saving to database.
-                msgs = ", ".join([msg for msg in get_flashed_messages()])
-                return gettext("Failed to update record. %(error)s", error=msgs), 500
-        else:
-            for field in form:
-                for error in field.errors:
-                    # return validation error to x-editable
-                    if isinstance(error, list):
-                        return gettext(
-                            "Failed to update record. %(error)s", error=", ".join(error)
-                        ), 500
-                    else:
-                        return gettext(
-                            "Failed to update record. %(error)s", error=error
-                        ), 500
-        return None
