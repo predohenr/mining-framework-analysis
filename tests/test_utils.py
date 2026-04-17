@@ -158,62 +158,6 @@ def test_unstyle_other_ansi(text, expect):
     assert click.unstyle(text) == expect
 
 
-def test_filename_formatting():
-    assert click.format_filename(b"foo.txt") == "foo.txt"
-    assert click.format_filename(b"/x/foo.txt") == "/x/foo.txt"
-    assert click.format_filename("/x/foo.txt") == "/x/foo.txt"
-    assert click.format_filename("/x/foo.txt", shorten=True) == "foo.txt"
-    assert click.format_filename("/x/\ufffd.txt", shorten=True) == "�.txt"
-
-
-def test_prompts(runner):
-    @click.command()
-    def test():
-        if click.confirm("Foo"):
-            click.echo("yes!")
-        else:
-            click.echo("no :(")
-
-    result = runner.invoke(test, input="y\n")
-    assert not result.exception
-    assert result.output == "Foo [y/N]: y\nyes!\n"
-
-    result = runner.invoke(test, input="\n")
-    assert not result.exception
-    assert result.output == "Foo [y/N]: \nno :(\n"
-
-    result = runner.invoke(test, input="n\n")
-    assert not result.exception
-    assert result.output == "Foo [y/N]: n\nno :(\n"
-
-    @click.command()
-    def test_no():
-        if click.confirm("Foo", default=True):
-            click.echo("yes!")
-        else:
-            click.echo("no :(")
-
-    result = runner.invoke(test_no, input="y\n")
-    assert not result.exception
-    assert result.output == "Foo [Y/n]: y\nyes!\n"
-
-    result = runner.invoke(test_no, input="\n")
-    assert not result.exception
-    assert result.output == "Foo [Y/n]: \nyes!\n"
-
-    result = runner.invoke(test_no, input="n\n")
-    assert not result.exception
-    assert result.output == "Foo [Y/n]: n\nno :(\n"
-
-
-def test_confirm_repeat(runner):
-    cli = click.Command(
-        "cli", params=[click.Option(["--a/--no-a"], default=None, prompt=True)]
-    )
-    result = runner.invoke(cli, input="\ny\n")
-    assert result.output == "A [y/n]: \nError: invalid input\nA [y/n]: y\n"
-
-
 @pytest.mark.skipif(WIN, reason="Different behavior on windows.")
 def test_prompts_abort(monkeypatch, capsys):
     def f(_):
@@ -228,55 +172,6 @@ def test_prompts_abort(monkeypatch, capsys):
 
     out, err = capsys.readouterr()
     assert out == "Password:\ninterrupted\n"
-
-
-def test_prompts_eof(runner):
-    """If too few lines of input are given, prompt should exit, not hang."""
-
-    @click.command
-    def echo():
-        for _ in range(3):
-            click.echo(click.prompt("", type=int))
-
-    # only provide two lines of input for three prompts
-    result = runner.invoke(echo, input="1\n2\n")
-    assert result.exit_code == 1
-
-
-def _test_gen_func():
-    yield "a"
-    yield "b"
-    yield "c"
-    yield "abc"
-
-
-def _test_gen_func_fails():
-    yield "test"
-    raise RuntimeError("This is a test.")
-
-
-def _test_gen_func_echo(file=None):
-    yield "test"
-    click.echo("hello", file=file)
-    yield "test"
-
-
-def _test_simulate_keyboard_interrupt(file=None):
-    yield "output_before_keyboard_interrupt"
-    raise KeyboardInterrupt()
-
-
-EchoViaPagerTest = namedtuple(
-    "EchoViaPagerTest",
-    (
-        "description",
-        "test_input",
-        "expected_pager",
-        "expected_stdout",
-        "expected_stderr",
-        "expected_error",
-    ),
-)
 
 
 @pytest.mark.skipif(WIN, reason="Different behavior on windows.")
@@ -418,47 +313,6 @@ def test_echo_via_pager(monkeypatch, capfd, pager_cmd, test):
     )
 
 
-def test_echo_color_flag(monkeypatch, capfd):
-    isatty = True
-    monkeypatch.setattr(click._compat, "isatty", lambda x: isatty)
-
-    text = "foo"
-    styled_text = click.style(text, fg="red")
-    assert styled_text == "\x1b[31mfoo\x1b[0m"
-
-    click.echo(styled_text, color=False)
-    out, err = capfd.readouterr()
-    assert out == f"{text}\n"
-
-    click.echo(styled_text, color=True)
-    out, err = capfd.readouterr()
-    assert out == f"{styled_text}\n"
-
-    isatty = True
-    click.echo(styled_text)
-    out, err = capfd.readouterr()
-    assert out == f"{styled_text}\n"
-
-    isatty = False
-    # Faking isatty() is not enough on Windows;
-    # the implementation caches the colorama wrapped stream
-    # so we have to use a new stream for each test
-    stream = StringIO()
-    click.echo(styled_text, file=stream)
-    assert stream.getvalue() == f"{text}\n"
-
-    stream = StringIO()
-    click.echo(styled_text, file=stream, color=True)
-    assert stream.getvalue() == f"{styled_text}\n"
-
-
-def test_prompt_cast_default(capfd, monkeypatch):
-    monkeypatch.setattr(sys, "stdin", StringIO("\n"))
-    value = click.prompt("value", default="100", type=int)
-    capfd.readouterr()
-    assert isinstance(value, int)
-
-
 @pytest.mark.skipif(WIN, reason="Test too complex to make work windows.")
 def test_echo_writing_to_standard_error(capfd, monkeypatch):
     def emulate_input(text):
@@ -535,6 +389,241 @@ def test_echo_writing_to_standard_error(capfd, monkeypatch):
     out, err = capfd.readouterr()
     assert out == ""
     assert err == "Pause to stderr\n"
+
+
+@pytest.mark.skipif(WIN, reason="os.chmod() is not fully supported on Windows.")
+@pytest.mark.parametrize("permissions", [0o400, 0o444, 0o600, 0o644])
+def test_open_file_atomic_permissions_existing_file(runner, permissions):
+    with runner.isolated_filesystem():
+        with open("existing.txt", "w") as f:
+            f.write("content")
+        os.chmod("existing.txt", permissions)
+
+        @click.command()
+        @click.argument("filename")
+        def cli(filename):
+            click.open_file(filename, "w", atomic=True).close()
+
+        result = runner.invoke(cli, ["existing.txt"])
+        assert result.exception is None
+        assert stat.S_IMODE(os.stat("existing.txt").st_mode) == permissions
+
+
+@pytest.mark.skipif(WIN, reason="os.stat() is not fully supported on Windows.")
+def test_open_file_atomic_permissions_new_file(runner):
+    with runner.isolated_filesystem():
+
+        @click.command()
+        @click.argument("filename")
+        def cli(filename):
+            click.open_file(filename, "w", atomic=True).close()
+
+        # Create a test file to get the expected permissions for new files
+        # according to the current umask.
+        with open("test.txt", "w"):
+            pass
+        permissions = stat.S_IMODE(os.stat("test.txt").st_mode)
+
+        result = runner.invoke(cli, ["new.txt"])
+        assert result.exception is None
+        assert stat.S_IMODE(os.stat("new.txt").st_mode) == permissions
+
+
+@pytest.mark.parametrize(
+    ("path", "main", "expected"),
+    [
+        ("example.py", None, "example.py"),
+        (str(pathlib.Path("/foo/bar/example.py")), None, "example.py"),
+        ("example", None, "example"),
+        (str(pathlib.Path("example/__main__.py")), "example", "python -m example"),
+        (str(pathlib.Path("example/cli.py")), "example", "python -m example.cli"),
+        (str(pathlib.Path("./example")), "", "example"),
+    ],
+)
+def test_detect_program_name(path, main, expected):
+    assert click.utils._detect_program_name(path, _main=MockMain(main)) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "max_length", "expect"),
+    [
+        pytest.param("", 10, "", id="empty"),
+        pytest.param("123 567 90", 10, "123 567 90", id="equal length, no dot"),
+        pytest.param("123 567 9. aaaa bbb", 10, "123 567 9.", id="sentence < max"),
+        pytest.param("123 567\n\n 9. aaaa bbb", 10, "123 567", id="paragraph < max"),
+        pytest.param("123 567 90123.", 10, "123 567...", id="truncate"),
+        pytest.param("123 5678 xxxxxx", 10, "123...", id="length includes suffix"),
+        pytest.param(
+            "token in ~/.netrc ciao ciao",
+            20,
+            "token in ~/.netrc...",
+            id="ignore dot in word",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "alter",
+    [
+        pytest.param(None, id=""),
+        pytest.param(
+            lambda text: "\n\b\n" + "  ".join(text.split(" ")) + "\n", id="no-wrap mark"
+        ),
+    ],
+)
+def test_make_default_short_help(value, max_length, alter, expect):
+    assert len(expect) <= max_length
+
+    if alter:
+        value = alter(value)
+
+    out = click.utils.make_default_short_help(value, max_length)
+    assert out == expect
+
+
+def test_filename_formatting():
+    assert click.format_filename(b"foo.txt") == "foo.txt"
+    assert click.format_filename(b"/x/foo.txt") == "/x/foo.txt"
+    assert click.format_filename("/x/foo.txt") == "/x/foo.txt"
+    assert click.format_filename("/x/foo.txt", shorten=True) == "foo.txt"
+    assert click.format_filename("/x/\ufffd.txt", shorten=True) == "�.txt"
+
+
+def test_prompts(runner):
+    @click.command()
+    def test():
+        if click.confirm("Foo"):
+            click.echo("yes!")
+        else:
+            click.echo("no :(")
+
+    result = runner.invoke(test, input="y\n")
+    assert not result.exception
+    assert result.output == "Foo [y/N]: y\nyes!\n"
+
+    result = runner.invoke(test, input="\n")
+    assert not result.exception
+    assert result.output == "Foo [y/N]: \nno :(\n"
+
+    result = runner.invoke(test, input="n\n")
+    assert not result.exception
+    assert result.output == "Foo [y/N]: n\nno :(\n"
+
+    @click.command()
+    def test_no():
+        if click.confirm("Foo", default=True):
+            click.echo("yes!")
+        else:
+            click.echo("no :(")
+
+    result = runner.invoke(test_no, input="y\n")
+    assert not result.exception
+    assert result.output == "Foo [Y/n]: y\nyes!\n"
+
+    result = runner.invoke(test_no, input="\n")
+    assert not result.exception
+    assert result.output == "Foo [Y/n]: \nyes!\n"
+
+    result = runner.invoke(test_no, input="n\n")
+    assert not result.exception
+    assert result.output == "Foo [Y/n]: n\nno :(\n"
+
+
+def test_confirm_repeat(runner):
+    cli = click.Command(
+        "cli", params=[click.Option(["--a/--no-a"], default=None, prompt=True)]
+    )
+    result = runner.invoke(cli, input="\ny\n")
+    assert result.output == "A [y/n]: \nError: invalid input\nA [y/n]: y\n"
+
+
+def test_prompts_eof(runner):
+    """If too few lines of input are given, prompt should exit, not hang."""
+
+    @click.command
+    def echo():
+        for _ in range(3):
+            click.echo(click.prompt("", type=int))
+
+    # only provide two lines of input for three prompts
+    result = runner.invoke(echo, input="1\n2\n")
+    assert result.exit_code == 1
+
+
+def _test_gen_func():
+    yield "a"
+    yield "b"
+    yield "c"
+    yield "abc"
+
+
+def _test_gen_func_fails():
+    yield "test"
+    raise RuntimeError("This is a test.")
+
+
+def _test_gen_func_echo(file=None):
+    yield "test"
+    click.echo("hello", file=file)
+    yield "test"
+
+
+def _test_simulate_keyboard_interrupt(file=None):
+    yield "output_before_keyboard_interrupt"
+    raise KeyboardInterrupt()
+
+
+EchoViaPagerTest = namedtuple(
+    "EchoViaPagerTest",
+    (
+        "description",
+        "test_input",
+        "expected_pager",
+        "expected_stdout",
+        "expected_stderr",
+        "expected_error",
+    ),
+)
+
+
+def test_echo_color_flag(monkeypatch, capfd):
+    isatty = True
+    monkeypatch.setattr(click._compat, "isatty", lambda x: isatty)
+
+    text = "foo"
+    styled_text = click.style(text, fg="red")
+    assert styled_text == "\x1b[31mfoo\x1b[0m"
+
+    click.echo(styled_text, color=False)
+    out, err = capfd.readouterr()
+    assert out == f"{text}\n"
+
+    click.echo(styled_text, color=True)
+    out, err = capfd.readouterr()
+    assert out == f"{styled_text}\n"
+
+    isatty = True
+    click.echo(styled_text)
+    out, err = capfd.readouterr()
+    assert out == f"{styled_text}\n"
+
+    isatty = False
+    # Faking isatty() is not enough on Windows;
+    # the implementation caches the colorama wrapped stream
+    # so we have to use a new stream for each test
+    stream = StringIO()
+    click.echo(styled_text, file=stream)
+    assert stream.getvalue() == f"{text}\n"
+
+    stream = StringIO()
+    click.echo(styled_text, file=stream, color=True)
+    assert stream.getvalue() == f"{styled_text}\n"
+
+
+def test_prompt_cast_default(capfd, monkeypatch):
+    monkeypatch.setattr(sys, "stdin", StringIO("\n"))
+    value = click.prompt("value", default="100", type=int)
+    capfd.readouterr()
+    assert isinstance(value, int)
 
 
 def test_echo_with_capsys(capsys):
@@ -619,44 +708,6 @@ def test_open_file_ignore_no_encoding(runner):
             f.read()
 
 
-@pytest.mark.skipif(WIN, reason="os.chmod() is not fully supported on Windows.")
-@pytest.mark.parametrize("permissions", [0o400, 0o444, 0o600, 0o644])
-def test_open_file_atomic_permissions_existing_file(runner, permissions):
-    with runner.isolated_filesystem():
-        with open("existing.txt", "w") as f:
-            f.write("content")
-        os.chmod("existing.txt", permissions)
-
-        @click.command()
-        @click.argument("filename")
-        def cli(filename):
-            click.open_file(filename, "w", atomic=True).close()
-
-        result = runner.invoke(cli, ["existing.txt"])
-        assert result.exception is None
-        assert stat.S_IMODE(os.stat("existing.txt").st_mode) == permissions
-
-
-@pytest.mark.skipif(WIN, reason="os.stat() is not fully supported on Windows.")
-def test_open_file_atomic_permissions_new_file(runner):
-    with runner.isolated_filesystem():
-
-        @click.command()
-        @click.argument("filename")
-        def cli(filename):
-            click.open_file(filename, "w", atomic=True).close()
-
-        # Create a test file to get the expected permissions for new files
-        # according to the current umask.
-        with open("test.txt", "w"):
-            pass
-        permissions = stat.S_IMODE(os.stat("test.txt").st_mode)
-
-        result = runner.invoke(cli, ["new.txt"])
-        assert result.exception is None
-        assert stat.S_IMODE(os.stat("new.txt").st_mode) == permissions
-
-
 def test_iter_keepopenfile(tmpdir):
     expected = list(map(str, range(10)))
     p = tmpdir.mkdir("testdir").join("testfile")
@@ -683,21 +734,6 @@ class MockMain:
         self.__package__ = package_name
 
 
-@pytest.mark.parametrize(
-    ("path", "main", "expected"),
-    [
-        ("example.py", None, "example.py"),
-        (str(pathlib.Path("/foo/bar/example.py")), None, "example.py"),
-        ("example", None, "example"),
-        (str(pathlib.Path("example/__main__.py")), "example", "python -m example"),
-        (str(pathlib.Path("example/cli.py")), "example", "python -m example.cli"),
-        (str(pathlib.Path("./example")), "", "example"),
-    ],
-)
-def test_detect_program_name(path, main, expected):
-    assert click.utils._detect_program_name(path, _main=MockMain(main)) == expected
-
-
 def test_expand_args(monkeypatch):
     user = os.path.expanduser("~")
     assert user in click.utils._expand_args(["~"])
@@ -708,39 +744,3 @@ def test_expand_args(monkeypatch):
     assert "*.not-found" in click.utils._expand_args(["*.not-found"])
     # a bad glob pattern, such as a pytest identifier, should return itself
     assert click.utils._expand_args(["test.py::test_bad"])[0] == "test.py::test_bad"
-
-
-@pytest.mark.parametrize(
-    ("value", "max_length", "expect"),
-    [
-        pytest.param("", 10, "", id="empty"),
-        pytest.param("123 567 90", 10, "123 567 90", id="equal length, no dot"),
-        pytest.param("123 567 9. aaaa bbb", 10, "123 567 9.", id="sentence < max"),
-        pytest.param("123 567\n\n 9. aaaa bbb", 10, "123 567", id="paragraph < max"),
-        pytest.param("123 567 90123.", 10, "123 567...", id="truncate"),
-        pytest.param("123 5678 xxxxxx", 10, "123...", id="length includes suffix"),
-        pytest.param(
-            "token in ~/.netrc ciao ciao",
-            20,
-            "token in ~/.netrc...",
-            id="ignore dot in word",
-        ),
-    ],
-)
-@pytest.mark.parametrize(
-    "alter",
-    [
-        pytest.param(None, id=""),
-        pytest.param(
-            lambda text: "\n\b\n" + "  ".join(text.split(" ")) + "\n", id="no-wrap mark"
-        ),
-    ],
-)
-def test_make_default_short_help(value, max_length, alter, expect):
-    assert len(expect) <= max_length
-
-    if alter:
-        value = alter(value)
-
-    out = click.utils.make_default_short_help(value, max_length)
-    assert out == expect
