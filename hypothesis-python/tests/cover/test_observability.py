@@ -63,6 +63,11 @@ from tests.common.utils import (
     capture_observations,
     checks_deprecated_behaviour,
     run_concurrently,
+    xfail_on_crosshair,
+)
+from tests.common.utils import (
+    Why,
+    capture_observations,
     skipif_threading,
     xfail_on_crosshair,
 )
@@ -166,65 +171,6 @@ def test_failure_includes_explain_phase_comments():
     assert test_cases[-1].representation == expected
 
 
-def test_failure_includes_notes():
-    @given(st.data())
-    @settings(database=None)
-    def test_fails_with_note(data):
-        note("not included 1")
-        data.draw(st.booleans())
-        note("not included 2")
-        raise AssertionError
-
-    with capture_observations() as observations:
-        # NOTE: For compatibility with Python 3.9's LL(1)
-        # parser, this is written as a nested with-statement,
-        # instead of a compound one.
-        with pytest.raises(AssertionError):
-            test_fails_with_note()
-
-    expected = textwrap.dedent(
-        """
-        test_fails_with_note(
-            data=data(...),
-        )
-        Draw 1: False
-    """
-    ).strip()
-    test_cases = [tc for tc in observations if tc.type == "test_case"]
-    assert test_cases[-1].representation == expected
-
-
-def test_normal_representation_includes_draws():
-    @given(st.data())
-    def f(data):
-        b1 = data.draw(st.booleans())
-        note("not included")
-        b2 = data.draw(st.booleans(), label="second")
-        assume(b1 and b2)
-
-    with capture_observations() as observations:
-        f()
-
-    crosshair = settings._current_profile == "crosshair"
-    expected = textwrap.dedent(
-        f"""
-        f(
-            data={'<symbolic>' if crosshair else 'data(...)'},
-        )
-        Draw 1: True
-        Draw 2 (second): True
-    """
-    ).strip()
-    test_cases = [
-        tc for tc in observations if tc.type == "test_case" and tc.status == "passed"
-    ]
-    assert test_cases
-    # TODO crosshair has a soundness bug with assume. remove branch when fixed
-    # https://github.com/pschanely/hypothesis-crosshair/issues/34
-    if not crosshair:
-        assert {tc.representation for tc in test_cases} == {expected}
-
-
 @xfail_on_crosshair(Why.other)
 def test_capture_named_arguments():
     @given(named1=st.integers(), named2=st.floats(), data=st.data())
@@ -242,19 +188,6 @@ def test_capture_named_arguments():
             "data",
             "Draw 1",
         ], test_case
-
-
-def test_assume_has_status_reason():
-    @given(st.booleans())
-    def f(b):
-        assume(b)
-
-    with capture_observations() as ls:
-        f()
-
-    gave_ups = [t for t in ls if t.type == "test_case" and t.status == "gave_up"]
-    for gave_up in gave_ups:
-        assert gave_up.status_reason.startswith("failed to satisfy assume() in f")
 
 
 @pytest.mark.skipif(
@@ -328,23 +261,6 @@ def test_all_failing_observations_have_reproduction_decorator():
         assert decorator.startswith("@reproduce_failure")
 
 
-@settings(max_examples=20, stateful_step_count=5)
-class UltraSimpleMachine(RuleBasedStateMachine):
-    value = 0
-
-    @rule()
-    def inc(self):
-        self.value += 1
-
-    @rule()
-    def dec(self):
-        self.value -= 1
-
-    @invariant()
-    def limits(self):
-        assert abs(self.value) <= 100
-
-
 @xfail_on_crosshair(Why.other, strict=False)
 def test_observability_captures_stateful_reprs():
     with capture_observations() as ls:
@@ -362,10 +278,6 @@ def test_observability_captures_stateful_reprs():
         has_inc = "generate:rule:inc" in t and "execute:rule:inc" in t
         has_dec = "generate:rule:dec" in t and "execute:rule:dec" in t
         assert has_inc or has_dec
-
-
-# BytestringProvider.draw_boolean divides [0, 127] as False and [128, 255]
-# as True
 @pytest.mark.parametrize(
     "buffer, expected_status",
     [
@@ -400,82 +312,6 @@ def test_fuzz_one_input_status(buffer, expected_status):
     assert len(ls) == 1
     assert ls[0].status == expected_status
     assert ls[0].how_generated == "fuzz_one_input"
-
-
-def _decode_choice(value):
-    if isinstance(value, list):
-        if value[0] == "integer":
-            # large integers get cast to string, stored as ["integer", str(value)]
-            assert isinstance(value[1], str)
-            return int(value[1])
-        elif value[0] == "bytes":
-            assert isinstance(value[1], str)
-            return base64.b64decode(value[1])
-        elif value[0] == "float":
-            assert isinstance(value[1], int)
-            choice = int_to_float(value[1])
-            assert math.isnan(choice)
-            return choice
-        else:
-            return value[1]
-
-    return value
-
-
-def _decode_choices(data):
-    return [_decode_choice(value) for value in data]
-
-
-def _decode_nodes(data):
-    return [
-        ChoiceNode(
-            type=node["type"],
-            value=_decode_choice(node["value"]),
-            constraints=_decode_constraints(node["type"], node["constraints"]),
-            was_forced=node["was_forced"],
-        )
-        for node in data
-    ]
-
-
-def _decode_constraints(choice_type, data):
-    if choice_type == "integer":
-        return {
-            "min_value": _decode_choice(data["min_value"]),
-            "max_value": _decode_choice(data["max_value"]),
-            "weights": (
-                None
-                if data["weights"] is None
-                else {_decode_choice(k): v for k, v in data["weights"]}
-            ),
-            "shrink_towards": _decode_choice(data["shrink_towards"]),
-        }
-    elif choice_type == "float":
-        return {
-            "min_value": _decode_choice(data["min_value"]),
-            "max_value": _decode_choice(data["max_value"]),
-            "allow_nan": data["allow_nan"],
-            "smallest_nonzero_magnitude": data["smallest_nonzero_magnitude"],
-        }
-    elif choice_type == "string":
-        return {
-            "intervals": IntervalSet(tuple(data["intervals"])),
-            "min_size": _decode_choice(data["min_size"]),
-            "max_size": _decode_choice(data["max_size"]),
-        }
-    elif choice_type == "bytes":
-        return {
-            "min_size": _decode_choice(data["min_size"]),
-            "max_size": _decode_choice(data["max_size"]),
-        }
-    elif choice_type == "boolean":
-        return {"p": data["p"]}
-    else:
-        raise ValueError(f"unknown choice type {choice_type}")
-
-
-def _has_surrogate(choice):
-    return isinstance(choice, str) and any(0xD800 <= ord(c) <= 0xDFFF for c in choice)
 
 
 @example([0.0])
@@ -555,6 +391,215 @@ def test_choice_nodes_to_json_explicit(choice_node, expected):
     assert nodes_to_json([choice_node]) == [expected]
 
 
+@contextlib.contextmanager
+def restore_callbacks():
+    callbacks = hypothesis.internal.observability._callbacks.copy()
+    callbacks_all = hypothesis.internal.observability._callbacks_all_threads.copy()
+    try:
+        yield
+    finally:
+        hypothesis.internal.observability._callbacks = callbacks
+        hypothesis.internal.observability._callbacks_all_threads = callbacks_all
+
+
+@contextlib.contextmanager
+def with_collect_coverage(*, value: bool):
+    original_value = hypothesis.internal.observability.OBSERVABILITY_COLLECT_COVERAGE
+    hypothesis.internal.observability.OBSERVABILITY_COLLECT_COVERAGE = value
+    try:
+        yield
+    finally:
+        hypothesis.internal.observability.OBSERVABILITY_COLLECT_COVERAGE = (
+            original_value
+        )
+
+
+@checks_deprecated_behaviour
+def test_testcase_callbacks_deprecation_bool():
+    bool(TESTCASE_CALLBACKS)
+
+
+@checks_deprecated_behaviour
+def test_testcase_callbacks_deprecation_append():
+    with restore_callbacks():
+        TESTCASE_CALLBACKS.append(lambda x: None)
+
+
+@checks_deprecated_behaviour
+def test_testcase_callbacks_deprecation_remove():
+    with restore_callbacks():
+        TESTCASE_CALLBACKS.remove(lambda x: None)
+
+
+def test_failure_includes_notes():
+    @given(st.data())
+    @settings(database=None)
+    def test_fails_with_note(data):
+        note("not included 1")
+        data.draw(st.booleans())
+        note("not included 2")
+        raise AssertionError
+
+    with capture_observations() as observations:
+        # NOTE: For compatibility with Python 3.9's LL(1)
+        # parser, this is written as a nested with-statement,
+        # instead of a compound one.
+        with pytest.raises(AssertionError):
+            test_fails_with_note()
+
+    expected = textwrap.dedent(
+        """
+        test_fails_with_note(
+            data=data(...),
+        )
+        Draw 1: False
+    """
+    ).strip()
+    test_cases = [tc for tc in observations if tc.type == "test_case"]
+    assert test_cases[-1].representation == expected
+
+
+def test_normal_representation_includes_draws():
+    @given(st.data())
+    def f(data):
+        b1 = data.draw(st.booleans())
+        note("not included")
+        b2 = data.draw(st.booleans(), label="second")
+        assume(b1 and b2)
+
+    with capture_observations() as observations:
+        f()
+
+    crosshair = settings._current_profile == "crosshair"
+    expected = textwrap.dedent(
+        f"""
+        f(
+            data={'<symbolic>' if crosshair else 'data(...)'},
+        )
+        Draw 1: True
+        Draw 2 (second): True
+    """
+    ).strip()
+    test_cases = [
+        tc for tc in observations if tc.type == "test_case" and tc.status == "passed"
+    ]
+    assert test_cases
+    # TODO crosshair has a soundness bug with assume. remove branch when fixed
+    # https://github.com/pschanely/hypothesis-crosshair/issues/34
+    if not crosshair:
+        assert {tc.representation for tc in test_cases} == {expected}
+
+
+def test_assume_has_status_reason():
+    @given(st.booleans())
+    def f(b):
+        assume(b)
+
+    with capture_observations() as ls:
+        f()
+
+    gave_ups = [t for t in ls if t.type == "test_case" and t.status == "gave_up"]
+    for gave_up in gave_ups:
+        assert gave_up.status_reason.startswith("failed to satisfy assume() in f")
+
+
+@settings(max_examples=20, stateful_step_count=5)
+class UltraSimpleMachine(RuleBasedStateMachine):
+    value = 0
+
+    @rule()
+    def inc(self):
+        self.value += 1
+
+    @rule()
+    def dec(self):
+        self.value -= 1
+
+    @invariant()
+    def limits(self):
+        assert abs(self.value) <= 100
+
+
+# BytestringProvider.draw_boolean divides [0, 127] as False and [128, 255]
+# as True
+
+
+def _decode_choice(value):
+    if isinstance(value, list):
+        if value[0] == "integer":
+            # large integers get cast to string, stored as ["integer", str(value)]
+            assert isinstance(value[1], str)
+            return int(value[1])
+        elif value[0] == "bytes":
+            assert isinstance(value[1], str)
+            return base64.b64decode(value[1])
+        elif value[0] == "float":
+            assert isinstance(value[1], int)
+            choice = int_to_float(value[1])
+            assert math.isnan(choice)
+            return choice
+        else:
+            return value[1]
+
+    return value
+
+
+def _decode_choices(data):
+    return [_decode_choice(value) for value in data]
+
+
+def _decode_nodes(data):
+    return [
+        ChoiceNode(
+            type=node["type"],
+            value=_decode_choice(node["value"]),
+            constraints=_decode_constraints(node["type"], node["constraints"]),
+            was_forced=node["was_forced"],
+        )
+        for node in data
+    ]
+
+
+def _decode_constraints(choice_type, data):
+    if choice_type == "integer":
+        return {
+            "min_value": _decode_choice(data["min_value"]),
+            "max_value": _decode_choice(data["max_value"]),
+            "weights": (
+                None
+                if data["weights"] is None
+                else {_decode_choice(k): v for k, v in data["weights"]}
+            ),
+            "shrink_towards": _decode_choice(data["shrink_towards"]),
+        }
+    elif choice_type == "float":
+        return {
+            "min_value": _decode_choice(data["min_value"]),
+            "max_value": _decode_choice(data["max_value"]),
+            "allow_nan": data["allow_nan"],
+            "smallest_nonzero_magnitude": data["smallest_nonzero_magnitude"],
+        }
+    elif choice_type == "string":
+        return {
+            "intervals": IntervalSet(tuple(data["intervals"])),
+            "min_size": _decode_choice(data["min_size"]),
+            "max_size": _decode_choice(data["max_size"]),
+        }
+    elif choice_type == "bytes":
+        return {
+            "min_size": _decode_choice(data["min_size"]),
+            "max_size": _decode_choice(data["max_size"]),
+        }
+    elif choice_type == "boolean":
+        return {"p": data["p"]}
+    else:
+        raise ValueError(f"unknown choice type {choice_type}")
+
+
+def _has_surrogate(choice):
+    return isinstance(choice, str) and any(0xD800 <= ord(c) <= 0xDFFF for c in choice)
+
+
 def test_metadata_to_json():
     # this is mostly a covering test than testing anything particular about
     # ObservationMetadata.
@@ -588,29 +633,6 @@ def test_metadata_to_json():
             assert isinstance(span, Span)
             assert 0 <= span.start <= len(observation.metadata.choice_nodes)
             assert 0 <= span.end <= len(observation.metadata.choice_nodes)
-
-
-@contextlib.contextmanager
-def restore_callbacks():
-    callbacks = hypothesis.internal.observability._callbacks.copy()
-    callbacks_all = hypothesis.internal.observability._callbacks_all_threads.copy()
-    try:
-        yield
-    finally:
-        hypothesis.internal.observability._callbacks = callbacks
-        hypothesis.internal.observability._callbacks_all_threads = callbacks_all
-
-
-@contextlib.contextmanager
-def with_collect_coverage(*, value: bool):
-    original_value = hypothesis.internal.observability.OBSERVABILITY_COLLECT_COVERAGE
-    hypothesis.internal.observability.OBSERVABILITY_COLLECT_COVERAGE = value
-    try:
-        yield
-    finally:
-        hypothesis.internal.observability.OBSERVABILITY_COLLECT_COVERAGE = (
-            original_value
-        )
 
 
 def _callbacks():
@@ -681,23 +703,6 @@ def test_observability_callbacks_all_threads():
         assert hypothesis.internal.observability._callbacks_all_threads == []
         assert _callbacks() == {}
         assert not observability_enabled()
-
-
-@checks_deprecated_behaviour
-def test_testcase_callbacks_deprecation_bool():
-    bool(TESTCASE_CALLBACKS)
-
-
-@checks_deprecated_behaviour
-def test_testcase_callbacks_deprecation_append():
-    with restore_callbacks():
-        TESTCASE_CALLBACKS.append(lambda x: None)
-
-
-@checks_deprecated_behaviour
-def test_testcase_callbacks_deprecation_remove():
-    with restore_callbacks():
-        TESTCASE_CALLBACKS.remove(lambda x: None)
 
 
 def test_testcase_callbacks():

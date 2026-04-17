@@ -13,7 +13,8 @@ import enum
 import sys
 import warnings
 from io import StringIO
-from threading import Barrier, Lock, RLock, Thread
+from threading import Barrier, Thread
+from threading import Lock, RLock
 from types import SimpleNamespace
 
 from hypothesis import Phase, settings
@@ -114,6 +115,85 @@ def capture_out():
             sys.stdout = old_out
 
 
+@contextlib.contextmanager
+def validate_deprecation():
+
+    if settings._current_profile == "threading":
+        import pytest
+
+        pytest.skip("warnings module is not thread-safe before 3.14")
+
+    import warnings
+
+    try:
+        warnings.simplefilter("always", HypothesisDeprecationWarning)
+        with warnings.catch_warnings(record=True) as w:
+            yield
+    finally:
+        warnings.simplefilter("error", HypothesisDeprecationWarning)
+        if not any(e.category == HypothesisDeprecationWarning for e in w):
+            raise NotDeprecated(
+                f"Expected a deprecation warning but got {[e.category for e in w]!r}"
+            )
+
+
+@contextlib.contextmanager
+def temp_registered(type_, strat_or_factory):
+    """Register and un-register a type for st.from_type().
+
+    This is not too hard, but there's a subtlety in restoring the
+    previously-registered strategy which we got wrong in a few places.
+    """
+    with temp_registered_lock:
+        prev = _global_type_lookup.get(type_)
+        register_type_strategy(type_, strat_or_factory)
+        try:
+            yield
+        finally:
+            del _global_type_lookup[type_]
+            from_type.__clear_cache()
+            if prev is not None:
+                register_type_strategy(type_, prev)
+
+
+@contextlib.contextmanager
+def raises_warning(expected_warning, match=None):
+    """Use instead of pytest.warns to check that the raised warning is handled properly"""
+    with raises(expected_warning, match=match) as r:
+        # NOTE: For compatibility with Python 3.9's LL(1)
+        # parser, this is written as a nested with-statement,
+        # instead of a compound one.
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", category=expected_warning)
+            yield r
+
+
+@contextlib.contextmanager
+def capture_observations(*, choices=None):
+    ls: list[Observation] = []
+    add_observability_callback(ls.append)
+    if choices is not None:
+        old_choices = observability.OBSERVABILITY_CHOICES
+        observability.OBSERVABILITY_CHOICES = choices
+
+    try:
+        yield ls
+    finally:
+        remove_observability_callback(ls.append)
+        if choices is not None:
+            observability.OBSERVABILITY_CHOICES = old_choices
+
+
+@contextlib.contextmanager
+def restore_recursion_limit():
+    with _restore_recursion_limit_lock:
+        original_limit = sys.getrecursionlimit()
+        try:
+            yield
+        finally:
+            sys.setrecursionlimit(original_limit)
+
+
 class ExcInfo:
     pass
 
@@ -143,28 +223,6 @@ fails = fails_with(AssertionError)
 
 class NotDeprecated(Exception):
     pass
-
-
-@contextlib.contextmanager
-def validate_deprecation():
-
-    if settings._current_profile == "threading":
-        import pytest
-
-        pytest.skip("warnings module is not thread-safe before 3.14")
-
-    import warnings
-
-    try:
-        warnings.simplefilter("always", HypothesisDeprecationWarning)
-        with warnings.catch_warnings(record=True) as w:
-            yield
-    finally:
-        warnings.simplefilter("error", HypothesisDeprecationWarning)
-        if not any(e.category == HypothesisDeprecationWarning for e in w):
-            raise NotDeprecated(
-                f"Expected a deprecation warning but got {[e.category for e in w]!r}"
-            )
 
 
 def checks_deprecated_behaviour(func):
@@ -231,53 +289,6 @@ def assert_falsifying_output(
 temp_registered_lock = RLock()
 
 
-@contextlib.contextmanager
-def temp_registered(type_, strat_or_factory):
-    """Register and un-register a type for st.from_type().
-
-    This is not too hard, but there's a subtlety in restoring the
-    previously-registered strategy which we got wrong in a few places.
-    """
-    with temp_registered_lock:
-        prev = _global_type_lookup.get(type_)
-        register_type_strategy(type_, strat_or_factory)
-        try:
-            yield
-        finally:
-            del _global_type_lookup[type_]
-            from_type.__clear_cache()
-            if prev is not None:
-                register_type_strategy(type_, prev)
-
-
-@contextlib.contextmanager
-def raises_warning(expected_warning, match=None):
-    """Use instead of pytest.warns to check that the raised warning is handled properly"""
-    with raises(expected_warning, match=match) as r:
-        # NOTE: For compatibility with Python 3.9's LL(1)
-        # parser, this is written as a nested with-statement,
-        # instead of a compound one.
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", category=expected_warning)
-            yield r
-
-
-@contextlib.contextmanager
-def capture_observations(*, choices=None):
-    ls: list[Observation] = []
-    add_observability_callback(ls.append)
-    if choices is not None:
-        old_choices = observability.OBSERVABILITY_CHOICES
-        observability.OBSERVABILITY_CHOICES = choices
-
-    try:
-        yield ls
-    finally:
-        remove_observability_callback(ls.append)
-        if choices is not None:
-            observability.OBSERVABILITY_CHOICES = old_choices
-
-
 # Specifies whether we can represent subnormal floating point numbers.
 # IEE-754 requires subnormal support, but it's often disabled anyway by unsafe
 # compiler options like `-ffast-math`.  On most hardware that's even a global
@@ -325,16 +336,6 @@ def skipif_threading(f):
 
 
 _restore_recursion_limit_lock = RLock()
-
-
-@contextlib.contextmanager
-def restore_recursion_limit():
-    with _restore_recursion_limit_lock:
-        original_limit = sys.getrecursionlimit()
-        try:
-            yield
-        finally:
-            sys.setrecursionlimit(original_limit)
 
 
 def run_concurrently(function, n: int) -> None:
