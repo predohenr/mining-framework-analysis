@@ -493,8 +493,8 @@ type CLIOptions struct {
 	OptSelectionPrefix string `long:"selection-prefix" description:"use a prefix instead of changing line color to indicate currently selected lines.\ndefault is to use colors. This option is experimental"`
 	OptExec            string `long:"exec" description:"execute command instead of finishing/terminating peco.\nPlease note that this command will receive selected line(s) from stdin,\nand will be executed via '/bin/sh -c' or 'cmd /c'"`
 	OptPrintQuery      bool   `long:"print-query" description:"print out the current query as first line of output"`
-	OptANSI            bool   `long:"ansi" description:"enable ANSI color code support"`
 	OptHeight          string `long:"height" description:"display height in lines or percentage (e.g. '10', '50%')"`
+	OptANSI            bool   `long:"ansi" description:"enable ANSI color code support"`
 }
 
 type CLI struct {
