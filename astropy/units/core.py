@@ -1276,6 +1276,14 @@ class _UnitRegistry:
     def non_prefix_units(self) -> set[UnitBase]:
         return self._non_prefix_units
 
+    @property
+    def equivalencies(self):
+        return list(self._equivalencies)
+
+    @property
+    def aliases(self) -> dict[str, UnitBase]:
+        return self._aliases
+
     def set_enabled_units(self, units: object) -> None:
         """
         Sets the units enabled in the unit registry.
@@ -1344,10 +1352,6 @@ class _UnitRegistry:
         """
         return self._by_physical_type.get(unit._physical_type_id, set())
 
-    @property
-    def equivalencies(self):
-        return list(self._equivalencies)
-
     def set_enabled_equivalencies(self, equivalencies):
         """
         Sets the equivalencies enabled in the unit registry.
@@ -1386,10 +1390,6 @@ class _UnitRegistry:
         # pre-normalize list to help catch mistakes
         equivalencies = _normalize_equivalencies(equivalencies)
         self._equivalencies |= set(equivalencies)
-
-    @property
-    def aliases(self) -> dict[str, UnitBase]:
-        return self._aliases
 
     def set_enabled_aliases(self, aliases: dict[str, UnitBase]) -> None:
         """
@@ -1808,9 +1808,6 @@ class NamedUnit(UnitBase):
         """
         return self._get_format_name(format)
 
-    def _get_format_name(self, format: str) -> str:
-        return self._format.get(format, self.name)
-
     @property
     def names(self) -> list[str]:
         """All the names associated with the unit."""
@@ -1835,6 +1832,9 @@ class NamedUnit(UnitBase):
     def long_names(self) -> list[str]:
         """All the long names associated with the unit."""
         return self._long_names
+
+    def _get_format_name(self, format: str) -> str:
+        return self._format.get(format, self.name)
 
     def _inject(self, namespace: MutableMapping[str, object] | None = None) -> None:
         """
@@ -2233,12 +2233,6 @@ class Unit(NamedUnit, metaclass=_UnitMetaClass):
         """The unit that this named unit represents."""
         return self._represents
 
-    def decompose(self, bases: Collection[UnitBase] = ()) -> UnitBase:
-        return self._represents.decompose(bases=bases)
-
-    def is_unity(self) -> bool:
-        return self._represents.is_unity()
-
     @cached_property
     def _hash(self) -> int:
         return hash((self.name, self._represents))
@@ -2251,6 +2245,12 @@ class Unit(NamedUnit, metaclass=_UnitMetaClass):
         bases = [cls(base) for base, _ in physical_type_id]
         powers = [power for _, power in physical_type_id]
         return CompositeUnit(1, bases, powers, _error_check=False)
+
+    def decompose(self, bases: Collection[UnitBase] = ()) -> UnitBase:
+        return self._represents.decompose(bases=bases)
+
+    def is_unity(self) -> bool:
+        return self._represents.is_unity()
 
 
 class PrefixUnit(Unit):
@@ -2315,6 +2315,21 @@ class CompositeUnit(UnitBase):
         _error_check: Literal[False] = False,
     ) -> None: ...
 
+    @property
+    def scale(self) -> UnitScale:
+        """The scale of the composite unit."""
+        return self._scale
+
+    @property
+    def bases(self) -> list[NamedUnit]:
+        """The bases of the composite unit."""
+        return self._bases
+
+    @property
+    def powers(self) -> list[UnitPower]:
+        """The powers of the bases of the composite unit."""
+        return self._powers
+
     def __init__(
         self,
         scale,
@@ -2375,21 +2390,6 @@ class CompositeUnit(UnitBase):
                 return f"Unit(dimensionless with a scale of {self._scale})"
             else:
                 return "Unit(dimensionless)"
-
-    @property
-    def scale(self) -> UnitScale:
-        """The scale of the composite unit."""
-        return self._scale
-
-    @property
-    def bases(self) -> list[NamedUnit]:
-        """The bases of the composite unit."""
-        return self._bases
-
-    @property
-    def powers(self) -> list[UnitPower]:
-        """The powers of the bases of the composite unit."""
-        return self._powers
 
     def _expand_and_gather(
         self, decompose: bool = False, bases: Collection[UnitBase] = ()
