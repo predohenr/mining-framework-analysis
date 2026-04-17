@@ -2,9 +2,10 @@
 # Cura is released under the terms of the LGPLv3 or higher.
 
 import os
-
+from typing import Optional, Dict
 from PyQt6.QtCore import QRect, pyqtSignal
 from typing import Optional, List, Tuple, Dict
+from PyQt6.QtCore import QRect
 
 from PyQt6.QtGui import QImage, QUndoStack
 
@@ -81,11 +82,6 @@ class PaintView(CuraView):
             shader_filename = os.path.join(PluginRegistry.getInstance().getPluginPath("PaintTool"), "paint.shader")
             self._paint_shader = OpenGL.getInstance().createShaderProgram(shader_filename)
 
-    def setCursor(self, position: Optional[Vector] = None, size: float = -1, color: Optional[str] = None) -> None:
-        self._cursor_position = position if position is not None else self._cursor_position
-        self._cursor_size = size if size >= 0 else self._cursor_size
-        self._cursor_color = self._paint_modes[self._current_paint_type][color].display_color if color is not None else self._cursor_color
-
     def addStroke(self, stroke_mask: QImage, start_x: int, start_y: int, brush_color: str, merge_with_previous: bool) -> None:
         if self._current_paint_texture is None or self._current_paint_texture.getImage() is None:
             return
@@ -115,6 +111,52 @@ class PaintView(CuraView):
                                                      set_value,
                                                      (bit_range_start, bit_range_end),
                                                      merge_with_previous))
+
+    def addStroke(self, stroke_mask: QImage, start_x: int, start_y: int, brush_color: str) -> None:
+        if self._current_paint_texture is None or self._current_paint_texture.getImage() is None:
+            return
+
+        self._prepareDataMapping()
+
+        current_image = self._current_paint_texture.getImage()
+        texture_rect = QRect(0, 0, current_image.width(), current_image.height())
+        stroke_rect = QRect(start_x, start_y, stroke_mask.width(), stroke_mask.height())
+        intersect_rect = texture_rect.intersected(stroke_rect)
+        if intersect_rect != stroke_rect:
+            # Stroke doesn't fully fit into the image, we have to crop it
+            stroke_mask = stroke_mask.copy(intersect_rect.x() - start_x,
+                                           intersect_rect.y() - start_y,
+                                           intersect_rect.width(),
+                                           intersect_rect.height())
+            start_x = intersect_rect.x()
+            start_y = intersect_rect.y()
+
+        bit_range_start, bit_range_end = self._current_bits_ranges
+        set_value = self._paint_modes[self._current_paint_type][brush_color].value << bit_range_start
+
+        self._paint_undo_stack.push(PaintUndoCommand(self._current_paint_texture,
+                                                     stroke_mask,
+                                                     start_x,
+                                                     start_y,
+                                                     set_value,
+                                                     (bit_range_start, bit_range_end),
+                                                     merge_with_previous))
+
+    def setCursor(self, position: Optional[Vector] = None, size: float = -1, color: Optional[str] = None) -> None:
+        self._cursor_position = position if position is not None else self._cursor_position
+        self._cursor_size = size if size >= 0 else self._cursor_size
+        self._cursor_color = self._paint_modes[self._current_paint_type][color].display_color if color is not None else self._cursor_color
+
+    def _forceOpaqueDeepCopy(self, image: QImage):
+        res = QImage(image.width(), image.height(), QImage.Format.Format_RGBA8888)
+        res.fill(QColor(255, 255, 255, 255))
+        painter = QPainter(res)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        painter.drawImage(0, 0, image)
+        painter.end()
+        res.setAlphaChannel(self._force_opaque_mask.scaled(image.width(), image.height()))
+        return res
 
     def undoStroke(self) -> None:
         self._paint_undo_stack.undo()
