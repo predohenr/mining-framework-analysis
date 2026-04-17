@@ -1205,10 +1205,6 @@ class TabManager:  # {{{
                 if w is not None:
                     w.focus_changed(True)
 
-    def refresh_sprite_positions(self) -> None:
-        if not self.tab_bar_hidden:
-            self.tab_bar.screen.refresh_sprite_positions()
-
     @property
     def tab_bar_should_be_visible(self) -> bool:
         if self.tab_being_dropped is not None:
@@ -1225,56 +1221,12 @@ class TabManager:  # {{{
                 return True
         return count < 1
 
-    def _set_active_tab(self, idx: int, store_in_history: bool = True) -> None:
-        if store_in_history:
-            self.active_tab_idx = idx
-        else:
-            self._active_tab_idx = idx
-        set_active_tab(self.os_window_id, idx)
-
-    def layout_tab_bar(self) -> None:
-        # set tab_bar_should_be_visible so that tab_bar.layout() gets correct dimensions
-        self.mark_tab_bar_dirty()
-        self.tab_bar.layout()
-
     @property
     def any_window(self) -> Window | None:
         for t in self:
             for w in t:
                 return w
         return None
-
-    def mark_tab_bar_dirty(self) -> None:
-        should_be_shown = not self.tab_bar_hidden and self.tab_bar_should_be_visible
-        mark_tab_bar_dirty(self.os_window_id, should_be_shown)
-        w = self.active_window or self.any_window
-        if w is not None:
-            data = {'tab_manager': self}
-            boss = get_boss()
-            for watcher in global_watchers().on_tab_bar_dirty:
-                watcher(boss, w, data)
-
-    def update_tab_bar_data(self) -> None:
-        self.tab_bar.update(self.tab_bar_data)
-
-    def title_changed(self, tab: Tab) -> None:
-        self.mark_tab_bar_dirty()
-        if tab is self.active_tab:
-            sync_os_window_title(self.os_window_id)
-
-    def resize(self, only_tabs: bool = False) -> None:
-        if not only_tabs:
-            if not self.tab_bar_hidden:
-                self.layout_tab_bar()
-        for tab in self.tabs:
-            tab.relayout()
-
-    def set_active_tab_idx(self, idx: int) -> None:
-        self._set_active_tab(idx)
-        tab = self.active_tab
-        if tab is not None:
-            tab.relayout_borders()
-        self.mark_tab_bar_dirty()
 
     @update_tab_bar_visibility
     def set_active_tab(self, tab: Tab, for_keep_focus: Tab | None = None) -> bool:
@@ -1298,122 +1250,6 @@ class TabManager:  # {{{
             return (t for t in self if t is at or t in m)
         return self.tabs
 
-    def next_tab(self, delta: int = 1) -> None:
-        if (len(tabs := tuple(self.tabs_to_be_shown_in_tab_bar))) == len(self.tabs):
-            if (num := len(tabs)) > 1:
-                self.set_active_tab_idx((self.active_tab_idx + num + delta) % num)
-        else:
-            num = len(tabs)
-            at = self.active_tab
-            if at is not None:
-                active_idx = tabs.index(at)
-                new_active_tab = (active_idx + num + delta) % num
-                self.set_active_tab(tabs[new_active_tab])
-
-    def toggle_tab(self, match_expression: str) -> None:
-        tabs = set(get_boss().match_tabs(match_expression, all_tabs=self))
-        if not tabs:
-            get_boss().show_error(_('No matching tab'), _('No tab found matching the expression: {}').format(match_expression))
-            return
-        if self.active_tab and self.active_tab in tabs:
-            self.goto_tab(-1)
-        else:
-            for x in tabs:
-                self.set_active_tab(x)
-                break
-
-    def tab_at_location(self, loc: str) -> Tab | None:
-        tabs = tuple(self.tabs_to_be_shown_in_tab_bar)
-        if loc == 'prev':
-            if self.active_tab_history:
-                return self.tab_for_id(self.active_tab_history[-1])
-        elif loc in ('left', 'right'):
-            delta = -1 if loc == 'left' else 1
-            idx = (len(tabs) + self.active_tab_idx + delta) % len(tabs)
-            return tabs[idx]
-        return None
-
-    def goto_tab(self, tab_num: int) -> None:
-        tabs = tuple(self.tabs_to_be_shown_in_tab_bar)
-        if tab_num >= len(tabs):
-            tab_num = max(0, len(tabs) - 1)
-        if tab_num >= 0:
-            self.set_active_tab(tabs[tab_num])
-        elif self.active_tab_history:
-            try:
-                old_active_tab_id = self.active_tab_history[tab_num]
-            except IndexError:
-                old_active_tab_id = self.active_tab_history[0]
-            if tab := self.tab_for_id(old_active_tab_id):
-                self.set_active_tab(tab)
-
-    def nth_active_tab(self, n: int = 0) -> Tab | None:
-        if n <= 0:
-            return self.active_tab
-        tab_ids = tuple(reversed(self.active_tab_history))
-        return self.tab_for_id(tab_ids[min(n - 1, len(tab_ids) - 1)]) if tab_ids else None
-
-    def __iter__(self) -> Iterator[Tab]:
-        return iter(self.tabs)
-
-    def __len__(self) -> int:
-        return len(self.tabs)
-
-    def list_tabs(
-        self, self_window: Window | None = None,
-        tab_filter: Callable[[Tab], bool] | None = None,
-        window_filter: Callable[[Window], bool] | None = None
-    ) -> Generator[TabDict, None, None]:
-        active_tab = self.active_tab
-        for tab in self:
-            if tab_filter is None or tab_filter(tab):
-                windows = list(tab.list_windows(self_window, window_filter))
-                if windows:
-                    yield {
-                        'id': tab.id,
-                        'is_focused': tab is active_tab and tab.os_window_id == current_focused_os_window_id(),
-                        'is_active': tab is active_tab,
-                        'title': tab.name or tab.title,
-                        'layout': str(tab.current_layout.name),
-                        'layout_state': tab.current_layout.serialize(tab.windows),
-                        'layout_opts': tab.current_layout.layout_opts.serialized(),
-                        'enabled_layouts': tab.enabled_layouts,
-                        'windows': windows,
-                        'groups': tab.list_groups(),
-                        'active_window_history': list(tab.windows.active_window_history),
-                    }
-
-    def serialize_state(self) -> dict[str, Any]:
-        return {
-            'version': 1,
-            'id': self.os_window_id,
-            'tabs': [tab.serialize_state() for tab in self],
-            'active_tab_idx': self.active_tab_idx,
-        }
-
-    def serialize_state_as_session(
-        self, session_path: str, matched_windows: frozenset[Window] | None, ser_opts: SaveAsSessionOptions,
-        is_first: bool = False
-    ) -> list[str]:
-        ans = []
-        active_tab_index = -1
-        for i, tab in enumerate(self.tabs):
-            if tab is self.active_tab:
-                active_tab_index = i
-            ans.extend(tab.serialize_state_as_session(session_path, matched_windows, ser_opts))
-        if ans:
-            prefix = [] if is_first else ['', '', 'new_os_window']
-            if self.wm_class and self.wm_class != appname:
-                prefix.append(f'os_window_class {self.wm_class}')
-            if self.wm_name and self.wm_name != appname:
-                prefix.append(f'os_window_name {self.wm_name}')
-            ans = prefix + ans
-            # Add focus_tab command to preserve the active tab
-            if active_tab_index >= 0:
-                ans.append('')
-                ans.append(f'focus_tab {active_tab_index}')
-        return ans
-
     @property
     def active_tab(self) -> Tab | None:
         return self.tabs[self.active_tab_idx] if 0 <= self.active_tab_idx < len(self.tabs) else None
@@ -1421,24 +1257,6 @@ class TabManager:  # {{{
     @property
     def active_window(self) -> Window | None:
         return t.active_window if (t := self.active_tab) else None
-
-    def tab_for_id(self, tab_id: int) -> Tab | None:
-        for t in self.tabs:
-            if t.id == tab_id:
-                return t
-        return None
-
-    def move_tab(self, delta: int = 1) -> None:
-        tabs = tuple(self.tabs_to_be_shown_in_tab_bar)
-        if len(tabs) > 1:
-            idx = self.active_tab_idx
-            new_active_tab = tabs[(idx + len(tabs) + delta) % len(tabs)]
-            nidx = self.tabs.index(new_active_tab)
-            step = 1 if idx < nidx else -1
-            for i in range(idx, nidx, step):
-                self.swap_tabs(i, i + step)
-            self._set_active_tab(nidx)
-            self.mark_tab_bar_dirty()
 
     @update_tab_bar_visibility
     def new_tab(
@@ -1580,14 +1398,6 @@ class TabManager:  # {{{
                 ans.append(tab.data_for_tab_bar(tab is at))
         return ans
 
-    def apply_tab_ordering(self, tab_ids: Sequence[int]) -> None:
-        id_map = {t.id:t for t in self.tabs}
-        ordered_ids = frozenset(tab_ids)
-        positions = (i for i, t in enumerate(self.tabs) if t.id in ordered_ids)
-        for pos, tab_id in zip(positions, tab_ids):
-            self.tabs[pos] = id_map[tab_id]
-        reorder_tabs(self.os_window_id, *(t.id for t in self.tabs))
-
     @update_tab_bar_visibility
     def on_tab_drop_move(self, tab_id: int = 0, is_dest: bool = False, x: int = 0, y: int = 0) -> None:
         if not is_dest:
@@ -1655,6 +1465,200 @@ class TabManager:  # {{{
             idx = self.tabs.index(tab)
             self._set_active_tab(idx, store_in_history=False)
         self.layout_tab_bar()
+
+    @property
+    def tab_bar_rects(self) -> tuple[Border, ...]:
+        return self.tab_bar.blank_rects if self.tab_bar_should_be_visible else ()
+
+    def refresh_sprite_positions(self) -> None:
+        if not self.tab_bar_hidden:
+            self.tab_bar.screen.refresh_sprite_positions()
+
+    def _set_active_tab(self, idx: int, store_in_history: bool = True) -> None:
+        if store_in_history:
+            self.active_tab_idx = idx
+        else:
+            self._active_tab_idx = idx
+        set_active_tab(self.os_window_id, idx)
+
+    def layout_tab_bar(self) -> None:
+        # set tab_bar_should_be_visible so that tab_bar.layout() gets correct dimensions
+        self.mark_tab_bar_dirty()
+        self.tab_bar.layout()
+
+    def mark_tab_bar_dirty(self) -> None:
+        should_be_shown = not self.tab_bar_hidden and self.tab_bar_should_be_visible
+        mark_tab_bar_dirty(self.os_window_id, should_be_shown)
+        w = self.active_window or self.any_window
+        if w is not None:
+            data = {'tab_manager': self}
+            boss = get_boss()
+            for watcher in global_watchers().on_tab_bar_dirty:
+                watcher(boss, w, data)
+
+    def update_tab_bar_data(self) -> None:
+        self.tab_bar.update(self.tab_bar_data)
+
+    def title_changed(self, tab: Tab) -> None:
+        self.mark_tab_bar_dirty()
+        if tab is self.active_tab:
+            sync_os_window_title(self.os_window_id)
+
+    def resize(self, only_tabs: bool = False) -> None:
+        if not only_tabs:
+            if not self.tab_bar_hidden:
+                self.layout_tab_bar()
+        for tab in self.tabs:
+            tab.relayout()
+
+    def set_active_tab_idx(self, idx: int) -> None:
+        self._set_active_tab(idx)
+        tab = self.active_tab
+        if tab is not None:
+            tab.relayout_borders()
+        self.mark_tab_bar_dirty()
+
+    def next_tab(self, delta: int = 1) -> None:
+        if (len(tabs := tuple(self.tabs_to_be_shown_in_tab_bar))) == len(self.tabs):
+            if (num := len(tabs)) > 1:
+                self.set_active_tab_idx((self.active_tab_idx + num + delta) % num)
+        else:
+            num = len(tabs)
+            at = self.active_tab
+            if at is not None:
+                active_idx = tabs.index(at)
+                new_active_tab = (active_idx + num + delta) % num
+                self.set_active_tab(tabs[new_active_tab])
+
+    def toggle_tab(self, match_expression: str) -> None:
+        tabs = set(get_boss().match_tabs(match_expression, all_tabs=self))
+        if not tabs:
+            get_boss().show_error(_('No matching tab'), _('No tab found matching the expression: {}').format(match_expression))
+            return
+        if self.active_tab and self.active_tab in tabs:
+            self.goto_tab(-1)
+        else:
+            for x in tabs:
+                self.set_active_tab(x)
+                break
+
+    def tab_at_location(self, loc: str) -> Tab | None:
+        tabs = tuple(self.tabs_to_be_shown_in_tab_bar)
+        if loc == 'prev':
+            if self.active_tab_history:
+                return self.tab_for_id(self.active_tab_history[-1])
+        elif loc in ('left', 'right'):
+            delta = -1 if loc == 'left' else 1
+            idx = (len(tabs) + self.active_tab_idx + delta) % len(tabs)
+            return tabs[idx]
+        return None
+
+    def goto_tab(self, tab_num: int) -> None:
+        tabs = tuple(self.tabs_to_be_shown_in_tab_bar)
+        if tab_num >= len(tabs):
+            tab_num = max(0, len(tabs) - 1)
+        if tab_num >= 0:
+            self.set_active_tab(tabs[tab_num])
+        elif self.active_tab_history:
+            try:
+                old_active_tab_id = self.active_tab_history[tab_num]
+            except IndexError:
+                old_active_tab_id = self.active_tab_history[0]
+            if tab := self.tab_for_id(old_active_tab_id):
+                self.set_active_tab(tab)
+
+    def nth_active_tab(self, n: int = 0) -> Tab | None:
+        if n <= 0:
+            return self.active_tab
+        tab_ids = tuple(reversed(self.active_tab_history))
+        return self.tab_for_id(tab_ids[min(n - 1, len(tab_ids) - 1)]) if tab_ids else None
+
+    def __iter__(self) -> Iterator[Tab]:
+        return iter(self.tabs)
+
+    def __len__(self) -> int:
+        return len(self.tabs)
+
+    def list_tabs(
+        self, self_window: Window | None = None,
+        tab_filter: Callable[[Tab], bool] | None = None,
+        window_filter: Callable[[Window], bool] | None = None
+    ) -> Generator[TabDict, None, None]:
+        active_tab = self.active_tab
+        for tab in self:
+            if tab_filter is None or tab_filter(tab):
+                windows = list(tab.list_windows(self_window, window_filter))
+                if windows:
+                    yield {
+                        'id': tab.id,
+                        'is_focused': tab is active_tab and tab.os_window_id == current_focused_os_window_id(),
+                        'is_active': tab is active_tab,
+                        'title': tab.name or tab.title,
+                        'layout': str(tab.current_layout.name),
+                        'layout_state': tab.current_layout.serialize(tab.windows),
+                        'layout_opts': tab.current_layout.layout_opts.serialized(),
+                        'enabled_layouts': tab.enabled_layouts,
+                        'windows': windows,
+                        'groups': tab.list_groups(),
+                        'active_window_history': list(tab.windows.active_window_history),
+                    }
+
+    def serialize_state(self) -> dict[str, Any]:
+        return {
+            'version': 1,
+            'id': self.os_window_id,
+            'tabs': [tab.serialize_state() for tab in self],
+            'active_tab_idx': self.active_tab_idx,
+        }
+
+    def serialize_state_as_session(
+        self, session_path: str, matched_windows: frozenset[Window] | None, ser_opts: SaveAsSessionOptions,
+        is_first: bool = False
+    ) -> list[str]:
+        ans = []
+        active_tab_index = -1
+        for i, tab in enumerate(self.tabs):
+            if tab is self.active_tab:
+                active_tab_index = i
+            ans.extend(tab.serialize_state_as_session(session_path, matched_windows, ser_opts))
+        if ans:
+            prefix = [] if is_first else ['', '', 'new_os_window']
+            if self.wm_class and self.wm_class != appname:
+                prefix.append(f'os_window_class {self.wm_class}')
+            if self.wm_name and self.wm_name != appname:
+                prefix.append(f'os_window_name {self.wm_name}')
+            ans = prefix + ans
+            # Add focus_tab command to preserve the active tab
+            if active_tab_index >= 0:
+                ans.append('')
+                ans.append(f'focus_tab {active_tab_index}')
+        return ans
+
+    def tab_for_id(self, tab_id: int) -> Tab | None:
+        for t in self.tabs:
+            if t.id == tab_id:
+                return t
+        return None
+
+    def move_tab(self, delta: int = 1) -> None:
+        tabs = tuple(self.tabs_to_be_shown_in_tab_bar)
+        if len(tabs) > 1:
+            idx = self.active_tab_idx
+            new_active_tab = tabs[(idx + len(tabs) + delta) % len(tabs)]
+            nidx = self.tabs.index(new_active_tab)
+            step = 1 if idx < nidx else -1
+            for i in range(idx, nidx, step):
+                self.swap_tabs(i, i + step)
+            self._set_active_tab(nidx)
+            self.mark_tab_bar_dirty()
+
+    def apply_tab_ordering(self, tab_ids: Sequence[int]) -> None:
+        id_map = {t.id:t for t in self.tabs}
+        ordered_ids = frozenset(tab_ids)
+        positions = (i for i, t in enumerate(self.tabs) if t.id in ordered_ids)
+        for pos, tab_id in zip(positions, tab_ids):
+            self.tabs[pos] = id_map[tab_id]
+        reorder_tabs(self.os_window_id, *(t.id for t in self.tabs))
 
     def swap_tabs(self, idx: int, nidx: int) -> None:
         if idx != nidx:
@@ -1742,10 +1746,6 @@ class TabManager:  # {{{
             if tab.has_indeterminate_progress:
                 self.has_indeterminate_progress = True
         get_boss().update_progress_in_dock()
-
-    @property
-    def tab_bar_rects(self) -> tuple[Border, ...]:
-        return self.tab_bar.blank_rects if self.tab_bar_should_be_visible else ()
 
     def destroy(self) -> None:
         for t in self:
