@@ -164,6 +164,19 @@ class Archiver(
         msg, msgid, args, wc = cls.__doc__, cls.__qualname__, warning.args, warning.exit_code
         self.print_warning(msg, *args, wc=wc, wt="curly", msgid=msgid)
 
+    def preprocess_args(self, args):
+        deprecations = [
+            # ('--old', '--new' or None, 'Warning: "--old" has been deprecated. Use "--new" instead.'),
+        ]
+        for i, arg in enumerate(args[:]):
+            for old_name, new_name, warning in deprecations:
+                # either --old_name or --old_name=...
+                if arg == old_name or (arg.startswith(old_name) and arg[len(old_name)] == "="):
+                    if new_name is not None:
+                        args[i] = arg.replace(old_name, new_name)
+                    print(warning, file=sys.stderr)
+        return args
+
     def print_file_status(self, status, path):
         # if we get called with status == None, the final file status was already printed
         if self.output_list and status is not None and (self.output_filter is None or status in self.output_filter):
@@ -180,8 +193,7 @@ class Archiver(
         ]
         for i, arg in enumerate(args[:]):
             for old_name, new_name, warning in deprecations:
-                # either --old_name or --old_name=...
-                if arg == old_name or (arg.startswith(old_name) and arg[len(old_name)] == "="):
+                if arg.startswith(old_name):
                     if new_name is not None:
                         args[i] = arg.replace(old_name, new_name)
                     print(warning, file=sys.stderr)
