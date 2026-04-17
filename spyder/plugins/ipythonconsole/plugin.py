@@ -11,6 +11,7 @@ IPython Console plugin based on QtConsole.
 # Standard library imports
 import sys
 from typing import List, Optional
+from typing import List
 from functools import cached_property
 
 # Third party imports
@@ -240,125 +241,6 @@ class IPythonConsole(SpyderDockablePlugin, RunExecutor):
     def get_icon(cls):
         return cls.create_icon('ipython_console')
 
-    def on_initialize(self):
-        widget = self.get_widget()
-
-        self._is_remote_consoles_menu_added = False
-
-        # Main widget signals
-        # Connect signal to open preferences
-        widget.sig_open_preferences_requested.connect(
-            self._open_interpreter_preferences
-        )
-        widget.sig_append_to_history_requested.connect(
-            self.sig_append_to_history_requested)
-        widget.sig_switch_to_plugin_requested.connect(self.switch_to_plugin)
-        widget.sig_history_requested.connect(self.sig_history_requested)
-        widget.sig_edit_goto_requested.connect(self.sig_edit_goto_requested)
-        widget.sig_edit_new.connect(self.sig_edit_new)
-        widget.sig_shellwidget_created.connect(self.sig_shellwidget_created)
-        widget.sig_shellwidget_deleted.connect(self.sig_shellwidget_deleted)
-        widget.sig_shellwidget_changed.connect(self.sig_shellwidget_changed)
-        widget.sig_shellwidget_errored.connect(self.sig_shellwidget_errored)
-        widget.sig_render_plain_text_requested.connect(
-            self.sig_render_plain_text_requested)
-        widget.sig_render_rich_text_requested.connect(
-            self.sig_render_rich_text_requested)
-        widget.sig_help_requested.connect(self.sig_help_requested)
-        widget.sig_current_directory_changed.connect(
-            self.sig_current_directory_changed)
-        widget.sig_interpreter_changed.connect(
-            self.sig_interpreter_changed
-        )
-
-        # Run configurations
-        self.cython_editor_run_configuration = {
-            'origin': self.NAME,
-            'extension': 'pyx',
-            'contexts': [
-                {'name': 'File'}
-            ]
-        }
-
-        self.python_editor_run_configuration = {
-            'origin': self.NAME,
-            'extension': 'py',
-            'contexts': [
-                {'name': 'File'},
-                {'name': 'Cell'},
-                {'name': 'Selection'},
-            ]
-        }
-
-        self.ipython_editor_run_configuration = {
-            'origin': self.NAME,
-            'extension': 'ipy',
-            'contexts': [
-                {'name': 'File'},
-                {'name': 'Cell'},
-                {'name': 'Selection'},
-            ]
-        }
-
-        self.executor_configuration = [
-            {
-                'input_extension': 'py',
-                'context': {'name': 'File'},
-                'output_formats': [],
-                'configuration_widget': IPythonConfigOptions,
-                'requires_cwd': True,
-                'priority': 0
-            },
-            {
-                'input_extension': 'ipy',
-                'context': {'name': 'File'},
-                'output_formats': [],
-                'configuration_widget': IPythonConfigOptions,
-                'requires_cwd': True,
-                'priority': 0
-            },
-            {
-                'input_extension': 'py',
-                'context': {'name': 'Cell'},
-                'output_formats': [],
-                'configuration_widget': None,
-                'requires_cwd': True,
-                'priority': 0
-            },
-            {
-                'input_extension': 'ipy',
-                'context': {'name': 'Cell'},
-                'output_formats': [],
-                'configuration_widget': None,
-                'requires_cwd': True,
-                'priority': 0
-            },
-            {
-                'input_extension': 'py',
-                'context': {'name': 'Selection'},
-                'output_formats': [],
-                'configuration_widget': None,
-                'requires_cwd': True,
-                'priority': 0
-            },
-            {
-                'input_extension': 'ipy',
-                'context': {'name': 'Selection'},
-                'output_formats': [],
-                'configuration_widget': None,
-                'requires_cwd': True,
-                'priority': 0
-            },
-            {
-                'input_extension': 'pyx',
-                'context': {'name': 'File'},
-                'output_formats': [],
-                'configuration_widget': IPythonConfigOptions,
-                'requires_cwd': True,
-                'priority': 0
-            },
-        ]
-
     @on_plugin_available(plugin=Plugins.StatusBar)
     def on_statusbar_available(self):
         # Add status widgets
@@ -583,6 +465,229 @@ class IPythonConsole(SpyderDockablePlugin, RunExecutor):
     def on_main_interpreter_teardown(self):
         main_interpreter = self.get_plugin(Plugins.MainInterpreter)
         main_interpreter.sig_environments_updated.disconnect(self._update_envs)
+    @run_execute(context=RunContext.File)
+    def exec_files(
+        self,
+        input: RunConfiguration,
+        conf: ExtendedRunExecutionParameters
+    ) -> List[RunResult]:
+
+        exec_params = conf['params']
+        cwd_opts = exec_params['working_dir']
+        params: IPythonConsolePyConfiguration = exec_params['executor_params']
+
+        run_input: FileRun = input['run_input']
+        filename = run_input['path']
+        wdir = cwd_opts['path']
+        args = params['python_args']
+        post_mortem = params['post_mortem']
+        current_client = params['current']
+        clear_variables = params['clear_namespace']
+        console_namespace = params['console_namespace']
+        run_method = params.get('run_method', 'runfile')
+
+        self.run_script(
+            filename,
+            wdir,
+            args,
+            post_mortem,
+            current_client,
+            clear_variables,
+            console_namespace,
+            method=run_method,
+        )
+
+        return []
+
+    @run_execute(context=RunContext.Selection)
+    def exec_selection(
+        self,
+        input: RunConfiguration,
+        conf: ExtendedRunExecutionParameters
+    ) -> List[RunResult]:
+
+        run_input: SelectionRun = input['run_input']
+        text = run_input['selection']
+        self.run_selection(text)
+
+    @run_execute(context=RunContext.Cell)
+    def exec_cell(
+        self,
+        input: RunConfiguration,
+        conf: ExtendedRunExecutionParameters
+    ) -> List[RunResult]:
+
+        run_input: CellRun = input['run_input']
+        cell_text = run_input['cell']
+
+        if run_input['copy']:
+            self.run_selection(cell_text)
+            return
+
+        cell_name = run_input['cell_name']
+        filename = run_input['path']
+
+        exec_params = conf['params']
+        params: IPythonConsolePyConfiguration = exec_params['executor_params']
+        run_method = params.get('run_method', 'runcell')
+        self.run_cell(cell_text, cell_name, filename,
+                      method=run_method)
+    @qdebounced(timeout=100)
+    def set_current_client_working_directory(
+        self, directory: str, sender_plugin: Optional[str] = None
+    ):
+        """
+        Set current client working directory.
+
+        Parameters
+        ----------
+        directory : str
+            Path for the new current working directory.
+        sender_plugin: str
+            Name of the plugin that requested changing the working directory.
+            Default is None, which means this plugin did it.
+
+        Returns
+        -------
+        None.
+        """
+        # Only update the cwd if this plugin didn't request changing it
+        if sender_plugin != self.NAME:
+            self.get_widget().set_current_client_working_directory(directory)
+    @cached_property
+    def _remote_client(self):
+        return self.get_plugin(Plugins.RemoteClient)
+
+    @Slot()
+    def _close_remote_clients(self, server_id):
+        self.get_widget().close_remote_clients(server_id)
+
+    @Slot()
+    def _rename_remote_clients(self, server_id):
+        self.get_widget().rename_remote_clients(server_id)
+
+    @Slot()
+    def _on_remote_server_changed(self):
+        self.get_widget().setup_remote_consoles_submenu()
+
+    def on_initialize(self):
+        widget = self.get_widget()
+
+        self._is_remote_consoles_menu_added = False
+
+        # Main widget signals
+        # Connect signal to open preferences
+        widget.sig_open_preferences_requested.connect(
+            self._open_interpreter_preferences
+        )
+        widget.sig_append_to_history_requested.connect(
+            self.sig_append_to_history_requested)
+        widget.sig_switch_to_plugin_requested.connect(self.switch_to_plugin)
+        widget.sig_history_requested.connect(self.sig_history_requested)
+        widget.sig_edit_goto_requested.connect(self.sig_edit_goto_requested)
+        widget.sig_edit_new.connect(self.sig_edit_new)
+        widget.sig_shellwidget_created.connect(self.sig_shellwidget_created)
+        widget.sig_shellwidget_deleted.connect(self.sig_shellwidget_deleted)
+        widget.sig_shellwidget_changed.connect(self.sig_shellwidget_changed)
+        widget.sig_shellwidget_errored.connect(self.sig_shellwidget_errored)
+        widget.sig_render_plain_text_requested.connect(
+            self.sig_render_plain_text_requested)
+        widget.sig_render_rich_text_requested.connect(
+            self.sig_render_rich_text_requested)
+        widget.sig_help_requested.connect(self.sig_help_requested)
+        widget.sig_current_directory_changed.connect(
+            self.sig_current_directory_changed)
+        widget.sig_interpreter_changed.connect(
+            self.sig_interpreter_changed
+        )
+
+        # Run configurations
+        self.cython_editor_run_configuration = {
+            'origin': self.NAME,
+            'extension': 'pyx',
+            'contexts': [
+                {'name': 'File'}
+            ]
+        }
+
+        self.python_editor_run_configuration = {
+            'origin': self.NAME,
+            'extension': 'py',
+            'contexts': [
+                {'name': 'File'},
+                {'name': 'Cell'},
+                {'name': 'Selection'},
+            ]
+        }
+
+        self.ipython_editor_run_configuration = {
+            'origin': self.NAME,
+            'extension': 'ipy',
+            'contexts': [
+                {'name': 'File'},
+                {'name': 'Cell'},
+                {'name': 'Selection'},
+            ]
+        }
+
+        self.executor_configuration = [
+            {
+                'input_extension': 'py',
+                'context': {'name': 'File'},
+                'output_formats': [],
+                'configuration_widget': IPythonConfigOptions,
+                'requires_cwd': True,
+                'priority': 0
+            },
+            {
+                'input_extension': 'ipy',
+                'context': {'name': 'File'},
+                'output_formats': [],
+                'configuration_widget': IPythonConfigOptions,
+                'requires_cwd': True,
+                'priority': 0
+            },
+            {
+                'input_extension': 'py',
+                'context': {'name': 'Cell'},
+                'output_formats': [],
+                'configuration_widget': None,
+                'requires_cwd': True,
+                'priority': 0
+            },
+            {
+                'input_extension': 'ipy',
+                'context': {'name': 'Cell'},
+                'output_formats': [],
+                'configuration_widget': None,
+                'requires_cwd': True,
+                'priority': 0
+            },
+            {
+                'input_extension': 'py',
+                'context': {'name': 'Selection'},
+                'output_formats': [],
+                'configuration_widget': None,
+                'requires_cwd': True,
+                'priority': 0
+            },
+            {
+                'input_extension': 'ipy',
+                'context': {'name': 'Selection'},
+                'output_formats': [],
+                'configuration_widget': None,
+                'requires_cwd': True,
+                'priority': 0
+            },
+            {
+                'input_extension': 'pyx',
+                'context': {'name': 'File'},
+                'output_formats': [],
+                'configuration_widget': IPythonConfigOptions,
+                'requires_cwd': True,
+                'priority': 0
+            },
+        ]
 
     def update_font(self):
         """Update font from Preferences"""
@@ -851,73 +956,6 @@ class IPythonConsole(SpyderDockablePlugin, RunExecutor):
                                        ask_recursive=ask_recursive)
 
     # ---- For execution
-    @run_execute(context=RunContext.File)
-    def exec_files(
-        self,
-        input: RunConfiguration,
-        conf: ExtendedRunExecutionParameters
-    ) -> List[RunResult]:
-
-        exec_params = conf['params']
-        cwd_opts = exec_params['working_dir']
-        params: IPythonConsolePyConfiguration = exec_params['executor_params']
-
-        run_input: FileRun = input['run_input']
-        filename = run_input['path']
-        wdir = cwd_opts['path']
-        args = params['python_args']
-        post_mortem = params['post_mortem']
-        current_client = params['current']
-        clear_variables = params['clear_namespace']
-        console_namespace = params['console_namespace']
-        run_method = params.get('run_method', 'runfile')
-
-        self.run_script(
-            filename,
-            wdir,
-            args,
-            post_mortem,
-            current_client,
-            clear_variables,
-            console_namespace,
-            method=run_method,
-        )
-
-        return []
-
-    @run_execute(context=RunContext.Selection)
-    def exec_selection(
-        self,
-        input: RunConfiguration,
-        conf: ExtendedRunExecutionParameters
-    ) -> List[RunResult]:
-
-        run_input: SelectionRun = input['run_input']
-        text = run_input['selection']
-        self.run_selection(text)
-
-    @run_execute(context=RunContext.Cell)
-    def exec_cell(
-        self,
-        input: RunConfiguration,
-        conf: ExtendedRunExecutionParameters
-    ) -> List[RunResult]:
-
-        run_input: CellRun = input['run_input']
-        cell_text = run_input['cell']
-
-        if run_input['copy']:
-            self.run_selection(cell_text)
-            return
-
-        cell_name = run_input['cell_name']
-        filename = run_input['path']
-
-        exec_params = conf['params']
-        params: IPythonConsolePyConfiguration = exec_params['executor_params']
-        run_method = params.get('run_method', 'runcell')
-        self.run_cell(cell_text, cell_name, filename,
-                      method=run_method)
 
     # ---- For execution and debugging
     def run_script(self, filename, wdir, args='',
@@ -1019,28 +1057,6 @@ class IPythonConsole(SpyderDockablePlugin, RunExecutor):
         self.get_widget().execute_code(lines)
 
     # ---- For working directory and path management
-    @qdebounced(timeout=100)
-    def set_current_client_working_directory(
-        self, directory: str, sender_plugin: Optional[str] = None
-    ):
-        """
-        Set current client working directory.
-
-        Parameters
-        ----------
-        directory : str
-            Path for the new current working directory.
-        sender_plugin: str
-            Name of the plugin that requested changing the working directory.
-            Default is None, which means this plugin did it.
-
-        Returns
-        -------
-        None.
-        """
-        # Only update the cwd if this plugin didn't request changing it
-        if sender_plugin != self.NAME:
-            self.get_widget().set_current_client_working_directory(directory)
 
     def update_path(self, new_path, prioritize):
         """
@@ -1097,9 +1113,6 @@ class IPythonConsole(SpyderDockablePlugin, RunExecutor):
 
     # ---- Remote plugin
     # -------------------------------------------------------------------------
-    @cached_property
-    def _remote_client(self):
-        return self.get_plugin(Plugins.RemoteClient)
 
     def _add_remote_consoles_menu(self):
         """Add remote consoles submenu to the Consoles menu."""
@@ -1116,15 +1129,3 @@ class IPythonConsole(SpyderDockablePlugin, RunExecutor):
         )
 
         self._is_remote_consoles_menu_added = True
-
-    @Slot()
-    def _close_remote_clients(self, server_id):
-        self.get_widget().close_remote_clients(server_id)
-
-    @Slot()
-    def _rename_remote_clients(self, server_id):
-        self.get_widget().rename_remote_clients(server_id)
-
-    @Slot()
-    def _on_remote_server_changed(self):
-        self.get_widget().setup_remote_consoles_submenu()
