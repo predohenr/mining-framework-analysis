@@ -210,6 +210,268 @@ class Connection(ConnectionEventsTarget, inspection.Inspectable["Inspector"]):
 
         return schema_translate_map
 
+    @overload
+    def execution_options(
+        self,
+        *,
+        compiled_cache: Optional[CompiledCacheType] = ...,
+        logging_token: str = ...,
+        isolation_level: IsolationLevel = ...,
+        no_parameters: bool = False,
+        stream_results: bool = False,
+        max_row_buffer: int = ...,
+        yield_per: int = ...,
+        insertmanyvalues_page_size: int = ...,
+        schema_translate_map: Optional[SchemaTranslateMapType] = ...,
+        preserve_rowcount: bool = False,
+        driver_column_names: bool = False,
+        **opt: Any,
+    ) -> Connection: ...
+
+    @overload
+    def execution_options(self, **opt: Any) -> Connection: ...
+
+    @property
+    def _still_open_and_dbapi_connection_is_valid(self) -> bool:
+        pool_proxied_connection = self._dbapi_connection
+        return (
+            pool_proxied_connection is not None
+            and pool_proxied_connection.is_valid
+        )
+
+    @property
+    def closed(self) -> bool:
+        """Return True if this connection is closed."""
+
+        return self._dbapi_connection is None and not self.__can_reconnect
+
+    @property
+    def invalidated(self) -> bool:
+        """Return True if this connection was invalidated.
+
+        This does not indicate whether or not the connection was
+        invalidated at the pool level, however
+
+        """
+
+        # prior to 1.4, "invalid" was stored as a state independent of
+        # "closed", meaning an invalidated connection could be "closed",
+        # the _dbapi_connection would be None and closed=True, yet the
+        # "invalid" flag would stay True.  This meant that there were
+        # three separate states (open/valid, closed/valid, closed/invalid)
+        # when there is really no reason for that; a connection that's
+        # "closed" does not need to be "invalid".  So the state is now
+        # represented by the two facts alone.
+
+        pool_proxied_connection = self._dbapi_connection
+        return pool_proxied_connection is None and self.__can_reconnect
+
+    @property
+    def connection(self) -> PoolProxiedConnection:
+        """The underlying DB-API connection managed by this Connection.
+
+        This is a SQLAlchemy connection-pool proxied connection
+        which then has the attribute
+        :attr:`_pool._ConnectionFairy.dbapi_connection` that refers to the
+        actual driver connection.
+
+        .. seealso::
+
+
+            :ref:`dbapi_connections`
+
+        """
+
+        if self._dbapi_connection is None:
+            try:
+                return self._revalidate_connection()
+            except (exc.PendingRollbackError, exc.ResourceClosedError):
+                raise
+            except BaseException as e:
+                self._handle_dbapi_exception(e, None, None, None, None)
+        else:
+            return self._dbapi_connection
+
+    @property
+    def default_isolation_level(self) -> Optional[IsolationLevel]:
+        """The initial-connection time isolation level associated with the
+        :class:`_engine.Dialect` in use.
+
+        This value is independent of the
+        :paramref:`.Connection.execution_options.isolation_level` and
+        :paramref:`.Engine.execution_options.isolation_level` execution
+        options, and is determined by the :class:`_engine.Dialect` when the
+        first connection is created, by performing a SQL query against the
+        database for the current isolation level before any additional commands
+        have been emitted.
+
+        Calling this accessor does not invoke any new SQL queries.
+
+        .. seealso::
+
+            :meth:`_engine.Connection.get_isolation_level`
+            - view current actual isolation level
+
+            :paramref:`_sa.create_engine.isolation_level`
+            - set per :class:`_engine.Engine` isolation level
+
+            :paramref:`.Connection.execution_options.isolation_level`
+            - set per :class:`_engine.Connection` isolation level
+
+        """
+        return self.dialect.default_isolation_level
+
+    @property
+    def info(self) -> _InfoType:
+        """Info dictionary associated with the underlying DBAPI connection
+        referred to by this :class:`_engine.Connection`, allowing user-defined
+        data to be associated with the connection.
+
+        The data here will follow along with the DBAPI connection including
+        after it is returned to the connection pool and used again
+        in subsequent instances of :class:`_engine.Connection`.
+
+        """
+
+        return self.connection.info
+    @overload
+    def scalar(
+        self,
+        statement: TypedReturnsRows[Never],
+        parameters: Optional[_CoreSingleExecuteParams] = None,
+        *,
+        execution_options: Optional[CoreExecuteOptionsParameter] = None,
+    ) -> Optional[Any]: ...
+
+    @overload
+    def scalar(
+        self,
+        statement: TypedReturnsRows[_T],
+        parameters: Optional[_CoreSingleExecuteParams] = None,
+        *,
+        execution_options: Optional[CoreExecuteOptionsParameter] = None,
+    ) -> Optional[_T]: ...
+
+    @overload
+    def scalar(
+        self,
+        statement: Executable,
+        parameters: Optional[_CoreSingleExecuteParams] = None,
+        *,
+        execution_options: Optional[CoreExecuteOptionsParameter] = None,
+    ) -> Any: ...
+
+    @overload
+    def scalars(
+        self,
+        statement: TypedReturnsRows[_T],
+        parameters: Optional[_CoreAnyExecuteParams] = None,
+        *,
+        execution_options: Optional[CoreExecuteOptionsParameter] = None,
+    ) -> ScalarResult[_T]: ...
+
+    @overload
+    def scalars(
+        self,
+        statement: Executable,
+        parameters: Optional[_CoreAnyExecuteParams] = None,
+        *,
+        execution_options: Optional[CoreExecuteOptionsParameter] = None,
+    ) -> ScalarResult[Any]: ...
+
+    @overload
+    def execute(
+        self,
+        statement: TypedReturnsRows[Unpack[_Ts]],
+        parameters: Optional[_CoreAnyExecuteParams] = None,
+        *,
+        execution_options: Optional[CoreExecuteOptionsParameter] = None,
+    ) -> CursorResult[Unpack[_Ts]]: ...
+
+    @overload
+    def execute(
+        self,
+        statement: Executable,
+        parameters: Optional[_CoreAnyExecuteParams] = None,
+        *,
+        execution_options: Optional[CoreExecuteOptionsParameter] = None,
+    ) -> CursorResult[Unpack[TupleAny]]: ...
+
+    @classmethod
+    def _handle_dbapi_exception_noconnection(
+        cls,
+        e: BaseException,
+        dialect: Dialect,
+        engine: Optional[Engine] = None,
+        is_disconnect: Optional[bool] = None,
+        invalidate_pool_on_disconnect: bool = True,
+        is_pre_ping: bool = False,
+    ) -> NoReturn:
+        exc_info = sys.exc_info()
+
+        if is_disconnect is None:
+            is_disconnect = isinstance(
+                e, dialect.loaded_dbapi.Error
+            ) and dialect.is_disconnect(e, None, None)
+
+        should_wrap = isinstance(e, dialect.loaded_dbapi.Error)
+
+        if should_wrap:
+            sqlalchemy_exception = exc.DBAPIError.instance(
+                None,
+                None,
+                cast(Exception, e),
+                dialect.loaded_dbapi.Error,
+                hide_parameters=(
+                    engine.hide_parameters if engine is not None else False
+                ),
+                connection_invalidated=is_disconnect,
+                dialect=dialect,
+            )
+        else:
+            sqlalchemy_exception = None
+
+        newraise = None
+
+        if dialect._has_events:
+            ctx = ExceptionContextImpl(
+                e,
+                sqlalchemy_exception,
+                engine,
+                dialect,
+                None,
+                None,
+                None,
+                None,
+                None,
+                is_disconnect,
+                invalidate_pool_on_disconnect,
+                is_pre_ping,
+            )
+            for fn in dialect.dispatch.handle_error:
+                try:
+                    # handler returns an exception;
+                    # call next handler in a chain
+                    per_fn = fn(ctx)
+                    if per_fn is not None:
+                        ctx.chained_exception = newraise = per_fn
+                except Exception as _raised:
+                    # handler raises an exception - stop processing
+                    newraise = _raised
+                    break
+
+            if sqlalchemy_exception and is_disconnect != ctx.is_disconnect:
+                sqlalchemy_exception.connection_invalidated = ctx.is_disconnect
+
+        if newraise:
+            raise newraise.with_traceback(exc_info[2]) from e
+        elif should_wrap:
+            assert sqlalchemy_exception is not None
+            raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+        else:
+            assert exc_info[1] is not None
+            raise exc_info[1].with_traceback(exc_info[2])
+
     def schema_for_object(self, obj: HasSchemaAttr) -> Optional[str]:
         """Return the schema name for the given schema item taking into
         account current schema translate map.
@@ -235,27 +497,6 @@ class Connection(ConnectionEventsTarget, inspection.Inspectable["Inspector"]):
 
     def __exit__(self, type_: Any, value: Any, traceback: Any) -> None:
         self.close()
-
-    @overload
-    def execution_options(
-        self,
-        *,
-        compiled_cache: Optional[CompiledCacheType] = ...,
-        logging_token: str = ...,
-        isolation_level: IsolationLevel = ...,
-        no_parameters: bool = False,
-        stream_results: bool = False,
-        max_row_buffer: int = ...,
-        yield_per: int = ...,
-        insertmanyvalues_page_size: int = ...,
-        schema_translate_map: Optional[SchemaTranslateMapType] = ...,
-        preserve_rowcount: bool = False,
-        driver_column_names: bool = False,
-        **opt: Any,
-    ) -> Connection: ...
-
-    @overload
-    def execution_options(self, **opt: Any) -> Connection: ...
 
     def execution_options(self, **opt: Any) -> Connection:
         r"""Set non-SQL options for the connection which take effect
@@ -541,67 +782,6 @@ class Connection(ConnectionEventsTarget, inspection.Inspectable["Inspector"]):
         """
         return self._execution_options
 
-    @property
-    def _still_open_and_dbapi_connection_is_valid(self) -> bool:
-        pool_proxied_connection = self._dbapi_connection
-        return (
-            pool_proxied_connection is not None
-            and pool_proxied_connection.is_valid
-        )
-
-    @property
-    def closed(self) -> bool:
-        """Return True if this connection is closed."""
-
-        return self._dbapi_connection is None and not self.__can_reconnect
-
-    @property
-    def invalidated(self) -> bool:
-        """Return True if this connection was invalidated.
-
-        This does not indicate whether or not the connection was
-        invalidated at the pool level, however
-
-        """
-
-        # prior to 1.4, "invalid" was stored as a state independent of
-        # "closed", meaning an invalidated connection could be "closed",
-        # the _dbapi_connection would be None and closed=True, yet the
-        # "invalid" flag would stay True.  This meant that there were
-        # three separate states (open/valid, closed/valid, closed/invalid)
-        # when there is really no reason for that; a connection that's
-        # "closed" does not need to be "invalid".  So the state is now
-        # represented by the two facts alone.
-
-        pool_proxied_connection = self._dbapi_connection
-        return pool_proxied_connection is None and self.__can_reconnect
-
-    @property
-    def connection(self) -> PoolProxiedConnection:
-        """The underlying DB-API connection managed by this Connection.
-
-        This is a SQLAlchemy connection-pool proxied connection
-        which then has the attribute
-        :attr:`_pool._ConnectionFairy.dbapi_connection` that refers to the
-        actual driver connection.
-
-        .. seealso::
-
-
-            :ref:`dbapi_connections`
-
-        """
-
-        if self._dbapi_connection is None:
-            try:
-                return self._revalidate_connection()
-            except (exc.PendingRollbackError, exc.ResourceClosedError):
-                raise
-            except BaseException as e:
-                self._handle_dbapi_exception(e, None, None, None, None)
-        else:
-            return self._dbapi_connection
-
     def get_isolation_level(self) -> IsolationLevel:
         """Return the current **actual** isolation level that's present on
         the database within the scope of this connection.
@@ -646,35 +826,6 @@ class Connection(ConnectionEventsTarget, inspection.Inspectable["Inspector"]):
         except BaseException as e:
             self._handle_dbapi_exception(e, None, None, None, None)
 
-    @property
-    def default_isolation_level(self) -> Optional[IsolationLevel]:
-        """The initial-connection time isolation level associated with the
-        :class:`_engine.Dialect` in use.
-
-        This value is independent of the
-        :paramref:`.Connection.execution_options.isolation_level` and
-        :paramref:`.Engine.execution_options.isolation_level` execution
-        options, and is determined by the :class:`_engine.Dialect` when the
-        first connection is created, by performing a SQL query against the
-        database for the current isolation level before any additional commands
-        have been emitted.
-
-        Calling this accessor does not invoke any new SQL queries.
-
-        .. seealso::
-
-            :meth:`_engine.Connection.get_isolation_level`
-            - view current actual isolation level
-
-            :paramref:`_sa.create_engine.isolation_level`
-            - set per :class:`_engine.Engine` isolation level
-
-            :paramref:`.Connection.execution_options.isolation_level`
-            - set per :class:`_engine.Connection` isolation level
-
-        """
-        return self.dialect.default_isolation_level
-
     def _invalid_transaction(self) -> NoReturn:
         raise exc.PendingRollbackError(
             "Can't reconnect until invalid %stransaction is rolled "
@@ -690,20 +841,6 @@ class Connection(ConnectionEventsTarget, inspection.Inspectable["Inspector"]):
             self._dbapi_connection = self.engine.raw_connection()
             return self._dbapi_connection
         raise exc.ResourceClosedError("This Connection is closed")
-
-    @property
-    def info(self) -> _InfoType:
-        """Info dictionary associated with the underlying DBAPI connection
-        referred to by this :class:`_engine.Connection`, allowing user-defined
-        data to be associated with the connection.
-
-        The data here will follow along with the DBAPI connection including
-        after it is returned to the connection pool and used again
-        in subsequent instances of :class:`_engine.Connection`.
-
-        """
-
-        return self.connection.info
 
     def invalidate(self, exception: Optional[BaseException] = None) -> None:
         """Invalidate the underlying DBAPI connection associated with
@@ -1282,32 +1419,6 @@ class Connection(ConnectionEventsTarget, inspection.Inspectable["Inspector"]):
 
     # special case to handle mypy issue:
     # https://github.com/python/mypy/issues/20651
-    @overload
-    def scalar(
-        self,
-        statement: TypedReturnsRows[Never],
-        parameters: Optional[_CoreSingleExecuteParams] = None,
-        *,
-        execution_options: Optional[CoreExecuteOptionsParameter] = None,
-    ) -> Optional[Any]: ...
-
-    @overload
-    def scalar(
-        self,
-        statement: TypedReturnsRows[_T],
-        parameters: Optional[_CoreSingleExecuteParams] = None,
-        *,
-        execution_options: Optional[CoreExecuteOptionsParameter] = None,
-    ) -> Optional[_T]: ...
-
-    @overload
-    def scalar(
-        self,
-        statement: Executable,
-        parameters: Optional[_CoreSingleExecuteParams] = None,
-        *,
-        execution_options: Optional[CoreExecuteOptionsParameter] = None,
-    ) -> Any: ...
 
     def scalar(
         self,
@@ -1338,24 +1449,6 @@ class Connection(ConnectionEventsTarget, inspection.Inspectable["Inspector"]):
                 execution_options or NO_OPTIONS,
             )
 
-    @overload
-    def scalars(
-        self,
-        statement: TypedReturnsRows[_T],
-        parameters: Optional[_CoreAnyExecuteParams] = None,
-        *,
-        execution_options: Optional[CoreExecuteOptionsParameter] = None,
-    ) -> ScalarResult[_T]: ...
-
-    @overload
-    def scalars(
-        self,
-        statement: Executable,
-        parameters: Optional[_CoreAnyExecuteParams] = None,
-        *,
-        execution_options: Optional[CoreExecuteOptionsParameter] = None,
-    ) -> ScalarResult[Any]: ...
-
     def scalars(
         self,
         statement: Executable,
@@ -1380,24 +1473,6 @@ class Connection(ConnectionEventsTarget, inspection.Inspectable["Inspector"]):
         return self.execute(
             statement, parameters, execution_options=execution_options
         ).scalars()
-
-    @overload
-    def execute(
-        self,
-        statement: TypedReturnsRows[Unpack[_Ts]],
-        parameters: Optional[_CoreAnyExecuteParams] = None,
-        *,
-        execution_options: Optional[CoreExecuteOptionsParameter] = None,
-    ) -> CursorResult[Unpack[_Ts]]: ...
-
-    @overload
-    def execute(
-        self,
-        statement: Executable,
-        parameters: Optional[_CoreAnyExecuteParams] = None,
-        *,
-        execution_options: Optional[CoreExecuteOptionsParameter] = None,
-    ) -> CursorResult[Unpack[TupleAny]]: ...
 
     def execute(
         self,
@@ -2341,81 +2416,6 @@ class Connection(ConnectionEventsTarget, inspection.Inspectable["Inspector"]):
                         self.engine.pool._invalidate(dbapi_conn_wrapper, e)
                     self.invalidate(e)
 
-    @classmethod
-    def _handle_dbapi_exception_noconnection(
-        cls,
-        e: BaseException,
-        dialect: Dialect,
-        engine: Optional[Engine] = None,
-        is_disconnect: Optional[bool] = None,
-        invalidate_pool_on_disconnect: bool = True,
-        is_pre_ping: bool = False,
-    ) -> NoReturn:
-        exc_info = sys.exc_info()
-
-        if is_disconnect is None:
-            is_disconnect = isinstance(
-                e, dialect.loaded_dbapi.Error
-            ) and dialect.is_disconnect(e, None, None)
-
-        should_wrap = isinstance(e, dialect.loaded_dbapi.Error)
-
-        if should_wrap:
-            sqlalchemy_exception = exc.DBAPIError.instance(
-                None,
-                None,
-                cast(Exception, e),
-                dialect.loaded_dbapi.Error,
-                hide_parameters=(
-                    engine.hide_parameters if engine is not None else False
-                ),
-                connection_invalidated=is_disconnect,
-                dialect=dialect,
-            )
-        else:
-            sqlalchemy_exception = None
-
-        newraise = None
-
-        if dialect._has_events:
-            ctx = ExceptionContextImpl(
-                e,
-                sqlalchemy_exception,
-                engine,
-                dialect,
-                None,
-                None,
-                None,
-                None,
-                None,
-                is_disconnect,
-                invalidate_pool_on_disconnect,
-                is_pre_ping,
-            )
-            for fn in dialect.dispatch.handle_error:
-                try:
-                    # handler returns an exception;
-                    # call next handler in a chain
-                    per_fn = fn(ctx)
-                    if per_fn is not None:
-                        ctx.chained_exception = newraise = per_fn
-                except Exception as _raised:
-                    # handler raises an exception - stop processing
-                    newraise = _raised
-                    break
-
-            if sqlalchemy_exception and is_disconnect != ctx.is_disconnect:
-                sqlalchemy_exception.connection_invalidated = ctx.is_disconnect
-
-        if newraise:
-            raise newraise.with_traceback(exc_info[2]) from e
-        elif should_wrap:
-            assert sqlalchemy_exception is not None
-            raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
-        else:
-            assert exc_info[1] is not None
-            raise exc_info[1].with_traceback(exc_info[2])
-
     def _run_ddl_visitor(
         self,
         visitorcallable: Type[InvokeDDLBase],
@@ -2535,6 +2535,10 @@ class Transaction(TransactionalContext):
         """
         raise NotImplementedError()
 
+    @property
+    def is_valid(self) -> bool:
+        return self.is_active and not self.connection.invalidated
+
     def _do_close(self) -> None:
         raise NotImplementedError()
 
@@ -2543,10 +2547,6 @@ class Transaction(TransactionalContext):
 
     def _do_commit(self) -> None:
         raise NotImplementedError()
-
-    @property
-    def is_valid(self) -> bool:
-        return self.is_active and not self.connection.invalidated
 
     def close(self) -> None:
         """Close this :class:`.Transaction`.
