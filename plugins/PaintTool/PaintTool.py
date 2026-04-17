@@ -422,7 +422,7 @@ class PaintTool(Tool):
                 self._last_world_coords = world_coords
 
             try:
-                uv_areas_cursor = self._getUvAreasForStroke(world_coords, world_coords)
+                uv_areas_cursor = self._getUvAreasForStroke(self._last_face_id, face_id, world_coords, world_coords)
                 if len(uv_areas_cursor) > 0:
                     cursor_stroke_img, (start_x, start_y) = self._createStrokeImage(uv_areas_cursor)
                     self._view.setCursorStroke(cursor_stroke_img, start_x, start_y, self._brush_color)

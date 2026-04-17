@@ -7,6 +7,7 @@ from PyQt6.QtCore import QRect, pyqtSignal
 from PyQt6.QtGui import QImage, QUndoStack, QPainter, QColor
 from typing import Optional, List, Tuple, Dict
 
+from UM.Math.Vector import Vector
 from cura.CuraApplication import CuraApplication
 from cura.BuildVolume import BuildVolume
 from cura.CuraView import CuraView
