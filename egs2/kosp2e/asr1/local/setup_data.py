@@ -1,3 +1,4 @@
+
 import argparse
 import os
 from collections import defaultdict
@@ -59,9 +60,7 @@ def main():
             print(f"Warning: Directory not found for data_type {data_type}, skipping.")
             continue
 
-        for wav_file in tqdm(
-            sorted(os.listdir(wav_dir)), desc=f"Processing {data_type}"
-        ):
+        for wav_file in tqdm(sorted(os.listdir(wav_dir)), desc=f"Processing {data_type}"):
             utt_id = wav_file.split(".")[0]
 
             split = None
