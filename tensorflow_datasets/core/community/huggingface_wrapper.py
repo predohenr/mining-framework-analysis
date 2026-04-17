@@ -21,13 +21,13 @@ import builtins
 import contextlib
 import functools
 import glob
-from importlib import machinery
 import os
 import sys
 import types
 from typing import Iterator, NamedTuple, Optional, Union
 from unittest import mock
 
+from importlib.machinery import ModuleSpec
 from etils import epath
 from tensorflow_datasets.core import dataset_builder
 from tensorflow_datasets.core import dataset_info
@@ -249,8 +249,7 @@ class _MockedHFDatasets(types.ModuleType):
 
   def __init__(self):
     super().__init__('datasets')
-    self.__spec__ = machinery.ModuleSpec('datasets', None)
-
+    self.__spec__  = ModuleSpec('datasets', None)
   # pylint: disable=invalid-name
 
   Version = Version
