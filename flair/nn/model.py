@@ -643,6 +643,12 @@ class Classifier(Model[DT], typing.Generic[DT], ReduceTransformerVocabMixin, ABC
         """
         raise NotImplementedError
 
+    @classmethod
+    def load(cls, model_path: Union[str, Path, dict[str, Any]]) -> "Classifier":
+        from typing import cast
+
+        return cast("Classifier", super().load(model_path=model_path))
+
     def _print_predictions(self, batch: list[DT], gold_label_type: str) -> list[str]:
         lines = []
         for datapoint in batch:
@@ -668,12 +674,6 @@ class Classifier(Model[DT], typing.Generic[DT], ReduceTransformerVocabMixin, ABC
             yield [t.text for t in sentence]
             yield [t.text for t in sentence.left_context(context_length, respect_document_boundaries)]
             yield [t.text for t in sentence.right_context(context_length, respect_document_boundaries)]
-
-    @classmethod
-    def load(cls, model_path: Union[str, Path, dict[str, Any]]) -> "Classifier":
-        from typing import cast
-
-        return cast("Classifier", super().load(model_path=model_path))
 
 
 class DefaultClassifier(Classifier[DT], typing.Generic[DT, DT2], ABC):
@@ -776,6 +776,45 @@ class DefaultClassifier(Classifier[DT], typing.Generic[DT, DT2], ABC):
         """
         raise NotImplementedError
 
+    @property
+    def multi_label_threshold(self):
+        return self._multi_label_threshold
+
+    @multi_label_threshold.setter
+    def multi_label_threshold(self, x):  # setter method
+        if isinstance(x, dict):
+            if "default" in x:
+                self._multi_label_threshold = x
+            else:
+                raise ValueError('multi_label_threshold dict should have a "default" key')
+        else:
+            self._multi_label_threshold = {"default": x}
+
+    @classmethod
+    def _init_model_with_state_dict(cls, state, **kwargs):
+        # add DefaultClassifier arguments
+        for arg in [
+            "decoder",
+            "dropout",
+            "word_dropout",
+            "locked_dropout",
+            "multi_label",
+            "multi_label_threshold",
+            "loss_weights",
+            "train_on_gold_pairs_only",
+            "inverse_model",
+        ]:
+            if arg not in kwargs and arg in state:
+                kwargs[arg] = state[arg]
+
+        return super(Classifier, cls)._init_model_with_state_dict(state, **kwargs)
+
+    @classmethod
+    def load(cls, model_path: Union[str, Path, dict[str, Any]]) -> "DefaultClassifier":
+        from typing import cast
+
+        return cast("DefaultClassifier", super().load(model_path=model_path))
+
     def _get_data_points_for_batch(self, sentences: list[DT]) -> list[DT2]:
         """Returns the data_points to which labels are added.
 
@@ -792,20 +831,6 @@ class DefaultClassifier(Classifier[DT], typing.Generic[DT, DT2], ABC):
             return [label.value for label in data_point.get_labels(self.label_type)]
         else:
             return [data_point.get_label(self.label_type).value]
-
-    @property
-    def multi_label_threshold(self):
-        return self._multi_label_threshold
-
-    @multi_label_threshold.setter
-    def multi_label_threshold(self, x):  # setter method
-        if isinstance(x, dict):
-            if "default" in x:
-                self._multi_label_threshold = x
-            else:
-                raise ValueError('multi_label_threshold dict should have a "default" key')
-        else:
-            self._multi_label_threshold = {"default": x}
 
     def _prepare_label_tensor(self, prediction_data_points: list[DT2]) -> torch.Tensor:
         labels = [self._get_label_of_datapoint(dp) for dp in prediction_data_points]
@@ -1060,25 +1085,6 @@ class DefaultClassifier(Classifier[DT], typing.Generic[DT, DT2], ABC):
             + f"  (weight_tensor) {self.loss_weights}\n)"
         )
 
-    @classmethod
-    def _init_model_with_state_dict(cls, state, **kwargs):
-        # add DefaultClassifier arguments
-        for arg in [
-            "decoder",
-            "dropout",
-            "word_dropout",
-            "locked_dropout",
-            "multi_label",
-            "multi_label_threshold",
-            "loss_weights",
-            "train_on_gold_pairs_only",
-            "inverse_model",
-        ]:
-            if arg not in kwargs and arg in state:
-                kwargs[arg] = state[arg]
-
-        return super(Classifier, cls)._init_model_with_state_dict(state, **kwargs)
-
     def _get_state_dict(self):
         state = super()._get_state_dict()
 
@@ -1095,9 +1101,3 @@ class DefaultClassifier(Classifier[DT], typing.Generic[DT, DT2], ABC):
             state["decoder"] = self.decoder
 
         return state
-
-    @classmethod
-    def load(cls, model_path: Union[str, Path, dict[str, Any]]) -> "DefaultClassifier":
-        from typing import cast
-
-        return cast("DefaultClassifier", super().load(model_path=model_path))
