@@ -88,7 +88,6 @@ SUPPORT_INFO = "Home: http://mycli.net\nBug tracker: https://github.com/dbcli/my
 
 class PasswordFileError(Exception):
     """Base exception for errors related to reading password files."""
-
     pass
 
 
