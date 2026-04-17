@@ -3741,7 +3741,6 @@ class LaxTest(jtu.JaxTestCase):
     if expected.dtype == 'int8':
       expected = expected.astype(dtype)
     self.assertArraysEqual(actual, expected, check_dtypes=True)
-
   def test_gather_with_asymmetric_dtype(self):
     @jax.custom_vjp
     def f(x):
@@ -3835,13 +3834,6 @@ class LazyConstantTest(jtu.JaxTestCase):
     expected = np.asarray(make_const())
     self._Check(make_const, expected)
 
-  def testBroadcastInDim(self):
-    arr = lax.full((2, 1), 1.) + 1.
-    arr_np = np.full((2, 1), 1.) + 1.
-    expected = lax_reference.broadcast_in_dim(arr_np, (2, 1, 3), (0, 2))
-    make_const = lambda: lax.broadcast_in_dim(arr, (2, 1, 3), (0, 2))
-    self._Check(make_const, expected)
-
   @jtu.sample_product(
     input_type=[int, float, np.int32, np.float32, np.array],
     dtype=[np.int32, np.float32],
@@ -3907,16 +3899,6 @@ class LazyConstantTest(jtu.JaxTestCase):
     x_out_jit = jax.jit(op)(x_in)
     self.assertEqual(dtypes.is_weakly_typed(x_out_jit), False)
 
-  def testArgMaxOfNanChoosesNaN(self):
-    self.assertEqual(lax.argmax(np.array([0., np.nan]), axis=0,
-                                index_dtype=np.int32), 1)
-
-  unary_op_types = {}
-  for r in lax_test_util.lax_ops():
-    if r.nargs == 1:
-      unary_op_types[r.op] = (unary_op_types.get(r.op, set()) |
-                              {np.dtype(t) for t in r.dtypes})
-
   @parameterized.named_parameters(
       {"testcase_name": f"_{op}", "op_name": op, "rec_dtypes": dtypes}
       for op, dtypes in unary_op_types.items())
@@ -3945,6 +3927,23 @@ class LazyConstantTest(jtu.JaxTestCase):
       self.assertFalse(py_op.aval.weak_type)
     else:
       self.assertTrue(py_op.aval.weak_type)
+
+  def testBroadcastInDim(self):
+    arr = lax.full((2, 1), 1.) + 1.
+    arr_np = np.full((2, 1), 1.) + 1.
+    expected = lax_reference.broadcast_in_dim(arr_np, (2, 1, 3), (0, 2))
+    make_const = lambda: lax.broadcast_in_dim(arr, (2, 1, 3), (0, 2))
+    self._Check(make_const, expected)
+
+  def testArgMaxOfNanChoosesNaN(self):
+    self.assertEqual(lax.argmax(np.array([0., np.nan]), axis=0,
+                                index_dtype=np.int32), 1)
+
+  unary_op_types = {}
+  for r in lax_test_util.lax_ops():
+    if r.nargs == 1:
+      unary_op_types[r.op] = (unary_op_types.get(r.op, set()) |
+                              {np.dtype(t) for t in r.dtypes})
 
   def testCumsumLengthOne(self):
     # regression test for issue 4672
@@ -4262,6 +4261,19 @@ class CustomElementTypesTest(jtu.JaxTestCase):
     # And that activation gradients come from the scan.
     self.assertEqual(ct_x, backprop_scan.outvars[0])
 
+  @parameterized.parameters([
+    (0,),
+    (slice(1),),
+    (np.array([0, 2]),),
+    (np.array([False, True, True]),)
+  ])
+  def test_scatter(self, idx):
+    k  = jax.jit(lambda: make(()))()
+    ks = jax.jit(lambda: make((3,)))()
+    ys = jax.jit(lambda x, y: x.at[idx].set(y))(ks, k)
+    self.assertIsInstance(ys, FooArray)
+    self.assertEqual(ys.shape, (3,))
+
   def test_scan_lowering(self):
     ks = jax.jit(lambda: make((3, 4)))()
     f = lambda ks: jax.lax.scan(lambda _, k: (None, bake(k)), None, ks)
@@ -4325,19 +4337,6 @@ class CustomElementTypesTest(jtu.JaxTestCase):
     values = jnp.zeros((size, 1))
     results = jax.vmap(lambda x, i: jnp.take(x, i, axis=0))(values, indices)
     self.assertArraysEqual(results, jnp.zeros(size))
-
-  @parameterized.parameters([
-    (0,),
-    (slice(1),),
-    (np.array([0, 2]),),
-    (np.array([False, True, True]),)
-  ])
-  def test_scatter(self, idx):
-    k  = jax.jit(lambda: make(()))()
-    ks = jax.jit(lambda: make((3,)))()
-    ys = jax.jit(lambda x, y: x.at[idx].set(y))(ks, k)
-    self.assertIsInstance(ys, FooArray)
-    self.assertEqual(ys.shape, (3,))
 
   def test_equality(self):
     eq = jax.jit(lambda k1, k2: k1 == k2)
@@ -4422,15 +4421,6 @@ class FunctionAccuracyTest(jtu.JaxTestCase):
       nr, nv = mnp.normalize(r, r, v)
       self.assertAllClose(nr, nv)
 
-  _functions_on_complex_plane = [
-    'arccos', 'arccosh', 'arcsin', 'arcsinh',
-    'arctan', 'arctanh', 'conjugate', 'cos',
-    'cosh', 'exp', 'exp2', 'expm1', 'log',
-    'log10', 'log1p', 'sin', 'sinh', 'sqrt',
-    'square', 'tan', 'tanh', 'sinc', 'positive',
-    'negative', 'absolute', 'sign'
-  ]
-
   @parameterized.named_parameters(
     dict(testcase_name=f"_{name}_{dtype.__name__}", name=name, dtype=dtype)
     for name, dtype in itertools.product(
@@ -4450,6 +4440,15 @@ class FunctionAccuracyTest(jtu.JaxTestCase):
   @jtu.skip_on_devices("tpu")
   def testFailureOnComplexPlane(self, name, dtype):
     self._testOnComplexPlaneWorker(name, dtype, 'failure')
+
+  _functions_on_complex_plane = [
+    'arccos', 'arccosh', 'arcsin', 'arcsinh',
+    'arctan', 'arctanh', 'conjugate', 'cos',
+    'cosh', 'exp', 'exp2', 'expm1', 'log',
+    'log10', 'log1p', 'sin', 'sinh', 'sqrt',
+    'square', 'tan', 'tanh', 'sinc', 'positive',
+    'negative', 'absolute', 'sign'
+  ]
 
   def _testOnComplexPlaneWorker(self, name, dtype, kind):
     try:
