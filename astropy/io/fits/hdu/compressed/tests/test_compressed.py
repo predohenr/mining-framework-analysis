@@ -131,6 +131,144 @@ class TestCompressedImage(FitsTestCase):
         assert np.isclose(np.min(im1 - im3), -50, atol=1e-1)
         assert np.isclose(np.max(im1 - im3), 50, atol=1e-1)
 
+    @pytest.mark.slow
+    def test_open_scaled_in_update_mode_compressed(self):
+        """
+        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/88 2
+
+        Identical to test_open_scaled_in_update_mode() but with a compressed
+        version of the scaled image.
+        """
+
+        # Copy+compress the original file before making any possible changes to
+        # it
+        with fits.open(self.data("scale.fits"), do_not_scale_image_data=True) as hdul:
+            chdu = fits.CompImageHDU(data=hdul[0].data, header=hdul[0].header)
+            chdu.header["BZERO"] = hdul[0].header["BZERO"]
+            chdu.header["BSCALE"] = hdul[0].header["BSCALE"]
+            chdu.writeto(self.temp("scale.fits"))
+        mtime = os.stat(self.temp("scale.fits")).st_mtime
+
+        time.sleep(1)
+
+        # Now open the file in update mode and close immediately. Note that we
+        # need to set do_not_scale_image_data otherwise the data is scaled upon
+        # being opened.
+        fits.open(
+            self.temp("scale.fits"),
+            mode="update",
+            do_not_scale_image_data=True,
+        ).close()
+
+        # Ensure that no changes were made to the file merely by immediately
+        # opening and closing it.
+        assert mtime == os.stat(self.temp("scale.fits")).st_mtime
+
+        # Insert a slight delay to ensure the mtime does change when the file
+        # is changed
+        time.sleep(1)
+
+        hdul = fits.open(self.temp("scale.fits"), "update")
+        hdul[1].data
+        hdul.close()
+
+        # Now the file should be updated with the rescaled data
+        assert mtime != os.stat(self.temp("scale.fits")).st_mtime
+        hdul = fits.open(self.temp("scale.fits"), mode="update")
+        assert hdul[1].data.dtype == np.dtype("float32")
+        assert hdul[1].header["BITPIX"] == -32
+        assert "BZERO" not in hdul[1].header
+        assert "BSCALE" not in hdul[1].header
+
+        # Try reshaping the data, then closing and reopening the file; let's
+        # see if all the changes are preserved properly
+        hdul[1].data.shape = (42, 10)
+        hdul.close()
+
+        hdul = fits.open(self.temp("scale.fits"))
+        assert hdul[1].shape == (42, 10)
+        assert hdul[1].data.dtype == np.dtype("float32")
+        assert hdul[1].header["BITPIX"] == -32
+        assert "BZERO" not in hdul[1].header
+        assert "BSCALE" not in hdul[1].header
+        hdul.close()
+
+    @pytest.mark.parametrize(
+        ("keyword", "dtype", "expected"),
+        [
+            ("BSCALE", np.uint8, np.float32),
+            ("BSCALE", np.int16, np.float32),
+            ("BSCALE", np.int32, np.float64),
+            ("BZERO", np.uint8, np.float32),
+            ("BZERO", np.int16, np.float32),
+            ("BZERO", np.int32, np.float64),
+        ],
+    )
+    def test_compressed_scaled_float(self, keyword, dtype, expected):
+        """
+        If BSCALE,BZERO is set to floating point values, the image
+        should be floating-point.
+
+        https://github.com/astropy/astropy/pull/6492
+
+        Parameters
+        ----------
+        keyword : `str`
+            Keyword to set to a floating-point value to trigger
+            floating-point pixels.
+        dtype : `numpy.dtype`
+            Type of original array.
+        expected : `numpy.dtype`
+            Expected type of uncompressed array.
+        """
+        value = 1.23345  # A floating-point value
+        hdu = fits.CompImageHDU(np.arange(0, 10, dtype=dtype))
+        hdu.header[keyword] = value
+        hdu.writeto(self.temp("test.fits"))
+        del hdu
+        with fits.open(self.temp("test.fits")) as hdu:
+            assert hdu[1].header[keyword] == value
+            assert hdu[1].data.dtype == expected
+
+    @pytest.mark.parametrize(
+        "dtype", (np.uint8, np.int16, np.uint16, np.int32, np.uint32)
+    )
+    def test_compressed_integers(self, dtype):
+        """Test that the various integer dtypes are correctly written and read.
+
+        Regression test for https://github.com/astropy/astropy/issues/9072
+
+        """
+        mid = np.iinfo(dtype).max // 2
+        data = np.arange(mid - 50, mid + 50, dtype=dtype)
+        testfile = self.temp("test.fits")
+        hdu = fits.CompImageHDU(data=data)
+        hdu.writeto(testfile, overwrite=True)
+        new = fits.getdata(testfile)
+        np.testing.assert_array_equal(data, new)
+
+    @pytest.mark.parametrize("dtype", ["f", "i4"])
+    @pytest.mark.parametrize("compression_type", COMPRESSION_TYPES)
+    def test_write_non_contiguous_data(self, dtype, compression_type):
+        """
+        Regression test for https://github.com/astropy/astropy/issues/2150
+
+        This used to require changing the whole array to be C-contiguous before
+        passing to CFITSIO, but we no longer need this - our explicit conversion
+        to bytes in the compression codecs returns contiguous bytes for each
+        tile on-the-fly.
+        """
+
+        orig = np.arange(400, dtype=dtype).reshape((20, 20), order="f")[::2, ::2]
+        assert not orig.flags.contiguous
+        primary = fits.PrimaryHDU()
+        hdu = fits.CompImageHDU(orig, compression_type=compression_type)
+        hdulist = fits.HDUList([primary, hdu])
+        hdulist.writeto(self.temp("test.fits"))
+
+        actual = fits.getdata(self.temp("test.fits"))
+        assert_equal(orig, actual)
+
     def test_comp_image_hcompression_1_invalid_data(self):
         """
         Tests compression with the HCOMPRESS_1 algorithm with data that is
@@ -253,68 +391,6 @@ class TestCompressedImage(FitsTestCase):
         with fits.open(self.temp("test_comp_header.fits")) as hdul:
             assert hdul[1].header.get("TEST") == 1
             np.testing.assert_array_equal(hdul[1].data, data)
-
-    @pytest.mark.slow
-    def test_open_scaled_in_update_mode_compressed(self):
-        """
-        Regression test for https://aeon.stsci.edu/ssb/trac/pyfits/ticket/88 2
-
-        Identical to test_open_scaled_in_update_mode() but with a compressed
-        version of the scaled image.
-        """
-
-        # Copy+compress the original file before making any possible changes to
-        # it
-        with fits.open(self.data("scale.fits"), do_not_scale_image_data=True) as hdul:
-            chdu = fits.CompImageHDU(data=hdul[0].data, header=hdul[0].header)
-            chdu.header["BZERO"] = hdul[0].header["BZERO"]
-            chdu.header["BSCALE"] = hdul[0].header["BSCALE"]
-            chdu.writeto(self.temp("scale.fits"))
-        mtime = os.stat(self.temp("scale.fits")).st_mtime
-
-        time.sleep(1)
-
-        # Now open the file in update mode and close immediately. Note that we
-        # need to set do_not_scale_image_data otherwise the data is scaled upon
-        # being opened.
-        fits.open(
-            self.temp("scale.fits"),
-            mode="update",
-            do_not_scale_image_data=True,
-        ).close()
-
-        # Ensure that no changes were made to the file merely by immediately
-        # opening and closing it.
-        assert mtime == os.stat(self.temp("scale.fits")).st_mtime
-
-        # Insert a slight delay to ensure the mtime does change when the file
-        # is changed
-        time.sleep(1)
-
-        hdul = fits.open(self.temp("scale.fits"), "update")
-        hdul[1].data
-        hdul.close()
-
-        # Now the file should be updated with the rescaled data
-        assert mtime != os.stat(self.temp("scale.fits")).st_mtime
-        hdul = fits.open(self.temp("scale.fits"), mode="update")
-        assert hdul[1].data.dtype == np.dtype("float32")
-        assert hdul[1].header["BITPIX"] == -32
-        assert "BZERO" not in hdul[1].header
-        assert "BSCALE" not in hdul[1].header
-
-        # Try reshaping the data, then closing and reopening the file; let's
-        # see if all the changes are preserved properly
-        hdul[1].data.shape = (42, 10)
-        hdul.close()
-
-        hdul = fits.open(self.temp("scale.fits"))
-        assert hdul[1].shape == (42, 10)
-        assert hdul[1].data.dtype == np.dtype("float32")
-        assert hdul[1].header["BITPIX"] == -32
-        assert "BZERO" not in hdul[1].header
-        assert "BSCALE" not in hdul[1].header
-        hdul.close()
 
     def test_write_comp_hdu_direct_from_existing(self):
         with fits.open(self.data("comp.fits")) as hdul:
@@ -830,82 +906,6 @@ class TestCompressedImage(FitsTestCase):
         hdu = fits.CompImageHDU(data=np.arange(10), header=header)
         assert hdu.header["HELLO"] == "world"
 
-    @pytest.mark.parametrize(
-        ("keyword", "dtype", "expected"),
-        [
-            ("BSCALE", np.uint8, np.float32),
-            ("BSCALE", np.int16, np.float32),
-            ("BSCALE", np.int32, np.float64),
-            ("BZERO", np.uint8, np.float32),
-            ("BZERO", np.int16, np.float32),
-            ("BZERO", np.int32, np.float64),
-        ],
-    )
-    def test_compressed_scaled_float(self, keyword, dtype, expected):
-        """
-        If BSCALE,BZERO is set to floating point values, the image
-        should be floating-point.
-
-        https://github.com/astropy/astropy/pull/6492
-
-        Parameters
-        ----------
-        keyword : `str`
-            Keyword to set to a floating-point value to trigger
-            floating-point pixels.
-        dtype : `numpy.dtype`
-            Type of original array.
-        expected : `numpy.dtype`
-            Expected type of uncompressed array.
-        """
-        value = 1.23345  # A floating-point value
-        hdu = fits.CompImageHDU(np.arange(0, 10, dtype=dtype))
-        hdu.header[keyword] = value
-        hdu.writeto(self.temp("test.fits"))
-        del hdu
-        with fits.open(self.temp("test.fits")) as hdu:
-            assert hdu[1].header[keyword] == value
-            assert hdu[1].data.dtype == expected
-
-    @pytest.mark.parametrize(
-        "dtype", (np.uint8, np.int16, np.uint16, np.int32, np.uint32)
-    )
-    def test_compressed_integers(self, dtype):
-        """Test that the various integer dtypes are correctly written and read.
-
-        Regression test for https://github.com/astropy/astropy/issues/9072
-
-        """
-        mid = np.iinfo(dtype).max // 2
-        data = np.arange(mid - 50, mid + 50, dtype=dtype)
-        testfile = self.temp("test.fits")
-        hdu = fits.CompImageHDU(data=data)
-        hdu.writeto(testfile, overwrite=True)
-        new = fits.getdata(testfile)
-        np.testing.assert_array_equal(data, new)
-
-    @pytest.mark.parametrize("dtype", ["f", "i4"])
-    @pytest.mark.parametrize("compression_type", COMPRESSION_TYPES)
-    def test_write_non_contiguous_data(self, dtype, compression_type):
-        """
-        Regression test for https://github.com/astropy/astropy/issues/2150
-
-        This used to require changing the whole array to be C-contiguous before
-        passing to CFITSIO, but we no longer need this - our explicit conversion
-        to bytes in the compression codecs returns contiguous bytes for each
-        tile on-the-fly.
-        """
-
-        orig = np.arange(400, dtype=dtype).reshape((20, 20), order="f")[::2, ::2]
-        assert not orig.flags.contiguous
-        primary = fits.PrimaryHDU()
-        hdu = fits.CompImageHDU(orig, compression_type=compression_type)
-        hdulist = fits.HDUList([primary, hdu])
-        hdulist.writeto(self.temp("test.fits"))
-
-        actual = fits.getdata(self.temp("test.fits"))
-        assert_equal(orig, actual)
-
     def test_slice_and_write_comp_hdu(self):
         """
         Regression test for https://github.com/astropy/astropy/issues/9955
@@ -1053,10 +1053,6 @@ class TestCompHDUSections:
         self.hdul = fits.open(tmp_path / "sections.fits")
         self.hdul2 = fits.open(tmp_path / "sections.fits")
 
-    def teardown_method(self):
-        self.hdul.close()
-        self.hdul = None
-
     @given(basic_indices((13, 17, 25)))
     def test_section_slicing(self, index):
         assert_equal(self.hdul[1].section[index], self.hdul[1].data[index])
@@ -1066,6 +1062,10 @@ class TestCompHDUSections:
     def test_section_slicing_scaling(self, index):
         assert_equal(self.hdul[2].section[index], self.hdul[2].data[index])
         assert_equal(self.hdul[2].section[index], self.data[index] * 2 + 100)
+
+    def teardown_method(self):
+        self.hdul.close()
+        self.hdul = None
 
     def test_section_properties(self):
         assert self.hdul[1].section.dtype is np.dtype("int32")
