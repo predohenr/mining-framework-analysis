@@ -86,7 +86,6 @@ def _str_to_dict_path_full(key_path_str):
             return key.replace("-", "_")
 
         key_path2b = list(map(_make_hyphen_key, key_path2))
-
         # Here we want to split up each non-empty string in the list at
         # underscores and recombine the strings using chomp_empty_strings so
         # that leading, trailing and multiple _ will be preserved
@@ -653,7 +652,7 @@ class BaseFigure(object):
                 type_err.args = (
                     type_err.args[0]
                     + """
-%s"""
+    %s"""
                     % (err.args[0],),
                 )
                 raise type_err
@@ -1571,8 +1570,8 @@ class BaseFigure(object):
             if refs[0].subplot_type != "xy":
                 raise ValueError(
                     """
-Cannot add {prop_singular} to subplot at position ({r}, {c}) because subplot
-is of type {subplot_type}.""".format(
+    Cannot add {prop_singular} to subplot at position ({r}, {c}) because subplot
+    is of type {subplot_type}.""".format(
                         prop_singular=prop_singular,
                         r=row,
                         c=col,
@@ -1757,8 +1756,8 @@ is of type {subplot_type}.""".format(
                         trace_class = trace_obj.__class__.__name__
                         raise ValueError(
                             """
-Invalid property path '{key_path_str}' for trace class {trace_class}
-""".format(
+    Invalid property path '{key_path_str}' for trace class {trace_class}
+    """.format(
                                 key_path_str=key_path_str, trace_class=trace_class
                             )
                         )
@@ -2336,9 +2335,9 @@ Invalid property path '{key_path_str}' for trace class {trace_class}
         """
         warnings.warn(
             """\
-The append_trace method is deprecated and will be removed in a future version.
-Please use the add_trace method with the row and col parameters.
-""",
+    The append_trace method is deprecated and will be removed in a future version.
+    Please use the add_trace method with the row and col parameters.
+    """,
             DeprecationWarning,
         )
 
@@ -2668,8 +2667,8 @@ Please use the add_trace method with the row and col parameters.
 
                 raise ValueError(
                     """
-Invalid property path '{key_path_str}' for layout
-""".format(
+    Invalid property path '{key_path_str}' for layout
+    """.format(
                         key_path_str=key_path_str
                     )
                 )
