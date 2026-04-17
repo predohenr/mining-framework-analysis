@@ -71,12 +71,6 @@ class Code:
     def from_function(cls, obj: object) -> Code:
         return cls(getrawcode(obj))
 
-    def __eq__(self, other):
-        return self.raw == other.raw
-
-    # Ignore type because of https://github.com/python/mypy/issues/4266.
-    __hash__ = None  # type: ignore
-
     @property
     def firstlineno(self) -> int:
         return self.raw.co_firstlineno - 1
@@ -107,6 +101,12 @@ class Code:
         """Return a _pytest._code.Source object for the full source file of the code."""
         full, _ = findsource(self.raw)
         return full
+
+    def __eq__(self, other):
+        return self.raw == other.raw
+
+    # Ignore type because of https://github.com/python/mypy/issues/4266.
+    __hash__ = None  # type: ignore
 
     def source(self) -> Source:
         """Return a _pytest._code.Source object for the code object's source only."""
@@ -220,9 +220,6 @@ class TracebackEntry:
     def relline(self) -> int:
         return self.lineno - self.frame.code.firstlineno
 
-    def __repr__(self) -> str:
-        return "<TracebackEntry %s:%d>" % (self.frame.code.path, self.lineno + 1)
-
     @property
     def statement(self) -> Source:
         """_pytest._code.Source object for the current statement."""
@@ -239,6 +236,14 @@ class TracebackEntry:
     def locals(self) -> dict[str, Any]:
         """Locals of underlying frame."""
         return self.frame.f_locals
+
+    @property
+    def name(self) -> str:
+        """co_name of underlying code."""
+        return self.frame.code.raw.co_name
+
+    def __repr__(self) -> str:
+        return "<TracebackEntry %s:%d>" % (self.frame.code.path, self.lineno + 1)
 
     def getfirstlinesource(self) -> int:
         return self.frame.code.firstlineno
@@ -313,11 +318,6 @@ class TracebackEntry:
             name,
             line,
         )
-
-    @property
-    def name(self) -> str:
-        """co_name of underlying code."""
-        return self.frame.code.raw.co_name
 
 
 class Traceback(List[TracebackEntry]):
