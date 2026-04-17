@@ -5400,7 +5400,6 @@ class APITest(jtu.JaxTestCase):
     out1, out2 = f_vjp.with_refs(api.GradValue(), api.DontWant())(jnp.ones((8,)))
     self.assertArraysEqual(out1, jnp.ones((8,)))
     self.assertIsInstance(out2, api.DidntWant)
-
   def test_vjp3_dont_want_bilinear(self):
     def f(x, y):
       return x * y 
