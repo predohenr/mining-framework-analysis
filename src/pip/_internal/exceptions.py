@@ -921,8 +921,6 @@ class InvalidEggFragment(DiagnosticPipError):
             context=f"from '{escape(str(link))}'",
             hint_stmt=escape(hint),
         )
-
-
 class BuildDependencyInstallError(DiagnosticPipError):
     """Raised when build dependencies cannot be installed."""
 
