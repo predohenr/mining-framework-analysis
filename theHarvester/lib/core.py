@@ -50,7 +50,6 @@ class Core:
         'intelx': ('key',),
         'leaklookup': ('key',),
         'leakix': ('key',),
-        'mojeek': ('key',),
         'netlas': ('key',),
         'onyphe': ('key',),
         'pentestTools': ('key',),
@@ -169,10 +168,10 @@ class Core:
     @staticmethod
     def leaklookup_key() -> str:
         return Core._api_key_value('leaklookup')
-
+        
     @staticmethod
     def mojeek_key() -> str:
-        return Core._api_key_value('mojeek')
+        return Core.api_keys()['mojeek']['key']
 
     @staticmethod
     def leakix_key() -> str:
