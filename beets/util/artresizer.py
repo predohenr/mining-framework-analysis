@@ -150,6 +150,11 @@ class LocalBackend(ABC):
         """Indicate whether image comparison is supported by this backend."""
         return False
 
+    @property
+    def can_write_metadata(self) -> bool:
+        """Indicate whether writing metadata to images is supported."""
+        return False
+
     def compare(
         self,
         im1: bytes,
@@ -163,11 +168,6 @@ class LocalBackend(ABC):
         """
         # It is an error to call this when ArtResizer.can_compare is not True.
         raise NotImplementedError()
-
-    @property
-    def can_write_metadata(self) -> bool:
-        """Indicate whether writing metadata to images is supported."""
-        return False
 
     def write_metadata(self, file: bytes, metadata: Mapping[str, str]) -> None:
         """Write key-value metadata into the image file.
@@ -217,6 +217,14 @@ class IMBackend(LocalBackend):
             raise LocalBackendNotAvailableError()
         else:
             return cls._version
+
+    @property
+    def can_compare(self) -> bool:
+        return self.version() > (6, 8, 7)
+
+    @property
+    def can_write_metadata(self) -> bool:
+        return True
 
     convert_cmd: list[str]
     identify_cmd: list[str]
@@ -388,10 +396,6 @@ class IMBackend(LocalBackend):
             # FIXME: Should probably issue a warning?
             return source
 
-    @property
-    def can_compare(self) -> bool:
-        return self.version() > (6, 8, 7)
-
     def compare(
         self,
         im1: bytes,
@@ -485,10 +489,6 @@ class IMBackend(LocalBackend):
         log.debug("ImageMagick compare score: {}", phash_diff)
         return phash_diff <= compare_threshold
 
-    @property
-    def can_write_metadata(self) -> bool:
-        return True
-
     def write_metadata(self, file: bytes, metadata: Mapping[str, str]) -> None:
         assignments = chain.from_iterable(
             ("-set", k, v) for k, v in metadata.items()
@@ -508,6 +508,14 @@ class PILBackend(LocalBackend):
             __import__("PIL", fromlist=["Image"])
         except ImportError:
             raise LocalBackendNotAvailableError()
+
+    @property
+    def can_compare(self) -> bool:
+        return False
+
+    @property
+    def can_write_metadata(self) -> bool:
+        return True
 
     def __init__(self) -> None:
         """Initialize a wrapper around PIL for local image operations.
@@ -659,10 +667,6 @@ class PILBackend(LocalBackend):
             log.exception("failed to convert image {} -> {}", source, target)
             return source
 
-    @property
-    def can_compare(self) -> bool:
-        return False
-
     def compare(
         self,
         im1: bytes,
@@ -671,10 +675,6 @@ class PILBackend(LocalBackend):
     ) -> bool | None:
         # It is an error to call this when ArtResizer.can_compare is not True.
         raise NotImplementedError()
-
-    @property
-    def can_write_metadata(self) -> bool:
-        return True
 
     def write_metadata(self, file: bytes, metadata: Mapping[str, str]) -> None:
         from PIL import Image, PngImagePlugin
@@ -732,6 +732,31 @@ class ArtResizer:
         else:
             return "WEBPROXY"
 
+    @property
+    def local(self) -> bool:
+        """A boolean indicating whether the resizing method is performed
+        locally (i.e., PIL or ImageMagick).
+        """
+        return self.local_method is not None
+
+    @property
+    def can_compare(self) -> bool:
+        """A boolean indicating whether image comparison is available"""
+
+        if self.local_method is not None:
+            return self.local_method.can_compare
+        else:
+            return False
+
+    @property
+    def can_write_metadata(self) -> bool:
+        """A boolean indicating whether writing image metadata is supported."""
+
+        if self.local_method is not None:
+            return self.local_method.can_write_metadata
+        else:
+            return False
+
     def resize(
         self,
         maxwidth: int,
@@ -782,13 +807,6 @@ class ArtResizer:
             return url
         else:
             return resize_url(url, maxwidth, quality)
-
-    @property
-    def local(self) -> bool:
-        """A boolean indicating whether the resizing method is performed
-        locally (i.e., PIL or ImageMagick).
-        """
-        return self.local_method is not None
 
     def get_size(self, path_in: bytes) -> tuple[int, int] | None:
         """Return the size of an image file as an int couple (width, height)
@@ -851,15 +869,6 @@ class ArtResizer:
                     os.unlink(path_in)
         return result_path
 
-    @property
-    def can_compare(self) -> bool:
-        """A boolean indicating whether image comparison is available"""
-
-        if self.local_method is not None:
-            return self.local_method.can_compare
-        else:
-            return False
-
     def compare(
         self,
         im1: bytes,
@@ -875,15 +884,6 @@ class ArtResizer:
         else:
             # FIXME: Should probably issue a warning?
             return None
-
-    @property
-    def can_write_metadata(self) -> bool:
-        """A boolean indicating whether writing image metadata is supported."""
-
-        if self.local_method is not None:
-            return self.local_method.can_write_metadata
-        else:
-            return False
 
     def write_metadata(self, file: bytes, metadata: Mapping[str, str]) -> None:
         """Write key-value metadata to the image file.
