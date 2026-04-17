@@ -85,6 +85,9 @@ for content_type, extension in ADDITIONAL_CONTENT_TYPES.items():
 _CLOSE_FUTURES: Set[asyncio.Future[None]] = set()
 
 
+_CLOSE_FUTURES: Set[asyncio.Future[None]] = set()
+
+
 class FileResponse(StreamResponse):
     """A response object can be used to send files."""
 
