@@ -141,7 +141,9 @@ def test_batch_sampler_only():
 def test_sampler_only():
     dataset = DummyDataset()
     config = make_standard_dataloader_config(
-        sampler={"_target_": DUMMY_SAMPLER_TARGET}
+        sampler={
+            "_target_": DUMMY_SAMPLER_TARGET
+        }
     )
     builder = DataLoaderBuilder(dataset, config, collate_fn=None, num_device=1, epoch=0)
     loader = builder.build("train")
@@ -205,7 +207,9 @@ def test_custom_collate_fn():
 def test_sampler_and_batch_sampler_conflict():
     dataset = DummyDataset()
     config = make_standard_dataloader_config(
-        sampler={"_target_": DUMMY_SAMPLER_TARGET},
+        sampler={
+            "_target_": DUMMY_SAMPLER_TARGET
+        },
         batch_sampler={
             "_target_": DUMMY_BATCH_SAMPLER_TARGET
         },
