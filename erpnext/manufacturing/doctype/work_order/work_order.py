@@ -1682,7 +1682,6 @@ class WorkOrder(Document):
 			"warehouse": wip_warehouse,
 			"docstatus": 1,
 		}
-
 		if not self.skip_transfer:
 			filters["from_voucher_no"] = ("is", "set")
 
