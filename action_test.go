@@ -622,7 +622,7 @@ func TestDoFreezeResults(t *testing.T) {
 	makeLines := func(values ...string) []line.Line {
 		lines := make([]line.Line, len(values))
 		for i, v := range values {
-			lines[i] = line.NewRaw(uint64(i), v, false, false)
+			lines[i] = line.NewRaw(uint64(i), v, false)
 		}
 		return lines
 	}
@@ -747,7 +747,7 @@ func TestContextBuffer(t *testing.T) {
 	makeSource := func(n int) *MemoryBuffer {
 		mb := NewMemoryBuffer(n)
 		for i := 0; i < n; i++ {
-			mb.lines = append(mb.lines, line.NewRaw(uint64(i), fmt.Sprintf("line-%d", i), false, false))
+			mb.lines = append(mb.lines, line.NewRaw(uint64(i), fmt.Sprintf("line-%d", i), false))
 		}
 		return mb
 	}
@@ -886,7 +886,7 @@ func TestDoZoomInOut(t *testing.T) {
 	makeState := func() (*Peco, *recordingHub, *MemoryBuffer, *MemoryBuffer) {
 		source := NewMemoryBuffer(10)
 		for i := 0; i < 10; i++ {
-			source.lines = append(source.lines, line.NewRaw(uint64(i), fmt.Sprintf("line-%d", i), false, false))
+			source.lines = append(source.lines, line.NewRaw(uint64(i), fmt.Sprintf("line-%d", i), false))
 		}
 
 		// Filtered buffer: matches at indices 3 and 7
