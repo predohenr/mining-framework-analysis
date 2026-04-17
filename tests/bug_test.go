@@ -3,9 +3,9 @@ package tests
 import (
 	"bytes"
 	"fmt"
+	"github.com/fatih/color"
 	"testing"
 
-	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/renderer"
 	"github.com/olekukonko/tablewriter/tw"
@@ -236,7 +236,6 @@ func TestBug254(t *testing.T) {
 			t.Error(table.Debug())
 		}
 	})
-
 }
 
 func TestBug260(t *testing.T) {
