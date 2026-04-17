@@ -427,7 +427,9 @@ def get_groups_with_perms(obj: Model, attach_perms: bool = False, only_with_perm
     else:
         group_perms_mapping = defaultdict(list)
         groups_with_perms = get_groups_with_perms(obj, only_with_perms_in=only_with_perms_in)
-        qs = group_model.objects.filter(group__in=groups_with_perms).prefetch_related("group", "permission")
+        qs = group_model.objects.filter(group__in=groups_with_perms).prefetch_related(
+            "group", "permission"
+        )
         if group_model.objects.is_generic():
             qs = qs.filter(object_pk=obj.pk, content_type=ctype)
         else:
