@@ -760,7 +760,7 @@ class ChatFullInfo(JsonDeserializable):
 
     :param paid_message_star_count: Optional. The number of Telegram Stars a general user have to pay to send a message to the chat
     :type paid_message_star_count: :obj:`int`
-
+    
     :param first_profile_audio: Optional. For private chats, the first audio added to the profile of the user
     :type first_profile_audio: :class:`telebot.types.Audio`
 
@@ -13563,7 +13563,7 @@ class ChatOwnerLeft(JsonDeserializable):
     """
     def __init__(self, new_owner: Optional[User] = None, **kwargs):
         self.new_owner: Optional[User] = new_owner
-
+        
     @classmethod
     def de_json(cls, json_string):
         if json_string is None: return None
@@ -13571,7 +13571,7 @@ class ChatOwnerLeft(JsonDeserializable):
         if 'new_owner' in obj:
             obj['new_owner'] = User.de_json(obj['new_owner'])
         return cls(**obj)
-
+    
 class ChatOwnerChanged(JsonDeserializable):
     """
     Describes a service message about an ownership change in the chat.
@@ -13593,7 +13593,7 @@ class ChatOwnerChanged(JsonDeserializable):
         obj = cls.check_json(json_string)
         obj['new_owner'] = User.de_json(obj['new_owner'])
         return cls(**obj)
-
+    
 class VideoQuality(JsonDeserializable):
     """
     This object represents a video file of a specific quality.
@@ -13635,7 +13635,7 @@ class VideoQuality(JsonDeserializable):
         if json_string is None: return None
         obj = cls.check_json(json_string)
         return cls(**obj)
-
+    
 
 class UserProfileAudios(JsonDeserializable):
     """
