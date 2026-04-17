@@ -10,8 +10,8 @@ import threading
 import time
 import traceback
 import warnings
-import weakref
 from collections.abc import AsyncGenerator, Awaitable, Callable
+import weakref
 from functools import partial
 from math import inf
 from typing import (
@@ -432,6 +432,82 @@ def test_guest_warns_if_abandoned() -> None:
             trio.current_time()
 
 
+@restore_unraisablehook()
+def test_guest_mode_asyncgens() -> None:
+    record = set()
+
+    async def agen(label: str) -> AsyncGenerator[int, None]:
+        assert sniffio.current_async_library() == label
+        try:
+            yield 1
+        finally:
+            library = sniffio.current_async_library()
+            with contextlib.suppress(trio.Cancelled):
+                await sys.modules[library].sleep(0)
+            record.add((label, library))
+
+    async def iterate_in_aio() -> None:
+        await agen("asyncio").asend(None)
+
+    async def trio_main() -> None:
+        task = asyncio.ensure_future(iterate_in_aio())
+        done_evt = trio.Event()
+        task.add_done_callback(lambda _: done_evt.set())
+        with trio.fail_after(1):
+            await done_evt.wait()
+
+        await agen("trio").asend(None)
+
+        gc_collect_harder()
+
+    aiotrio_run(trio_main, host_uses_signal_set_wakeup_fd=True)
+
+    assert record == {("asyncio", "asyncio"), ("trio", "trio")}
+
+
+@restore_unraisablehook()
+def test_guest_mode_asyncgens_garbage_collection() -> None:
+    record: set[tuple[str, str, bool]] = set()
+
+    async def agen(label: str) -> AsyncGenerator[int, None]:
+        class A:
+            pass
+
+        a = A()
+        a_wr = weakref.ref(a)
+        assert sniffio.current_async_library() == label
+        try:
+            yield 1
+        finally:
+            library = sniffio.current_async_library()
+            with contextlib.suppress(trio.Cancelled):
+                await sys.modules[library].sleep(0)
+
+            del a
+            if sys.implementation.name == "pypy":
+                gc_collect_harder()
+
+            record.add((label, library, a_wr() is None))
+
+    async def iterate_in_aio() -> None:
+        await agen("asyncio").asend(None)
+
+    async def trio_main() -> None:
+        task = asyncio.ensure_future(iterate_in_aio())
+        done_evt = trio.Event()
+        task.add_done_callback(lambda _: done_evt.set())
+        with trio.fail_after(1):
+            await done_evt.wait()
+
+        await agen("trio").asend(None)
+
+        gc_collect_harder()
+
+    aiotrio_run(trio_main, host_uses_signal_set_wakeup_fd=True)
+
+    assert record == {("asyncio", "asyncio", True), ("trio", "trio", True)}
+
+
 def aiotrio_run(
     trio_fn: Callable[..., Awaitable[T]],
     *,
@@ -628,79 +704,3 @@ def test_guest_mode_autojump_clock_threshold_changing() -> None:
     # Should be basically instantaneous, but we'll leave a generous buffer to
     # account for any CI weirdness
     assert end - start < DURATION / 2
-
-
-@restore_unraisablehook()
-def test_guest_mode_asyncgens() -> None:
-    record = set()
-
-    async def agen(label: str) -> AsyncGenerator[int, None]:
-        assert sniffio.current_async_library() == label
-        try:
-            yield 1
-        finally:
-            library = sniffio.current_async_library()
-            with contextlib.suppress(trio.Cancelled):
-                await sys.modules[library].sleep(0)
-            record.add((label, library))
-
-    async def iterate_in_aio() -> None:
-        await agen("asyncio").asend(None)
-
-    async def trio_main() -> None:
-        task = asyncio.ensure_future(iterate_in_aio())
-        done_evt = trio.Event()
-        task.add_done_callback(lambda _: done_evt.set())
-        with trio.fail_after(1):
-            await done_evt.wait()
-
-        await agen("trio").asend(None)
-
-        gc_collect_harder()
-
-    aiotrio_run(trio_main, host_uses_signal_set_wakeup_fd=True)
-
-    assert record == {("asyncio", "asyncio"), ("trio", "trio")}
-
-
-@restore_unraisablehook()
-def test_guest_mode_asyncgens_garbage_collection() -> None:
-    record: set[tuple[str, str, bool]] = set()
-
-    async def agen(label: str) -> AsyncGenerator[int, None]:
-        class A:
-            pass
-
-        a = A()
-        a_wr = weakref.ref(a)
-        assert sniffio.current_async_library() == label
-        try:
-            yield 1
-        finally:
-            library = sniffio.current_async_library()
-            with contextlib.suppress(trio.Cancelled):
-                await sys.modules[library].sleep(0)
-
-            del a
-            if sys.implementation.name == "pypy":
-                gc_collect_harder()
-
-            record.add((label, library, a_wr() is None))
-
-    async def iterate_in_aio() -> None:
-        await agen("asyncio").asend(None)
-
-    async def trio_main() -> None:
-        task = asyncio.ensure_future(iterate_in_aio())
-        done_evt = trio.Event()
-        task.add_done_callback(lambda _: done_evt.set())
-        with trio.fail_after(1):
-            await done_evt.wait()
-
-        await agen("trio").asend(None)
-
-        gc_collect_harder()
-
-    aiotrio_run(trio_main, host_uses_signal_set_wakeup_fd=True)
-
-    assert record == {("asyncio", "asyncio", True), ("trio", "trio", True)}
