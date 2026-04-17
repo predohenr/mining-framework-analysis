@@ -469,8 +469,7 @@ def URLRabbitmqBroker(url, *, middleware=None):
     """
     warnings.warn(
         "Use RabbitmqBroker with the 'url' parameter instead of URLRabbitmqBroker.",
-        DeprecationWarning,
-        stacklevel=2,
+        DeprecationWarning, stacklevel=2,
     )
     return RabbitmqBroker(url=url, middleware=middleware)
 
