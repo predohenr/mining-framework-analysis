@@ -428,6 +428,27 @@ class TestComments(unittest.TestCase):
         self.assertNotIn("<script>", rv["author"])
         self.assertEqual(rv["author"], "&lt;script&gt;alert(1)&lt;/script&gt;")
 
+    def testUpdateWebsiteXSSPayloadIsEscaped(self):
+        """Website and author XSS payloads via edit endpoint must be HTML-escaped."""
+        self.post('/new?uri=%2Fpath%2F', data=json.dumps({'text': 'Lorem ipsum ...'}))
+
+        website_payload = "http://x.com/?'onmouseover='alert(document.domain)'x='"
+        author_payload = "<script>alert(1)</script>"
+        self.put('/id/1', data=json.dumps({
+            'text': 'Hello World',
+            'author': author_payload,
+            'website': website_payload,
+        }))
+
+        rv = loads(self.get('/id/1?plain=1').data)
+        self.assertNotIn("'", rv["website"])
+        self.assertEqual(
+            rv["website"],
+            "http://x.com/?&#x27;onmouseover=&#x27;alert(document.domain)&#x27;x=&#x27;",
+        )
+        self.assertNotIn("<script>", rv["author"])
+        self.assertEqual(rv["author"], "&lt;script&gt;alert(1)&lt;/script&gt;")
+
     def testUpdateForbidden(self):
 
         self.post('/new?uri=test', data=json.dumps({'text': 'Hello world!'}))
@@ -585,7 +606,7 @@ class TestComments(unittest.TestCase):
         self.assertEqual(rv.headers['ETag'], '"empty"')
         data = rv.data.decode('utf-8')
         self.assertEqual(data, """<?xml version=\'1.0\' encoding=\'utf-8\'?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:thr="http://purl.org/syndication/thread/1.0"><updated>1970-01-01T01:00:00Z</updated><id>tag:example.org,2018:/isso/thread/path/nothing</id><title>Comments for example.org/path/nothing</title></feed>""")
+    <feed xmlns="http://www.w3.org/2005/Atom" xmlns:thr="http://purl.org/syndication/thread/1.0"><updated>1970-01-01T01:00:00Z</updated><id>tag:example.org,2018:/isso/thread/path/nothing</id><title>Comments for example.org/path/nothing</title></feed>""")
 
     def testFeed(self):
         self.conf.set("rss", "base", "https://example.org")
@@ -603,8 +624,8 @@ class TestComments(unittest.TestCase):
         self.maxDiff = None
         # Two accepted outputs, since different versions of Python sort attributes in different order.
         self.assertIn(data, ["""<?xml version=\'1.0\' encoding=\'utf-8\'?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:thr="http://purl.org/syndication/thread/1.0"><updated>2018-04-01T10:00:00Z</updated><id>tag:example.org,2018:/isso/thread/path/</id><title>Comments for example.org/path/</title><entry><id>tag:example.org,2018:/isso/1/1</id><title>Comment #1</title><updated>2018-04-01T10:00:00Z</updated><author><name /></author><link href="https://example.org/path/#isso-1" /><content type="html">&lt;p&gt;First&lt;/p&gt;</content></entry><entry><id>tag:example.org,2018:/isso/1/2</id><title>Comment #2</title><updated>2018-04-01T10:00:00Z</updated><author><name /></author><link href="https://example.org/path/#isso-2" /><content type="html">&lt;p&gt;&lt;em&gt;Second&lt;/em&gt;&lt;/p&gt;</content><thr:in-reply-to href="https://example.org/path/#isso-1" ref="tag:example.org,2018:/isso/1/1" /></entry></feed>""", """<?xml version=\'1.0\' encoding=\'utf-8\'?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:thr="http://purl.org/syndication/thread/1.0"><updated>2018-04-01T10:00:00Z</updated><id>tag:example.org,2018:/isso/thread/path/</id><title>Comments for example.org/path/</title><entry><id>tag:example.org,2018:/isso/1/1</id><title>Comment #1</title><updated>2018-04-01T10:00:00Z</updated><author><name /></author><link href="https://example.org/path/#isso-1" /><content type="html">&lt;p&gt;First&lt;/p&gt;</content></entry><entry><id>tag:example.org,2018:/isso/1/2</id><title>Comment #2</title><updated>2018-04-01T10:00:00Z</updated><author><name /></author><link href="https://example.org/path/#isso-2" /><content type="html">&lt;p&gt;&lt;em&gt;Second&lt;/em&gt;&lt;/p&gt;</content><thr:in-reply-to ref="tag:example.org,2018:/isso/1/1" href="https://example.org/path/#isso-1" /></entry></feed>"""])
+    <feed xmlns="http://www.w3.org/2005/Atom" xmlns:thr="http://purl.org/syndication/thread/1.0"><updated>2018-04-01T10:00:00Z</updated><id>tag:example.org,2018:/isso/thread/path/</id><title>Comments for example.org/path/</title><entry><id>tag:example.org,2018:/isso/1/1</id><title>Comment #1</title><updated>2018-04-01T10:00:00Z</updated><author><name /></author><link href="https://example.org/path/#isso-1" /><content type="html">&lt;p&gt;First&lt;/p&gt;</content></entry><entry><id>tag:example.org,2018:/isso/1/2</id><title>Comment #2</title><updated>2018-04-01T10:00:00Z</updated><author><name /></author><link href="https://example.org/path/#isso-2" /><content type="html">&lt;p&gt;&lt;em&gt;Second&lt;/em&gt;&lt;/p&gt;</content><thr:in-reply-to href="https://example.org/path/#isso-1" ref="tag:example.org,2018:/isso/1/1" /></entry></feed>""", """<?xml version=\'1.0\' encoding=\'utf-8\'?>
+    <feed xmlns="http://www.w3.org/2005/Atom" xmlns:thr="http://purl.org/syndication/thread/1.0"><updated>2018-04-01T10:00:00Z</updated><id>tag:example.org,2018:/isso/thread/path/</id><title>Comments for example.org/path/</title><entry><id>tag:example.org,2018:/isso/1/1</id><title>Comment #1</title><updated>2018-04-01T10:00:00Z</updated><author><name /></author><link href="https://example.org/path/#isso-1" /><content type="html">&lt;p&gt;First&lt;/p&gt;</content></entry><entry><id>tag:example.org,2018:/isso/1/2</id><title>Comment #2</title><updated>2018-04-01T10:00:00Z</updated><author><name /></author><link href="https://example.org/path/#isso-2" /><content type="html">&lt;p&gt;&lt;em&gt;Second&lt;/em&gt;&lt;/p&gt;</content><thr:in-reply-to ref="tag:example.org,2018:/isso/1/1" href="https://example.org/path/#isso-1" /></entry></feed>"""])
 
     def testCounts(self):
 
