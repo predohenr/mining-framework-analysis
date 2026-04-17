@@ -147,6 +147,61 @@ class SubdirData(metaclass=SubdirDataType):
             )
         return result
 
+    @property
+    def _repo(self) -> RepoInterface:
+        """
+        Changes as we mutate self.repodata_fn.
+        """
+        return self.repo_fetch._repo
+
+    @property
+    def repo_cache(self) -> RepodataCache:
+        return self.repo_fetch.repo_cache
+
+    @property
+    def repo_fetch(self) -> RepodataFetch:
+        """
+        Object to get repodata. Not cached since self.repodata_fn is mutable.
+
+        Replaces self._repo & self.repo_cache.
+        """
+        return RepodataFetch(
+            Path(self.cache_path_base),
+            self.channel,
+            self.repodata_fn,
+            repo_interface_cls=self.RepoInterface,
+        )
+
+    @property
+    def cache_path_base(self):
+        return join(
+            create_cache_dir(),
+            splitext(cache_fn_url(self.url_w_credentials, self.repodata_fn))[0],
+        )
+
+    @property
+    def url_w_repodata_fn(self):
+        return self.url_w_subdir + "/" + self.repodata_fn
+
+    @property
+    def cache_path_json(self):
+        return Path(
+            self.cache_path_base + ("1" if context.use_only_tar_bz2 else "") + ".json"
+        )
+
+    @property
+    def cache_path_state(self):
+        """Out-of-band etag and other state needed by the RepoInterface."""
+        return Path(
+            self.cache_path_base
+            + ("1" if context.use_only_tar_bz2 else "")
+            + CACHE_STATE_SUFFIX
+        )
+
+    @property
+    def cache_path_pickle(self):
+        return self.cache_path_base + ("1" if context.use_only_tar_bz2 else "") + ".q"
+
     def query(self, package_ref_or_match_spec):
         if not self._loaded:
             self.load()
@@ -191,65 +246,10 @@ class SubdirData(metaclass=SubdirDataType):
         self._loaded = False
         self._key_mgr = None
 
-    @property
-    def _repo(self) -> RepoInterface:
-        """
-        Changes as we mutate self.repodata_fn.
-        """
-        return self.repo_fetch._repo
-
-    @property
-    def repo_cache(self) -> RepodataCache:
-        return self.repo_fetch.repo_cache
-
-    @property
-    def repo_fetch(self) -> RepodataFetch:
-        """
-        Object to get repodata. Not cached since self.repodata_fn is mutable.
-
-        Replaces self._repo & self.repo_cache.
-        """
-        return RepodataFetch(
-            Path(self.cache_path_base),
-            self.channel,
-            self.repodata_fn,
-            repo_interface_cls=self.RepoInterface,
-        )
-
     def reload(self):
         self._loaded = False
         self.load()
         return self
-
-    @property
-    def cache_path_base(self):
-        return join(
-            create_cache_dir(),
-            splitext(cache_fn_url(self.url_w_credentials, self.repodata_fn))[0],
-        )
-
-    @property
-    def url_w_repodata_fn(self):
-        return self.url_w_subdir + "/" + self.repodata_fn
-
-    @property
-    def cache_path_json(self):
-        return Path(
-            self.cache_path_base + ("1" if context.use_only_tar_bz2 else "") + ".json"
-        )
-
-    @property
-    def cache_path_state(self):
-        """Out-of-band etag and other state needed by the RepoInterface."""
-        return Path(
-            self.cache_path_base
-            + ("1" if context.use_only_tar_bz2 else "")
-            + CACHE_STATE_SUFFIX
-        )
-
-    @property
-    def cache_path_pickle(self):
-        return self.cache_path_base + ("1" if context.use_only_tar_bz2 else "") + ".q"
 
     def load(self):
         _internal_state = self._load()
