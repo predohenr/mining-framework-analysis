@@ -171,7 +171,7 @@ def test_grrs002_responsive_parent_height(dash_dcc):
 
 
 @flaky.flaky(max_runs=3)
-def test_grrs003_graph(dash_dcc):
+def test_grrs002_graph(dash_dcc):
     app = Dash(__name__)
 
     app.layout = html.Div(
