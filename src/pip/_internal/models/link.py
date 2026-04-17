@@ -16,8 +16,8 @@ from typing import (
     NamedTuple,
 )
 
-from pip._internal.exceptions import InvalidEggFragment
 from pip._internal.utils.datetime import parse_iso_datetime
+from pip._internal.exceptions import InvalidEggFragment
 from pip._internal.utils.filetypes import WHEEL_EXTENSION
 from pip._internal.utils.hashes import Hashes
 from pip._internal.utils.misc import (
@@ -388,32 +388,6 @@ class Link:
             metadata_file_data=metadata_file_data,
         )
 
-    def __str__(self) -> str:
-        if self.requires_python:
-            rp = f" (requires-python:{self.requires_python})"
-        else:
-            rp = ""
-        if self.comes_from:
-            return f"{self.redacted_url} (from {self.comes_from}){rp}"
-        else:
-            return self.redacted_url
-
-    def __repr__(self) -> str:
-        return f"<Link {self}>"
-
-    def __hash__(self) -> int:
-        return hash(self.url)
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, Link):
-            return NotImplemented
-        return self.url == other.url
-
-    def __lt__(self, other: Any) -> bool:
-        if not isinstance(other, Link):
-            return NotImplemented
-        return self.url < other.url
-
     @property
     def url(self) -> str:
         return self._url
@@ -455,9 +429,6 @@ class Link:
     def path(self) -> str:
         return self._path
 
-    def splitext(self) -> tuple[str, str]:
-        return splitext(posixpath.basename(self.path.rstrip("/")))
-
     @property
     def ext(self) -> str:
         return self.splitext()[1]
@@ -466,6 +437,76 @@ class Link:
     def url_without_fragment(self) -> str:
         scheme, netloc, path, query, fragment = self._parsed_url
         return urllib.parse.urlunsplit((scheme, netloc, path, query, ""))
+
+    @property
+    def subdirectory_fragment(self) -> str | None:
+        match = self._subdirectory_fragment_re.search(self._url)
+        if not match:
+            return None
+        return match.group(1)
+
+    @property
+    def hash(self) -> str | None:
+        return next(iter(self._hashes.values()), None)
+
+    @property
+    def hash_name(self) -> str | None:
+        return next(iter(self._hashes), None)
+
+    @property
+    def show_url(self) -> str:
+        return posixpath.basename(self._url.split("#", 1)[0].split("?", 1)[0])
+
+    @property
+    def is_file(self) -> bool:
+        return self.scheme == "file"
+
+    @property
+    def is_wheel(self) -> bool:
+        return self.ext == WHEEL_EXTENSION
+
+    @property
+    def is_vcs(self) -> bool:
+        from pip._internal.vcs import vcs
+
+        return self.scheme in vcs.all_schemes
+
+    @property
+    def is_yanked(self) -> bool:
+        return self.yanked_reason is not None
+
+    @property
+    def has_hash(self) -> bool:
+        return bool(self._hashes)
+
+    def __str__(self) -> str:
+        if self.requires_python:
+            rp = f" (requires-python:{self.requires_python})"
+        else:
+            rp = ""
+        if self.comes_from:
+            return f"{self.redacted_url} (from {self.comes_from}){rp}"
+        else:
+            return self.redacted_url
+
+    def __repr__(self) -> str:
+        return f"<Link {self}>"
+
+    def __hash__(self) -> int:
+        return hash(self.url)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, Link):
+            return NotImplemented
+        return self.url == other.url
+
+    def __lt__(self, other: Any) -> bool:
+        if not isinstance(other, Link):
+            return NotImplemented
+        return self.url < other.url
+
+    def splitext(self) -> tuple[str, str]:
+        return splitext(posixpath.basename(self.path.rstrip("/")))
 
     _egg_fragment_re = re.compile(r"[#&]egg=([^&]*)")
 
@@ -489,13 +530,6 @@ class Link:
 
     _subdirectory_fragment_re = re.compile(r"[#&]subdirectory=([^&]*)")
 
-    @property
-    def subdirectory_fragment(self) -> str | None:
-        match = self._subdirectory_fragment_re.search(self._url)
-        if not match:
-            return None
-        return match.group(1)
-
     def metadata_link(self) -> Link | None:
         """Return a link to the associated core metadata file (if any)."""
         if self.metadata_file_data is None:
@@ -508,42 +542,8 @@ class Link:
     def as_hashes(self) -> Hashes:
         return Hashes({k: [v] for k, v in self._hashes.items()})
 
-    @property
-    def hash(self) -> str | None:
-        return next(iter(self._hashes.values()), None)
-
-    @property
-    def hash_name(self) -> str | None:
-        return next(iter(self._hashes), None)
-
-    @property
-    def show_url(self) -> str:
-        return posixpath.basename(self._url.split("#", 1)[0].split("?", 1)[0])
-
-    @property
-    def is_file(self) -> bool:
-        return self.scheme == "file"
-
     def is_existing_dir(self) -> bool:
         return self.is_file and os.path.isdir(self.file_path)
-
-    @property
-    def is_wheel(self) -> bool:
-        return self.ext == WHEEL_EXTENSION
-
-    @property
-    def is_vcs(self) -> bool:
-        from pip._internal.vcs import vcs
-
-        return self.scheme in vcs.all_schemes
-
-    @property
-    def is_yanked(self) -> bool:
-        return self.yanked_reason is not None
-
-    @property
-    def has_hash(self) -> bool:
-        return bool(self._hashes)
 
     def is_hash_allowed(self, hashes: Hashes | None) -> bool:
         """
