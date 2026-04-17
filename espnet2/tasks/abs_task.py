@@ -174,8 +174,8 @@ scheduler_classes = dict(
     onecyclelr=torch.optim.lr_scheduler.OneCycleLR,
     CosineAnnealingWarmRestarts=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts,
     CosineAnnealingWarmupRestarts=CosineAnnealingWarmupRestarts,
-    tristagelr=TristageLR,
     ExponentialDecayWarmup=ExponentialDecayWarmup,
+    tristagelr=TristageLR,
 )
 # To lower keys
 optim_classes = {k.lower(): v for k, v in optim_classes.items()}
