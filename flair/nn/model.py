@@ -85,13 +85,6 @@ class Model(torch.nn.Module, typing.Generic[DT], ABC):
         exclude_labels = exclude_labels if exclude_labels is not None else []
         raise NotImplementedError
 
-    def _get_state_dict(self) -> dict:
-        """Returns the state dictionary for this model."""
-        # Always include the name of the Model class for which the state dict holds
-        state_dict = {"state_dict": self.state_dict(), "__cls__": self.__class__.__name__}
-
-        return state_dict
-
     @classmethod
     def _init_model_with_state_dict(cls, state: dict[str, Any], **kwargs):
         """Initialize the model from a state dictionary."""
@@ -111,22 +104,6 @@ class Model(torch.nn.Module, typing.Generic[DT], ABC):
     def _fetch_model(model_name):
         # this seems to just return model name, not a model with that name
         return model_name
-
-    def save(self, model_file: Union[str, Path], checkpoint: bool = False) -> None:
-        """Saves the current model to the provided file.
-
-        Args:
-            model_file: The model file.
-            checkpoint: This parameter is currently unused.
-        """
-        model_state = self._get_state_dict()
-
-        # write out a "model card" if one is set
-        if self.model_card is not None:
-            model_state["model_card"] = self.model_card
-
-        # save model
-        torch.save(model_state, str(model_file), pickle_protocol=4)
 
     @classmethod
     def load(cls, model_path: Union[str, Path, dict[str, Any]]) -> "Model":
@@ -206,6 +183,29 @@ class Model(torch.nn.Module, typing.Generic[DT], ABC):
             model.to(flair.device)
 
         return model
+
+    def _get_state_dict(self) -> dict:
+        """Returns the state dictionary for this model."""
+        # Always include the name of the Model class for which the state dict holds
+        state_dict = {"state_dict": self.state_dict(), "__cls__": self.__class__.__name__}
+
+        return state_dict
+
+    def save(self, model_file: Union[str, Path], checkpoint: bool = False) -> None:
+        """Saves the current model to the provided file.
+
+        Args:
+            model_file: The model file.
+            checkpoint: This parameter is currently unused.
+        """
+        model_state = self._get_state_dict()
+
+        # write out a "model card" if one is set
+        if self.model_card is not None:
+            model_state["model_card"] = self.model_card
+
+        # save model
+        torch.save(model_state, str(model_file), pickle_protocol=4)
 
     def print_model_card(self):
         """
@@ -551,6 +551,12 @@ class Classifier(Model[DT], typing.Generic[DT], ReduceTransformerVocabMixin, ABC
         """
         raise NotImplementedError
 
+    @classmethod
+    def load(cls, model_path: Union[str, Path, dict[str, Any]]) -> "Classifier":
+        from typing import cast
+
+        return cast("Classifier", super().load(model_path=model_path))
+
     def _print_predictions(self, batch: list[DT], gold_label_type: str) -> list[str]:
         lines = []
         for datapoint in batch:
@@ -576,12 +582,6 @@ class Classifier(Model[DT], typing.Generic[DT], ReduceTransformerVocabMixin, ABC
             yield [t.text for t in sentence]
             yield [t.text for t in sentence.left_context(context_length, respect_document_boundaries)]
             yield [t.text for t in sentence.right_context(context_length, respect_document_boundaries)]
-
-    @classmethod
-    def load(cls, model_path: Union[str, Path, dict[str, Any]]) -> "Classifier":
-        from typing import cast
-
-        return cast("Classifier", super().load(model_path=model_path))
 
 
 class DefaultClassifier(Classifier[DT], typing.Generic[DT, DT2], ABC):
