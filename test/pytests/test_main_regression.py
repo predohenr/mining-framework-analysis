@@ -2594,7 +2594,6 @@ def test_run_cli_reconnect_and_exception_paths(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(main, 'need_completion_refresh', lambda text: text == 'dropdb')
     monkeypatch.setattr(main, 'need_completion_reset', lambda text: True)
     monkeypatch.setattr(main, 'is_dropping_database', lambda text, dbname: text == 'dropdb')
-
     main.MyCli.run_cli(cli)
     assert reconnect_calls == ['', '']
     assert any('bad op' in line for line in echoes)
