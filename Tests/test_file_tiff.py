@@ -991,6 +991,9 @@ class TestFileTiff:
 
     @timeout_unless_slower_valgrind(6)
     @pytest.mark.filterwarnings("ignore:Truncated File Read")
+    @pytest.mark.xfail(
+        "PILLOW_VALGRIND_TEST" in os.environ, reason="Valgrind is slower"
+    )
     def test_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
         with Image.open("Tests/images/timeout-6646305047838720") as im:
             monkeypatch.setattr(ImageFile, "LOAD_TRUNCATED_IMAGES", True)
@@ -1003,6 +1006,9 @@ class TestFileTiff:
         ],
     )
     @timeout_unless_slower_valgrind(2)
+    @pytest.mark.xfail(
+        "PILLOW_VALGRIND_TEST" in os.environ, reason="Valgrind is slower"
+    )
     def test_oom(self, test_file: str) -> None:
         with pytest.raises(UnidentifiedImageError):
             with pytest.warns(UserWarning):
