@@ -69,10 +69,12 @@ class BaseModelOutputWithPastAndCrossAttentions(_BaseModelOutput):
 
 @dataclass
 class CausalLMOutputWithCrossAttentionsAuto(CausalLMOutputWithCrossAttentions):
+
     router_loss: Optional[paddle.Tensor] = None
 
 
 logger = logging.getLogger(__name__)
+
 
 try:
     from paddle.incubate.nn.functional import (
@@ -96,6 +98,7 @@ __all__ = [
 
 
 class FusedDropoutImpl(nn.Layer):
+
     def __init__(self, prob, mode):
         super().__init__()
         self.prob = prob
@@ -189,6 +192,7 @@ def calc_lm_head_logits(
 
 
 def masked_fill(x, mask, value):
+
     y = paddle.full(x.shape, value, x.dtype)
     return paddle.where(mask, y, x)
 
@@ -196,6 +200,7 @@ def masked_fill(x, mask, value):
 def mem_eff_attn(
     query, key, value, pack_offset, drop_prob=0.0, dtype=paddle.bfloat16, training=True
 ):
+
     pack_offset = pack_offset.numpy()
     shape = pack_offset.shape
     assert len(shape) == 2, len(shape)
@@ -427,6 +432,7 @@ def get_gate(
     layer_idx: int,
     ipp: int = 0,
 ) -> Tuple[nn.Layer, nn.LayerList]:
+
     moe_num_experts = config.moe_num_experts
     assert (
         moe_num_experts >= config.moe_world_size
@@ -486,6 +492,7 @@ def get_gate(
 
 
 class RMSNorm(nn.Layer):
+
     def __init__(self, config, ipp=0):
         super().__init__()
         self.hidden_size = config.hidden_size
@@ -498,6 +505,7 @@ class RMSNorm(nn.Layer):
         self.config = config
 
     def forward(self, hidden_states):
+
         if self.config.fuse_rms_norm:
             return paddle.incubate.nn.functional.fused_rms_norm_ext(
                 hidden_states, self.weight, self.variance_epsilon
@@ -537,6 +545,7 @@ class LayerNorm(nn.LayerNorm):
 class RotaryEmbedding(nn.Layer):
 
     def __init__(self, dim, max_position_embeddings=4096, base=10000):
+
         super().__init__()
         self.base = base
         self.max_position_embeddings = max_position_embeddings
@@ -555,6 +564,7 @@ class RotaryEmbedding(nn.Layer):
         self._cast_to_low_precison = False
 
     def forward(self, x, seq_len=None):
+
         return (
             self.cos_cached[:seq_len, :],
             self.sin_cached[:seq_len, :],
@@ -562,6 +572,7 @@ class RotaryEmbedding(nn.Layer):
 
     @classmethod
     def rotate_half(cls, x):
+
         x1 = x[..., : x.shape[-1] // 2]
         x2 = x[..., x.shape[-1] // 2 :]
         return paddle.concat([-x2, x1], axis=-1)
@@ -1049,6 +1060,7 @@ class ErnieMoeMLP(ErnieMLP):
             )
 
     def forward(self, x):
+
         if self.fuse_swiglu:
             x = fused_swiglu(self.gate_proj(x), self.up_proj(x))
         else:
@@ -1061,6 +1073,7 @@ class ErnieMoeMLP(ErnieMLP):
 
 
 class BMMLinear(nn.Layer):
+
     def __init__(self, experts, d_in, d_out, use_bias=False):
         super().__init__()
         self.weight = self.create_parameter(
@@ -1081,7 +1094,9 @@ class BMMLinear(nn.Layer):
 
 
 class ErnieMoeMLPFused(nn.Layer):
+
     def __init__(self, config):
+
         assert (
             hasattr(config, "disable_ffn_model_parallel")
             or config.tensor_parallel_degree == 1
@@ -2069,6 +2084,7 @@ class ErniePretrainingCriterion(paddle.nn.Layer):
         return masked_lm_loss
 
     def forward_impl(self, prediction_scores, masked_lm_labels):
+
         with paddle.amp.auto_cast(False):
             if self.config.use_sparse_head_and_loss_fn and prediction_scores.shape[
                 0
@@ -2181,6 +2197,7 @@ class ErnieLMHead(nn.Layer):
             )
 
     def forward(self, hidden_states, tensor_parallel_output=None):
+
         if self.config.use_recompute_loss_fn or self.config.use_sparse_head_and_loss_fn:
             out_tensors = (
                 (hidden_states, self.weight, self.bias)
@@ -2373,9 +2390,11 @@ class ErnieForCausalLMAuto(ErniePretrainedModelAuto):
                     scale_by_factor_if_valid(left.mlp.down_proj.weight)
 
     def get_input_embeddings(self):
+
         return self.ernie.embed_tokens
 
     def set_input_embeddings(self, value):
+
         self.ernie.embed_tokens = value
 
     def get_output_embeddings(self):
