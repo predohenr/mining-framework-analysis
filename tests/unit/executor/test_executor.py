@@ -103,22 +103,6 @@ class Test(BaseExecutorMockPredictor):
         # check sql in query method
         assert mock_handler().query.call_args[0][0].to_string() == "SELECT * FROM tasks"
 
-    def test_predictor_1_row(self):
-        predicted_value = 3.14
-        predictor = {
-            "name": "task_model",
-            "predict": "p",
-            "dtypes": {"p": dtype.float, "a": dtype.integer, "b": dtype.categorical},
-            "predicted_value": predicted_value,
-        }
-        self.set_predictor(predictor)
-
-        ret = self.execute("""
-             select p, a from mindsdb.task_model where a = 2
-        """)
-        ret_df = self.ret_to_df(ret)
-        assert ret_df["p"][0] == predicted_value
-
     @patch("mindsdb.integrations.handlers.postgres_handler.Handler")
     def test_dates(self, mock_handler):
         df = pd.DataFrame(
@@ -486,6 +470,49 @@ class Test(BaseExecutorMockPredictor):
         # table shouldn't join
         assert ret_df.t0[0] is None
 
+    @patch("mindsdb.integrations.handlers.postgres_handler.Handler")
+    def test_drop_database(self, mock_handler):
+        from mindsdb.utilities.exception import EntityNotExistsError
+
+        # remove existing (check different cases)
+        self.set_handler(mock_handler, name="pg", tables={})
+        self.execute("drop database pg")
+        self.set_handler(mock_handler, name="PG", tables={})
+        self.execute("drop database `PG`")
+        self.set_handler(mock_handler, name="pg", tables={})
+        self.execute("drop database Pg")
+
+        # try one more time
+        with pytest.raises(EntityNotExistsError):
+            self.execute("drop database pg")
+
+        # try if exists
+        self.execute("drop database if exists pg")
+
+        # try files
+        try:
+            self.execute("drop database files")
+        except Exception as e:
+            assert "is system database" in str(e)
+        else:
+            raise Exception("SqlApiException expected")
+
+    def test_predictor_1_row(self):
+        predicted_value = 3.14
+        predictor = {
+            "name": "task_model",
+            "predict": "p",
+            "dtypes": {"p": dtype.float, "a": dtype.integer, "b": dtype.categorical},
+            "predicted_value": predicted_value,
+        }
+        self.set_predictor(predictor)
+
+        ret = self.execute("""
+             select p, a from mindsdb.task_model where a = 2
+        """)
+        ret_df = self.ret_to_df(ret)
+        assert ret_df["p"][0] == predicted_value
+
     def test_ts_predictor_file(self):
         # set integration data
 
@@ -565,33 +592,6 @@ class Test(BaseExecutorMockPredictor):
         ret_df = self.ret_to_df(ret)
         assert ret_df.shape[0] == 3
         assert ret_df.t.min() == 2024.0
-
-    @patch("mindsdb.integrations.handlers.postgres_handler.Handler")
-    def test_drop_database(self, mock_handler):
-        from mindsdb.utilities.exception import EntityNotExistsError
-
-        # remove existing (check different cases)
-        self.set_handler(mock_handler, name="pg", tables={})
-        self.execute("drop database pg")
-        self.set_handler(mock_handler, name="PG", tables={})
-        self.execute("drop database `PG`")
-        self.set_handler(mock_handler, name="pg", tables={})
-        self.execute("drop database Pg")
-
-        # try one more time
-        with pytest.raises(EntityNotExistsError):
-            self.execute("drop database pg")
-
-        # try if exists
-        self.execute("drop database if exists pg")
-
-        # try files
-        try:
-            self.execute("drop database files")
-        except Exception as e:
-            assert "is system database" in str(e)
-        else:
-            raise Exception("SqlApiException expected")
 
     def test_wrong_using(self):
         with pytest.raises(Exception) as exc_info:
