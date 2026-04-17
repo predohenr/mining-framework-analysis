@@ -3758,7 +3758,6 @@ class LaxTest(jtu.JaxTestCase):
     _, vjp_fn = jax.vjp(g, x)
     cts = vjp_fn(jnp.ones((8,), dtype=jnp.float8_e4m3fn))  # Don't crash
     self.assertEqual(cts[0].dtype, jnp.bfloat16)
-
   def test_stop_gradient_on_ints(self):
     # https://github.com/jax-ml/jax/issues/33689
     @jax.custom_gradient
