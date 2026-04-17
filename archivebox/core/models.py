@@ -93,37 +93,6 @@ class Tag(ModelWithSerializers):
     def api_url(self) -> str:
         return reverse_lazy('api-1:get_tag', args=[self.id])
 
-    def to_json(self) -> dict:
-        """
-        Convert Tag model instance to a JSON-serializable dict.
-        """
-        from archivebox.config import VERSION
-        return {
-            'type': self.JSONL_TYPE,
-            'schema_version': VERSION,
-            'id': str(self.id),
-            'name': self.name,
-            'slug': self.slug,
-        }
-
-    def to_jsonl(self, seen: Set[tuple] = None, **kwargs) -> Iterator[dict]:
-        """
-        Yield this Tag as a JSON record.
-
-        Args:
-            seen: Set of (type, id) tuples already emitted (for deduplication)
-            **kwargs: Passed to children (none for Tag, leaf node)
-
-        Yields:
-            dict: JSON-serializable record for this tag
-        """
-        if seen is not None:
-            key = (self.JSONL_TYPE, str(self.id))
-            if key in seen:
-                return
-            seen.add(key)
-        yield self.to_json()
-
     @classmethod
     def from_jsonl(cls, records, overrides: Dict[str, Any] = None) -> list['Tag']:
         """
@@ -169,6 +138,37 @@ class Tag(ModelWithSerializers):
             overrides['snapshot'].tags.add(tag)
 
         return tag
+
+    def to_json(self) -> dict:
+        """
+        Convert Tag model instance to a JSON-serializable dict.
+        """
+        from archivebox.config import VERSION
+        return {
+            'type': self.JSONL_TYPE,
+            'schema_version': VERSION,
+            'id': str(self.id),
+            'name': self.name,
+            'slug': self.slug,
+        }
+
+    def to_jsonl(self, seen: Set[tuple] = None, **kwargs) -> Iterator[dict]:
+        """
+        Yield this Tag as a JSON record.
+
+        Args:
+            seen: Set of (type, id) tuples already emitted (for deduplication)
+            **kwargs: Passed to children (none for Tag, leaf node)
+
+        Yields:
+            dict: JSON-serializable record for this tag
+        """
+        if seen is not None:
+            key = (self.JSONL_TYPE, str(self.id))
+            if key in seen:
+                return
+            seen.add(key)
+        yield self.to_json()
 
 
 class SnapshotTag(models.Model):
