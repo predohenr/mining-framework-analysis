@@ -340,6 +340,13 @@ class MarkDecorator:
     def markname(self) -> str:
         """:meta private:"""
         return self.name  # for backward-compat (2.4.1 had this attr)
+    @overload
+    def __call__(self, arg: Markable) -> Markable:  # type: ignore[overload-overlap]
+        pass
+
+    @overload
+    def __call__(self, *args: object, **kwargs: object) -> MarkDecorator:
+        pass
 
     def with_args(self, *args: object, **kwargs: object) -> MarkDecorator:
         """Return a MarkDecorator with extra arguments added.
@@ -353,13 +360,6 @@ class MarkDecorator:
     # Type ignored because the overloads overlap with an incompatible
     # return type. Not much we can do about that. Thankfully mypy picks
     # the first match so it works out even if we break the rules.
-    @overload
-    def __call__(self, arg: Markable) -> Markable:  # type: ignore[overload-overlap]
-        pass
-
-    @overload
-    def __call__(self, *args: object, **kwargs: object) -> MarkDecorator:
-        pass
 
     def __call__(self, *args: object, **kwargs: object):
         """Call the MarkDecorator."""
