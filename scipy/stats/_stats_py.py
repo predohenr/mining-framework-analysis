@@ -10914,8 +10914,8 @@ def _xp_mean(x, /, *, axis=None, weights=None, keepdims=False, nan_policy='propa
     if weights is None:
         return xp.mean(x, axis=axis, keepdims=keepdims)
 
-    # consider using `vecdot` if `axis` tuple support is added (data-apis/array-api#910)
     norm = xp.sum(weights, axis=axis)
+    # consider using `vecdot` if `axis` tuple support is added data-apis/array-api#910
     wsum = xp.sum(x * weights, axis=axis)
     with np.errstate(divide='ignore', invalid='ignore'):
         res = wsum/norm
