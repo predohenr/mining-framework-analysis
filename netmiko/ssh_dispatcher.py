@@ -70,8 +70,8 @@ from netmiko.dell import DellPowerConnectTelnet
 from netmiko.dell import DellIsilonSSH
 from netmiko.digi import DigiTransportSSH
 from netmiko.dlink import DlinkDSTelnet, DlinkDSSSH
-from netmiko.edgecore import EdgecoreSonicSSH
 from netmiko.ekinops import EkinopsEk360SSH
+from netmiko.edgecore import EdgecoreSonicSSH
 from netmiko.eltex import EltexSSH, EltexEsrSSH
 from netmiko.endace import EndaceSSH
 from netmiko.enterasys import EnterasysSSH
