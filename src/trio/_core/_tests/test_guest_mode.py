@@ -10,8 +10,8 @@ import threading
 import time
 import traceback
 import warnings
-import weakref
 from collections.abc import AsyncGenerator, Awaitable, Callable
+import weakref
 from functools import partial
 from math import inf
 from typing import (
