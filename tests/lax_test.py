@@ -3799,7 +3799,6 @@ class LaxTest(jtu.JaxTestCase):
         return jnp.sum(f(y)[0])
 
     jax.grad(loss)(jnp.ones((3,)))
-
   def test_no_complex_to_real_cast_warning_in_transpose(self):
     # https://github.com/jax-ml/jax/issues/33521
     def f(x, y):
