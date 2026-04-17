@@ -639,7 +639,7 @@ class TestAddTrend:
         added = tools.add_trend(self.c, trend="ct", has_constant="add")
         expected = np.vstack((self.c, self.c, self.t)).T
         assert_equal(added, expected)
-
+        
         with pytest.raises(ValueError, match="x contains one or more constant "
                            "columns. Column\\(s\\) col_1 are constant. Adding"
                            " a constant with trend='c' is not allowed."):
