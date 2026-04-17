@@ -165,6 +165,49 @@ class Cable(PrimaryModel):
             CableProfileChoices.BREAKOUT_2C4P_8C1P_SHUFFLE: cable_profiles.Breakout2C4Px8C1PShuffleCableProfile,
         }.get(self.profile)
 
+    @property
+    def a_terminations(self):
+        return self._get_x_terminations(CableEndChoices.SIDE_A)
+
+    @a_terminations.setter
+    def a_terminations(self, value):
+        self._set_x_terminations(CableEndChoices.SIDE_A, value)
+
+    @property
+    def b_terminations(self):
+        return self._get_x_terminations(CableEndChoices.SIDE_B)
+
+    @b_terminations.setter
+    def b_terminations(self, value):
+        self._set_x_terminations(CableEndChoices.SIDE_B, value)
+
+    @property
+    def color_name(self):
+        color_name = ""
+        for hex_code, label in ColorChoices.CHOICES:
+            if hex_code.lower() == self.color.lower():
+                color_name = str(label)
+
+        return color_name
+
+    @classmethod
+    def deserialize_object(cls, data, pk=None):
+        a_terminations = data.pop('a_terminations', [])
+        b_terminations = data.pop('b_terminations', [])
+
+        instance = deserialize_object(cls, data, pk=pk)
+
+        # Assign A & B termination objects to the Cable instance
+        queryset = CableTermination.objects.prefetch_related('termination')
+        instance.a_terminations = [
+            ct.termination for ct in queryset.filter(pk__in=a_terminations)
+        ]
+        instance.b_terminations = [
+            ct.termination for ct in queryset.filter(pk__in=b_terminations)
+        ]
+
+        return instance
+
     def _get_x_terminations(self, side):
         """
         Return the terminating objects for the given cable end (A or B).
@@ -201,31 +244,6 @@ class Cable(PrimaryModel):
             self._terminations_modified = True
 
         setattr(self, _attr, value)
-
-    @property
-    def a_terminations(self):
-        return self._get_x_terminations(CableEndChoices.SIDE_A)
-
-    @a_terminations.setter
-    def a_terminations(self, value):
-        self._set_x_terminations(CableEndChoices.SIDE_A, value)
-
-    @property
-    def b_terminations(self):
-        return self._get_x_terminations(CableEndChoices.SIDE_B)
-
-    @b_terminations.setter
-    def b_terminations(self, value):
-        self._set_x_terminations(CableEndChoices.SIDE_B, value)
-
-    @property
-    def color_name(self):
-        color_name = ""
-        for hex_code, label in ColorChoices.CHOICES:
-            if hex_code.lower() == self.color.lower():
-                color_name = str(label)
-
-        return color_name
 
     def clean(self):
         super().clean()
@@ -358,24 +376,6 @@ class Cable(PrimaryModel):
         data['b_terminations'] = sorted([ct.pk for ct in b_terminations.values()])
 
         return data
-
-    @classmethod
-    def deserialize_object(cls, data, pk=None):
-        a_terminations = data.pop('a_terminations', [])
-        b_terminations = data.pop('b_terminations', [])
-
-        instance = deserialize_object(cls, data, pk=pk)
-
-        # Assign A & B termination objects to the Cable instance
-        queryset = CableTermination.objects.prefetch_related('termination')
-        instance.a_terminations = [
-            ct.termination for ct in queryset.filter(pk__in=a_terminations)
-        ]
-        instance.b_terminations = [
-            ct.termination for ct in queryset.filter(pk__in=b_terminations)
-        ]
-
-        return instance
 
     def get_terminations(self):
         """
@@ -736,8 +736,6 @@ class CablePath(models.Model):
             res.append(nodes)
         return res
 
-    path_objects = GenericArrayForeignKey("_path_decompiled")
-
     @property
     def origins(self):
         """
@@ -1008,6 +1006,8 @@ class CablePath(models.Model):
             is_active=is_active,
             is_split=is_split
         )
+
+    path_objects = GenericArrayForeignKey("_path_decompiled")
 
     def retrace(self):
         """
