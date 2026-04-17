@@ -508,8 +508,6 @@ class CablePath(models.Model):
             res.append(nodes)
         return res
 
-    path_objects = GenericArrayForeignKey("_path_decompiled")
-
     @property
     def origins(self):
         """
@@ -749,6 +747,8 @@ class CablePath(models.Model):
             is_active=is_active,
             is_split=is_split
         )
+
+    path_objects = GenericArrayForeignKey("_path_decompiled")
 
     def retrace(self):
         """

@@ -9,7 +9,6 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework.serializers import Serializer
 from rest_framework.views import get_view_name as drf_get_view_name
 
-from extras.constants import HTTP_CONTENT_TYPE_JSON
 from netbox.api.exceptions import GraphQLTypeNotFound, SerializerNotFound
 from netbox.api.fields import RelatedObjectCountField
 from .query import count_related, dict_to_filter_params

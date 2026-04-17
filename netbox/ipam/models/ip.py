@@ -1,7 +1,7 @@
 import netaddr
 from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.indexes import GistIndex
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F
@@ -663,6 +663,32 @@ class IPRange(ContactsMixin, PrimaryModel):
 
         return f'{base_str}{separator}{start_str}-{end_str}/{self.start_address.prefixlen}'
 
+    @cached_property
+    def first_available_ip(self):
+        """
+        Return the first available IP within the range (or None).
+        """
+        available_ips = self.get_available_ips()
+        if not available_ips:
+            return None
+
+        return '{}/{}'.format(next(available_ips.__iter__()), self.start_address.prefixlen)
+
+    @cached_property
+    def utilization(self):
+        """
+        Determine the utilization of the range and return it as a percentage.
+        """
+        if self.mark_utilized:
+            return 100
+
+        # Compile an IPSet to avoid counting duplicate IPs
+        child_count = netaddr.IPSet([
+            ip.address.ip for ip in self.get_child_ips()
+        ]).size
+
+        return min(float(child_count) / self.size * 100, 100)
+
     def _set_prefix_length(self, value):
         """
         Expose the IPRange object's prefixlen attribute on the parent model so that it can be manipulated directly,
@@ -696,32 +722,6 @@ class IPRange(ContactsMixin, PrimaryModel):
         child_ips = netaddr.IPSet([ip.address.ip for ip in self.get_child_ips()])
 
         return netaddr.IPSet(range) - child_ips
-
-    @cached_property
-    def first_available_ip(self):
-        """
-        Return the first available IP within the range (or None).
-        """
-        available_ips = self.get_available_ips()
-        if not available_ips:
-            return None
-
-        return '{}/{}'.format(next(available_ips.__iter__()), self.start_address.prefixlen)
-
-    @cached_property
-    def utilization(self):
-        """
-        Determine the utilization of the range and return it as a percentage.
-        """
-        if self.mark_utilized:
-            return 100
-
-        # Compile an IPSet to avoid counting duplicate IPs
-        child_count = netaddr.IPSet([
-            ip.address.ip for ip in self.get_child_ips()
-        ]).size
-
-        return min(float(child_count) / self.size * 100, 100)
 
 
 class IPAddress(ContactsMixin, PrimaryModel):
@@ -830,6 +830,30 @@ class IPAddress(ContactsMixin, PrimaryModel):
     def ipv6_full(self):
         if self.address and self.address.version == 6:
             return netaddr.IPAddress(self.address).format(netaddr.ipv6_full)
+
+    @property
+    def family(self):
+        if self.address:
+            return self.address.version
+        return None
+
+    @property
+    def is_oob_ip(self):
+        if self.assigned_object:
+            parent = getattr(self.assigned_object, 'parent_object', None)
+            if hasattr(parent, 'oob_ip') and parent.oob_ip_id == self.pk:
+                return True
+        return False
+
+    @property
+    def is_primary_ip(self):
+        if self.assigned_object:
+            parent = getattr(self.assigned_object, 'parent_object', None)
+            if self.family == 4 and hasattr(parent, 'primary_ip4') and parent.primary_ip4_id == self.pk:
+                return True
+            if self.family == 6 and hasattr(parent, 'primary_ip6') and parent.primary_ip6_id == self.pk:
+                return True
+        return False
 
     def get_duplicates(self):
         return IPAddress.objects.filter(
@@ -969,30 +993,6 @@ class IPAddress(ContactsMixin, PrimaryModel):
         objectchange = super().to_objectchange(action)
         objectchange.related_object = self.assigned_object
         return objectchange
-
-    @property
-    def family(self):
-        if self.address:
-            return self.address.version
-        return None
-
-    @property
-    def is_oob_ip(self):
-        if self.assigned_object:
-            parent = getattr(self.assigned_object, 'parent_object', None)
-            if hasattr(parent, 'oob_ip') and parent.oob_ip_id == self.pk:
-                return True
-        return False
-
-    @property
-    def is_primary_ip(self):
-        if self.assigned_object:
-            parent = getattr(self.assigned_object, 'parent_object', None)
-            if self.family == 4 and hasattr(parent, 'primary_ip4') and parent.primary_ip4_id == self.pk:
-                return True
-            if self.family == 6 and hasattr(parent, 'primary_ip6') and parent.primary_ip6_id == self.pk:
-                return True
-        return False
 
     def _set_mask_length(self, value):
         """
