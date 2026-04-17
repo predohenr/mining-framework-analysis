@@ -262,14 +262,14 @@ class FileStructure(object):
          vtable: 0x0}
 
         Bytes fields are padded to the correct field size.
-        For example, _unused2 is 40 bytes on i386, so a short value gets
-        zero-padded to 40, not to context.bytes (4):
+        For example, unknown2 is 56 bytes on i386, so a short value gets
+        zero-padded to 56, not to context.bytes (4):
 
         >>> context.clear(arch='i386')
         >>> fileStr2 = FileStructure(null=0)
         >>> fileStr2.vtable = 0x561859f0
         >>> old_len = len(bytes(fileStr2))
-        >>> fileStr2._unused2 = b'AB'
+        >>> fileStr2.unknown2 = b'AB'
         >>> len(bytes(fileStr2)) == old_len
         True
     """
