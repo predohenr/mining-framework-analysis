@@ -193,8 +193,6 @@ loss_choices = ClassChoices(
 class LIDTask(AbsTask):
     num_optimizers: int = 1
 
-    trainer = LIDTrainer
-
     class_choices_list = [
         model_choices,
         frontend_choices,
@@ -209,6 +207,8 @@ class LIDTask(AbsTask):
         preprocessor_choices,
         loss_choices,
     ]
+
+    trainer = LIDTrainer
 
     @classmethod
     def add_task_arguments(cls, parser: argparse.ArgumentParser):
