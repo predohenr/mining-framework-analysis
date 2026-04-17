@@ -532,6 +532,7 @@ class OTTableWriter(object):
 
         items = self.items
         for i, item in enumerate(items):
+            
             if isinstance(item, CountReference):
                 items[i] = item.getCountData()
             elif isinstance(item, OffsetToWriter):
