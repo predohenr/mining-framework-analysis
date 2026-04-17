@@ -37,8 +37,7 @@ public final class Postcard extends RouteMeta {
     private IProvider provider;     // It will be set value, if this postcard was provider.
     private boolean greenChannel;
     private SerializationService serializationService;
-    private Context context;        // May application or activity, check instance type before use it.
-    private String action;
+    private Context context;
 
     // Animation
     private Bundle optionsCompat;    // The transition animation of activity
@@ -592,7 +591,8 @@ public final class Postcard extends RouteMeta {
                 ", exitAnim=" + exitAnim +
                 "}\n" +
                 super.toString();
-    }
+    }        // May application or activity, check instance type before use it.
+    private String action;
 
     public String getAction() {
         return action;
