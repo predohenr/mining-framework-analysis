@@ -59,6 +59,10 @@ class ImportAddedTest(PluginMixin, AutotagImportTestCase):
         self.importer = self.setup_importer()
         self.importer.add_choice(importer.Action.APPLY)
 
+    def tearDown(self):
+        super().tearDown()
+        self.matcher.restore()
+
     def find_media_file(self, item):
         """Find the pre-import MediaFile for an Item"""
         for m in self.import_media:
