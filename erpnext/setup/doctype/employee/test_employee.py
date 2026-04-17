@@ -63,6 +63,9 @@ class TestEmployee(ERPNextTestSuite):
 		self.assertEqual(qb_employee_list, employee_list)
 		frappe.set_user("Administrator")
 
+	def tearDown(self):
+		frappe.db.rollback()
+
 	def test_create_user_automatically(self):
 		def get_new_employee(email: str, create_user_permission: int):
 			return frappe.get_doc(
@@ -114,9 +117,6 @@ class TestEmployee(ERPNextTestSuite):
 				"User Permission", {"allow": "Company", "for_value": employee2.company, "user": user2}
 			)
 		)
-
-	def tearDown(self):
-		frappe.db.rollback()
 
 
 def make_employee(user, company=None, **kwargs):
