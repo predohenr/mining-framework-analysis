@@ -716,7 +716,7 @@ class ImageDraw:
         if direction == "ttb":
             left = xy[0]
             for line in lines:
-                parts.append(((left, top), anchor, line))
+                parts.append(((left, top), line))
                 left += line_spacing
         else:
             widths = []
@@ -753,11 +753,7 @@ class ImageDraw:
                     msg = 'align must be "left", "center", "right" or "justify"'
                     raise ValueError(msg)
 
-                if (
-                    align == "justify"
-                    and width_difference != 0
-                    and idx != len(lines) - 1
-                ):
+                if align == "justify" and width_difference != 0 and idx != len(lines) - 1:
                     words = line.split(" " if isinstance(text, str) else b" ")
                     if len(words) > 1:
                         # align left by anchor
