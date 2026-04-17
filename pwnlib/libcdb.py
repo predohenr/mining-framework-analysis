@@ -8,8 +8,8 @@ import os
 import time
 import six
 import tempfile
-import struct
 import sys
+import struct
 
 from pwnlib.context import context
 from pwnlib.elf import ELF
