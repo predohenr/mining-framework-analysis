@@ -204,6 +204,79 @@ class Recipe(metaclass=RecipeMeta):
 
         return environ.get(key, self._download_headers)
 
+    @property
+    def name(self):
+        '''The name of the recipe, the same as the folder containing it.'''
+        modname = self.__class__.__module__
+        return modname.split(".", 2)[-1]
+
+    @property
+    def filtered_archs(self):
+        '''Return archs of self.ctx that are valid build archs
+        for the Recipe.'''
+        result = []
+        for arch in self.ctx.archs:
+            if not self.archs or (arch.arch in self.archs):
+                result.append(arch)
+        return result
+
+    @classmethod
+    def recipe_dirs(cls, ctx):
+        recipe_dirs = []
+        if ctx.local_recipes is not None:
+            recipe_dirs.append(realpath(ctx.local_recipes))
+        if ctx.storage_dir:
+            recipe_dirs.append(join(ctx.storage_dir, 'recipes'))
+        recipe_dirs.append(join(ctx.root_dir, "recipes"))
+        return recipe_dirs
+
+    @classmethod
+    def list_recipes(cls, ctx):
+        forbidden_dirs = ('__pycache__', )
+        for recipes_dir in cls.recipe_dirs(ctx):
+            if recipes_dir and exists(recipes_dir):
+                for name in listdir(recipes_dir):
+                    if name in forbidden_dirs:
+                        continue
+                    fn = join(recipes_dir, name)
+                    if isdir(fn):
+                        yield name
+
+    @classmethod
+    def get_recipe(cls, name, ctx):
+        '''Returns the Recipe with the given name, if it exists.'''
+        name = name.lower()
+        if not hasattr(cls, "recipes"):
+            cls.recipes = {}
+        if name in cls.recipes:
+            return cls.recipes[name]
+
+        recipe_file = None
+        for recipes_dir in cls.recipe_dirs(ctx):
+            if not exists(recipes_dir):
+                continue
+            # Find matching folder (may differ in case):
+            for subfolder in listdir(recipes_dir):
+                if subfolder.lower() == name:
+                    recipe_file = join(recipes_dir, subfolder, '__init__.py')
+                    if exists(recipe_file):
+                        name = subfolder  # adapt to actual spelling
+                        break
+                    recipe_file = None
+            if recipe_file is not None:
+                break
+
+        else:
+            raise ValueError('Recipe does not exist: {}'.format(name))
+
+        mod = import_recipe('pythonforandroid.recipes.{}'.format(name), recipe_file)
+        if len(logger.handlers) > 1:
+            logger.removeHandler(logger.handlers[1])
+        recipe = mod.recipe
+        recipe.ctx = ctx
+        cls.recipes[name.lower()] = recipe
+        return recipe
+
     def download_file(self, url, target, cwd=None):
         """
         (internal) Download an ``url`` to a ``target``.
@@ -305,22 +378,6 @@ class Recipe(metaclass=RecipeMeta):
             data = fd.read()
         with open(dest, "ab") as fd:
             fd.write(data)
-
-    @property
-    def name(self):
-        '''The name of the recipe, the same as the folder containing it.'''
-        modname = self.__class__.__module__
-        return modname.split(".", 2)[-1]
-
-    @property
-    def filtered_archs(self):
-        '''Return archs of self.ctx that are valid build archs
-        for the Recipe.'''
-        result = []
-        for arch in self.ctx.archs:
-            if not self.archs or (arch.arch in self.archs):
-                result.append(arch)
-        return result
 
     def check_recipe_choices(self):
         '''Checks what recipes are being built to see which of the alternative
@@ -692,63 +749,6 @@ class Recipe(metaclass=RecipeMeta):
                 abs_path = join(self.ctx.get_libs_dir(arch_name), lib)
             recipe_libs.add(abs_path)
         return recipe_libs
-
-    @classmethod
-    def recipe_dirs(cls, ctx):
-        recipe_dirs = []
-        if ctx.local_recipes is not None:
-            recipe_dirs.append(realpath(ctx.local_recipes))
-        if ctx.storage_dir:
-            recipe_dirs.append(join(ctx.storage_dir, 'recipes'))
-        recipe_dirs.append(join(ctx.root_dir, "recipes"))
-        return recipe_dirs
-
-    @classmethod
-    def list_recipes(cls, ctx):
-        forbidden_dirs = ('__pycache__', )
-        for recipes_dir in cls.recipe_dirs(ctx):
-            if recipes_dir and exists(recipes_dir):
-                for name in listdir(recipes_dir):
-                    if name in forbidden_dirs:
-                        continue
-                    fn = join(recipes_dir, name)
-                    if isdir(fn):
-                        yield name
-
-    @classmethod
-    def get_recipe(cls, name, ctx):
-        '''Returns the Recipe with the given name, if it exists.'''
-        name = name.lower()
-        if not hasattr(cls, "recipes"):
-            cls.recipes = {}
-        if name in cls.recipes:
-            return cls.recipes[name]
-
-        recipe_file = None
-        for recipes_dir in cls.recipe_dirs(ctx):
-            if not exists(recipes_dir):
-                continue
-            # Find matching folder (may differ in case):
-            for subfolder in listdir(recipes_dir):
-                if subfolder.lower() == name:
-                    recipe_file = join(recipes_dir, subfolder, '__init__.py')
-                    if exists(recipe_file):
-                        name = subfolder  # adapt to actual spelling
-                        break
-                    recipe_file = None
-            if recipe_file is not None:
-                break
-
-        else:
-            raise ValueError('Recipe does not exist: {}'.format(name))
-
-        mod = import_recipe('pythonforandroid.recipes.{}'.format(name), recipe_file)
-        if len(logger.handlers) > 1:
-            logger.removeHandler(logger.handlers[1])
-        recipe = mod.recipe
-        recipe.ctx = ctx
-        cls.recipes[name.lower()] = recipe
-        return recipe
 
 
 class IncludedFilesBehaviour(object):
