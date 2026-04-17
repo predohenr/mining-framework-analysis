@@ -21,7 +21,8 @@ from decimal import Decimal
 from pathlib import Path
 from textwrap import dedent
 from types import FunctionType, ModuleType
-from typing import Any, ForwardRef
+from typing import Any, ForwardRef, Union
+from typing import Any
 
 import attr
 import click
@@ -69,6 +70,223 @@ def get_test_function(source_code, settings_decorator=lambda fn: fn):
 def test_invalid_exceptions(badness):
     with pytest.raises(InvalidArgument):
         ghostwriter._check_except(badness)
+
+
+@varied_excepts
+@pytest.mark.parametrize(
+    "func",
+    [
+        re.compile,
+        json.loads,
+        json.dump,
+        timsort,
+        ast.literal_eval,
+        non_type_annotation,
+        annotated_any,
+        space_in_name,
+        non_resolvable_arg,
+        takes_keys,
+        takes_values,
+        takes_match,
+        takes_pattern,
+        takes_sized,
+        takes_frozensets,
+        takes_attrs_class,
+    ],
+)
+def test_ghostwriter_fuzz(func, ex):
+    source_code = ghostwriter.fuzz(func, except_=ex)
+    get_test_function(source_code)
+
+
+@varied_excepts
+@pytest.mark.parametrize(
+    "func", [re.compile, json.loads, json.dump, timsort, ast.literal_eval]
+)
+def test_ghostwriter_unittest_style(func, ex):
+    source_code = ghostwriter.fuzz(func, except_=ex, style="unittest")
+    assert issubclass(get_test_function(source_code), unittest.TestCase)
+
+
+@pytest.mark.parametrize(
+    "gw,args",
+    [
+        (ghostwriter.fuzz, ["not callable"]),
+        (ghostwriter.idempotent, ["not callable"]),
+        (ghostwriter.roundtrip, []),
+        (ghostwriter.roundtrip, ["not callable"]),
+        (ghostwriter.equivalent, [sorted]),
+        (ghostwriter.equivalent, [sorted, "not callable"]),
+    ],
+)
+def test_invalid_func_inputs(gw, args):
+    with pytest.raises(InvalidArgument):
+        gw(*args)
+
+
+@pytest.mark.parametrize(
+    "gw,args",
+    [
+        (ghostwriter.fuzz, [A.static_sorter]),
+        (ghostwriter.idempotent, [A.static_sorter]),
+        (ghostwriter.roundtrip, [A.to_json, A.from_json]),
+        (ghostwriter.equivalent, [A.to_json, json.dumps]),
+    ],
+)
+def test_class_methods_inputs(gw, args):
+    source_code = gw(*args)
+    get_test_function(source_code)()
+
+
+@pytest.mark.parametrize(
+    "exceptions,output",
+    [
+        # Discard subclasses of other exceptions to catch, including non-builtins,
+        # and replace OSError aliases with OSError.
+        ((Exception, UnicodeError), "Exception"),
+        ((UnicodeError, MyError), "UnicodeError"),
+        ((IOError,), "OSError"),
+        ((IOError, UnicodeError), "(OSError, UnicodeError)"),
+    ],
+)
+def test_exception_deduplication(exceptions, output):
+    _, body = ghostwriter._make_test_body(
+        lambda: None,
+        ghost="",
+        test_body="pass",
+        except_=exceptions,
+        style="pytest",
+        annotate=False,
+    )
+    assert f"except {output}:" in body
+
+
+@varied_excepts
+@pytest.mark.parametrize("func", [sorted, timsort])
+def test_ghostwriter_idempotent(func, ex):
+    source_code = ghostwriter.idempotent(func, except_=ex)
+    test = get_test_function(source_code)
+    if "=st.nothing()" in source_code:
+        with pytest.raises(Unsatisfiable):
+            test()
+    else:
+        test()
+
+
+@pytest.mark.parametrize(
+    "strategy, imports",
+    # The specifics don't matter much here; we're just demonstrating that
+    # we can walk the strategy and collect all the objects to import.
+    [
+        # Lazy from_type() is handled without being unwrapped
+        (LazyStrategy(from_type, (enum.Enum,), {}), {("enum", "Enum")}),
+        # Mapped, filtered, and flatmapped check both sides of the method
+        (
+            builds(enum.Enum).map(Decimal),
+            {("enum", "Enum"), ("decimal", "Decimal")},
+        ),
+        (
+            builds(enum.Enum).flatmap(Decimal),
+            {("enum", "Enum"), ("decimal", "Decimal")},
+        ),
+        (
+            builds(enum.Enum).filter(Decimal).filter(re.compile),
+            {("enum", "Enum"), ("decimal", "Decimal"), ("re", "compile")},
+        ),
+        # one_of() strategies recurse into all the branches
+        (
+            builds(enum.Enum) | builds(Decimal) | builds(re.compile),
+            {("enum", "Enum"), ("decimal", "Decimal"), ("re", "compile")},
+        ),
+        # and builds() checks the arguments as well as the target
+        (
+            builds(enum.Enum, builds(Decimal), kw=builds(re.compile)),
+            {("enum", "Enum"), ("decimal", "Decimal"), ("re", "compile")},
+        ),
+        # lists recurse on imports
+        (
+            lists(builds(Decimal)),
+            {("decimal", "Decimal")},
+        ),
+        # find the needed import for from_regex if needed
+        (
+            from_regex(re.compile(".+")),
+            {"re"},
+        ),
+        # but don't add superfluous imports
+        (
+            from_regex(".+"),
+            set(),
+        ),
+    ],
+)
+def test_get_imports_for_strategy(strategy, imports):
+    assert ghostwriter._imports_for_strategy(strategy) == imports
+
+
+@pytest.fixture
+def temp_script_file():
+    """Fixture to yield a Path to a temporary file in the local directory. File name will end
+    in .py and will include an importable function.
+    """
+    p = Path("my_temp_script.py")
+    if p.exists():
+        raise FileExistsError(f"Did not expect {p} to exist during testing")
+    p.write_text(
+        dedent(
+            """
+            def say_hello():
+                print("Hello world!")
+            """
+        ),
+        encoding="utf-8",
+    )
+    yield p
+    p.unlink()
+
+
+@pytest.fixture
+def temp_script_file_with_py_function():
+    """Fixture to yield a Path to a temporary file in the local directory. File name will end
+    in .py and will include an importable function named "py"
+    """
+    p = Path("my_temp_script_with_py_function.py")
+    if p.exists():
+        raise FileExistsError(f"Did not expect {p} to exist during testing")
+    p.write_text(
+        dedent(
+            """
+            def py():
+                print('A function named "py" has been called')
+            """
+        ),
+        encoding="utf-8",
+    )
+    yield p
+    p.unlink()
+
+
+@pytest.mark.parametrize(
+    "parameter, type_name",
+    [
+        (ForwardRef("this_ref_does_not_exist"), None),
+        # ForwardRef.evaluate() logic is new in 3.14
+        *(
+            []
+            if sys.version_info[:2] < (3, 14)
+            else [
+                (
+                    ForwardRef("ForwardRefA", owner=A),
+                    ghostwriter._AnnotationData(
+                        "test_ghostwriter.ForwardRefA", {"test_ghostwriter"}
+                    ),
+                )
+            ]
+        ),
+    ],
+)
+def test_parameter_to_annotation(parameter, type_name):
+    assert ghostwriter._parameter_to_annotation(parameter) == type_name
 
 
 def test_style_validation():
@@ -171,33 +389,6 @@ def takes_attrs_class(x: Foo) -> None:
     pass
 
 
-@varied_excepts
-@pytest.mark.parametrize(
-    "func",
-    [
-        re.compile,
-        json.loads,
-        json.dump,
-        timsort,
-        ast.literal_eval,
-        non_type_annotation,
-        annotated_any,
-        space_in_name,
-        non_resolvable_arg,
-        takes_keys,
-        takes_values,
-        takes_match,
-        takes_pattern,
-        takes_sized,
-        takes_frozensets,
-        takes_attrs_class,
-    ],
-)
-def test_ghostwriter_fuzz(func, ex):
-    source_code = ghostwriter.fuzz(func, except_=ex)
-    get_test_function(source_code)
-
-
 def test_socket_module():
     source_code = ghostwriter.magic(socket)
     exec(source_code, {})
@@ -208,15 +399,6 @@ def test_binary_op_also_handles_frozensets():
     # `st.frozenst.sets()` instead of `st.frozensets()`; fixed with re.sub.
     source_code = ghostwriter.binary_operation(takes_frozensets)
     exec(source_code, {})
-
-
-@varied_excepts
-@pytest.mark.parametrize(
-    "func", [re.compile, json.loads, json.dump, timsort, ast.literal_eval]
-)
-def test_ghostwriter_unittest_style(func, ex):
-    source_code = ghostwriter.fuzz(func, except_=ex, style="unittest")
-    assert issubclass(get_test_function(source_code), unittest.TestCase)
 
 
 def no_annotations(foo=None, *, bar=False):
@@ -243,22 +425,6 @@ def test_no_hashability_filter():
     assert "_can_hash" not in source_code
 
 
-@pytest.mark.parametrize(
-    "gw,args",
-    [
-        (ghostwriter.fuzz, ["not callable"]),
-        (ghostwriter.idempotent, ["not callable"]),
-        (ghostwriter.roundtrip, []),
-        (ghostwriter.roundtrip, ["not callable"]),
-        (ghostwriter.equivalent, [sorted]),
-        (ghostwriter.equivalent, [sorted, "not callable"]),
-    ],
-)
-def test_invalid_func_inputs(gw, args):
-    with pytest.raises(InvalidArgument):
-        gw(*args)
-
-
 class A:
     @classmethod
     def to_json(cls, obj: dict | list) -> str:
@@ -273,20 +439,6 @@ class A:
         return sorted(seq)
 
 
-@pytest.mark.parametrize(
-    "gw,args",
-    [
-        (ghostwriter.fuzz, [A.static_sorter]),
-        (ghostwriter.idempotent, [A.static_sorter]),
-        (ghostwriter.roundtrip, [A.to_json, A.from_json]),
-        (ghostwriter.equivalent, [A.to_json, json.dumps]),
-    ],
-)
-def test_class_methods_inputs(gw, args):
-    source_code = gw(*args)
-    get_test_function(source_code)()
-
-
 def test_run_ghostwriter_fuzz():
     # Our strategy-guessing code works for all the arguments to sorted,
     # and we handle positional-only arguments in calls correctly too.
@@ -297,29 +449,6 @@ def test_run_ghostwriter_fuzz():
 
 class MyError(UnicodeDecodeError):
     pass
-
-
-@pytest.mark.parametrize(
-    "exceptions,output",
-    [
-        # Discard subclasses of other exceptions to catch, including non-builtins,
-        # and replace OSError aliases with OSError.
-        ((Exception, UnicodeError), "Exception"),
-        ((UnicodeError, MyError), "UnicodeError"),
-        ((IOError,), "OSError"),
-        ((IOError, UnicodeError), "(OSError, UnicodeError)"),
-    ],
-)
-def test_exception_deduplication(exceptions, output):
-    _, body = ghostwriter._make_test_body(
-        lambda: None,
-        ghost="",
-        test_body="pass",
-        except_=exceptions,
-        style="pytest",
-        annotate=False,
-    )
-    assert f"except {output}:" in body
 
 
 def test_run_ghostwriter_roundtrip():
@@ -351,18 +480,6 @@ def test_run_ghostwriter_roundtrip():
     get_test_function(source_code, settings_decorator=s)()
 
 
-@varied_excepts
-@pytest.mark.parametrize("func", [sorted, timsort])
-def test_ghostwriter_idempotent(func, ex):
-    source_code = ghostwriter.idempotent(func, except_=ex)
-    test = get_test_function(source_code)
-    if "=st.nothing()" in source_code:
-        with pytest.raises(Unsatisfiable):
-            test()
-    else:
-        test()
-
-
 def test_overlapping_args_use_union_of_strategies():
     def f(arg: int) -> None:
         pass
@@ -392,99 +509,6 @@ def test_unrepr_identity_elem():
     # and also works with explicit identity element
     source_code = ghostwriter.binary_operation(compose_types, identity=type)
     exec(source_code, {})
-
-
-@pytest.mark.parametrize(
-    "strategy, imports",
-    # The specifics don't matter much here; we're just demonstrating that
-    # we can walk the strategy and collect all the objects to import.
-    [
-        # Lazy from_type() is handled without being unwrapped
-        (LazyStrategy(from_type, (enum.Enum,), {}), {("enum", "Enum")}),
-        # Mapped, filtered, and flatmapped check both sides of the method
-        (
-            builds(enum.Enum).map(Decimal),
-            {("enum", "Enum"), ("decimal", "Decimal")},
-        ),
-        (
-            builds(enum.Enum).flatmap(Decimal),
-            {("enum", "Enum"), ("decimal", "Decimal")},
-        ),
-        (
-            builds(enum.Enum).filter(Decimal).filter(re.compile),
-            {("enum", "Enum"), ("decimal", "Decimal"), ("re", "compile")},
-        ),
-        # one_of() strategies recurse into all the branches
-        (
-            builds(enum.Enum) | builds(Decimal) | builds(re.compile),
-            {("enum", "Enum"), ("decimal", "Decimal"), ("re", "compile")},
-        ),
-        # and builds() checks the arguments as well as the target
-        (
-            builds(enum.Enum, builds(Decimal), kw=builds(re.compile)),
-            {("enum", "Enum"), ("decimal", "Decimal"), ("re", "compile")},
-        ),
-        # lists recurse on imports
-        (
-            lists(builds(Decimal)),
-            {("decimal", "Decimal")},
-        ),
-        # find the needed import for from_regex if needed
-        (
-            from_regex(re.compile(".+")),
-            {"re"},
-        ),
-        # but don't add superfluous imports
-        (
-            from_regex(".+"),
-            set(),
-        ),
-    ],
-)
-def test_get_imports_for_strategy(strategy, imports):
-    assert ghostwriter._imports_for_strategy(strategy) == imports
-
-
-@pytest.fixture
-def temp_script_file():
-    """Fixture to yield a Path to a temporary file in the local directory. File name will end
-    in .py and will include an importable function.
-    """
-    p = Path("my_temp_script.py")
-    if p.exists():
-        raise FileExistsError(f"Did not expect {p} to exist during testing")
-    p.write_text(
-        dedent(
-            """
-            def say_hello():
-                print("Hello world!")
-            """
-        ),
-        encoding="utf-8",
-    )
-    yield p
-    p.unlink()
-
-
-@pytest.fixture
-def temp_script_file_with_py_function():
-    """Fixture to yield a Path to a temporary file in the local directory. File name will end
-    in .py and will include an importable function named "py"
-    """
-    p = Path("my_temp_script_with_py_function.py")
-    if p.exists():
-        raise FileExistsError(f"Did not expect {p} to exist during testing")
-    p.write_text(
-        dedent(
-            """
-            def py():
-                print('A function named "py" has been called')
-            """
-        ),
-        encoding="utf-8",
-    )
-    yield p
-    p.unlink()
 
 
 def test_obj_name(temp_script_file, temp_script_file_with_py_function):
@@ -525,26 +549,3 @@ def test_gets_public_location_not_impl_location():
 
 class ForwardRefA:
     pass
-
-
-@pytest.mark.parametrize(
-    "parameter, type_name",
-    [
-        (ForwardRef("this_ref_does_not_exist"), None),
-        # ForwardRef.evaluate() logic is new in 3.14
-        *(
-            []
-            if sys.version_info[:2] < (3, 14)
-            else [
-                (
-                    ForwardRef("ForwardRefA", owner=A),
-                    ghostwriter._AnnotationData(
-                        "test_ghostwriter.ForwardRefA", {"test_ghostwriter"}
-                    ),
-                )
-            ]
-        ),
-    ],
-)
-def test_parameter_to_annotation(parameter, type_name):
-    assert ghostwriter._parameter_to_annotation(parameter) == type_name
