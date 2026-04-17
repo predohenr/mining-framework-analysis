@@ -7,11 +7,11 @@ reactors.
 """
 from __future__ import annotations
 
-from typing import Union
-
 from hypothesis import example, given, strategies as st
 
 from twisted.internet.abstract import FileDescriptor, isIPv6Address
+
+from typing import Union
 from twisted.trial.unittest import SynchronousTestCase
 from .test_tcp import _FakeFDSetReactor
 
