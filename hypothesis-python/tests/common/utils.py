@@ -94,7 +94,7 @@ def fails_with(e, *, match=None):
     def accepts(f):
         @proxies(f)
         def inverted_test(*arguments, **kwargs):
-            with pytest.raises(e, match=match):
+            with  pytest.raises(e, match=match):
                 f(*arguments, **kwargs)
 
         return inverted_test
