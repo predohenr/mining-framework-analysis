@@ -972,6 +972,28 @@ def one_of(
     return OneOfStrategy(args)
 
 
+@lru_cache
+def _list_strategy_type() -> Any:
+    from hypothesis.strategies._internal.collections import ListStrategy
+
+    return ListStrategy
+
+
+@check_function
+def check_strategy(arg: object, name: str = "") -> None:
+    assert isinstance(name, str)
+    if not isinstance(arg, SearchStrategy):
+        hint = ""
+        if isinstance(arg, (list, tuple)):
+            hint = ", such as st.sampled_from({}),".format(name or "...")
+        if name:
+            name += "="
+        raise InvalidArgument(
+            f"Expected a SearchStrategy{hint} but got {name}{arg!r} "
+            f"(type={type(arg).__name__})"
+        )
+
+
 class MappedStrategy(SearchStrategy[MappedTo], Generic[MappedFrom, MappedTo]):
     """A strategy which is defined purely by conversion to and from another
     strategy.
@@ -1050,13 +1072,6 @@ class MappedStrategy(SearchStrategy[MappedTo], Generic[MappedFrom, MappedTo]):
         # Apply a new outer filter even though we rewrote the inner strategy,
         # because some collections can change the list length (dict, set, etc).
         return FilteredStrategy(type(self)(new, self.pack), conditions=(condition,))
-
-
-@lru_cache
-def _list_strategy_type() -> Any:
-    from hypothesis.strategies._internal.collections import ListStrategy
-
-    return ListStrategy
 
 
 def _collection_ish_functions() -> Sequence[Any]:
@@ -1187,6 +1202,13 @@ class FilteredStrategy(SearchStrategy[Ex]):
         self.__condition = condition
         return condition
 
+    @property
+    def branches(self) -> Sequence[SearchStrategy[Ex]]:
+        return [
+            FilteredStrategy(strategy=strategy, conditions=self.flat_conditions)
+            for strategy in self.filtered_strategy.branches
+        ]
+
     def do_draw(self, data: ConjectureData) -> Ex:
         result = self.do_filtered_draw(data)
         if result is not filter_not_satisfied:
@@ -1207,25 +1229,3 @@ class FilteredStrategy(SearchStrategy[Ex]):
                     data.events[f"Retried draw from {self!r} to satisfy filter"] = ""
 
         return filter_not_satisfied
-
-    @property
-    def branches(self) -> Sequence[SearchStrategy[Ex]]:
-        return [
-            FilteredStrategy(strategy=strategy, conditions=self.flat_conditions)
-            for strategy in self.filtered_strategy.branches
-        ]
-
-
-@check_function
-def check_strategy(arg: object, name: str = "") -> None:
-    assert isinstance(name, str)
-    if not isinstance(arg, SearchStrategy):
-        hint = ""
-        if isinstance(arg, (list, tuple)):
-            hint = ", such as st.sampled_from({}),".format(name or "...")
-        if name:
-            name += "="
-        raise InvalidArgument(
-            f"Expected a SearchStrategy{hint} but got {name}{arg!r} "
-            f"(type={type(arg).__name__})"
-        )
