@@ -4,7 +4,7 @@
 import os
 
 from PyQt6.QtCore import QRect, pyqtSignal
-from typing import Optional, List, Tuple, Dict
+from typing import Optional, Dict
 
 from PyQt6.QtGui import QImage, QUndoStack
 
