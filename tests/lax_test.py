@@ -3741,7 +3741,6 @@ class LaxTest(jtu.JaxTestCase):
     if expected.dtype == 'int8':
       expected = expected.astype(dtype)
     self.assertArraysEqual(actual, expected, check_dtypes=True)
-
   def test_gather_with_asymmetric_dtype(self):
     @jax.custom_vjp
     def f(x):
