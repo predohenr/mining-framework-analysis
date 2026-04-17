@@ -258,6 +258,30 @@ class ImportSingletonTest(AutotagImportTestCase):
         assert self.lib.items().get().title == "Applied Track 1"
         assert (self.lib_path / "singletons" / "Applied Track 1.mp3").exists()
 
+    def test_skip_does_not_add_track(self):
+        self.importer.add_choice(importer.Action.SKIP)
+        self.importer.run()
+
+        assert not self.lib.items()
+
+    def test_skip_does_not_add_first_track(self):
+        self.importer.add_choice(importer.Action.SKIP)
+        self.importer.run()
+
+        assert not self.lib.items()
+
+    def test_apply_candidate_does_not_add_album(self):
+        self.importer.add_choice(importer.Action.APPLY)
+        self.importer.run()
+        assert self.lib.albums().get() is None
+
+    def test_apply_candidate_adds_singleton_path(self):
+        self.assert_lib_dir_empty()
+
+        self.importer.add_choice(importer.Action.APPLY)
+        self.importer.run()
+        self.assert_file_in_lib(b"singletons", b"Applied Track 1.mp3")
+
     def test_apply_from_scratch_removes_other_metadata(self):
         config["import"]["from_scratch"] = True
 
@@ -268,12 +292,6 @@ class ImportSingletonTest(AutotagImportTestCase):
         self.importer.add_choice(importer.Action.APPLY)
         self.importer.run()
         assert self.lib.items().get().comments == ""
-
-    def test_skip_does_not_add_track(self):
-        self.importer.add_choice(importer.Action.SKIP)
-        self.importer.run()
-
-        assert not self.lib.items()
 
     def test_skip_first_add_second_asis(self):
         self.prepare_album_for_import(2)
