@@ -374,6 +374,32 @@ class BaseTreeView(QtWidgets.QTreeWidget):
 
         header.lock(config.persist[self.header_locked])
 
+    @staticmethod
+    def drop_urls(urls, target, move_to_multi_tracks=True):
+        files = []
+        new_paths = []
+        tagger = QtCore.QCoreApplication.instance()
+        for url in urls:
+            log.debug("Dropped the URL: %r", url.toString(QtCore.QUrl.UrlFormattingOption.RemoveUserInfo))
+            if url.scheme() == 'file' or not url.scheme():
+                filename = normpath(url.toLocalFile().rstrip('\0'))
+                file = tagger.files.get(filename)
+                if file:
+                    files.append(file)
+                else:
+                    new_paths.append(filename)
+            elif url.scheme() in {'http', 'https'}:
+                file_lookup = tagger.get_file_lookup()
+                file_lookup.mbid_lookup(url.path(), browser_fallback=False)
+        if files:
+            tagger.move_files(files, target, move_to_multi_tracks)
+        if new_paths:
+            tagger.add_paths(new_paths, target=target)
+
+    @property
+    def default_drop_target(self):
+        return None
+
     def save_state(self):
         config = get_config()
         header = self.header()
@@ -470,28 +496,6 @@ class BaseTreeView(QtWidgets.QTreeWidget):
         super().scrollTo(index, scrolltype)
         hscrollbar.setValue(xpos)
 
-    @staticmethod
-    def drop_urls(urls, target, move_to_multi_tracks=True):
-        files = []
-        new_paths = []
-        tagger = QtCore.QCoreApplication.instance()
-        for url in urls:
-            log.debug("Dropped the URL: %r", url.toString(QtCore.QUrl.UrlFormattingOption.RemoveUserInfo))
-            if url.scheme() == 'file' or not url.scheme():
-                filename = normpath(url.toLocalFile().rstrip('\0'))
-                file = tagger.files.get(filename)
-                if file:
-                    files.append(file)
-                else:
-                    new_paths.append(filename)
-            elif url.scheme() in {'http', 'https'}:
-                file_lookup = tagger.get_file_lookup()
-                file_lookup.mbid_lookup(url.path(), browser_fallback=False)
-        if files:
-            tagger.move_files(files, target, move_to_multi_tracks)
-        if new_paths:
-            tagger.add_paths(new_paths, target=target)
-
     def dropEvent(self, event):
         if event.proposedAction() == QtCore.Qt.DropAction.IgnoreAction:
             event.acceptProposedAction()
@@ -564,89 +568,6 @@ class BaseTreeView(QtWidgets.QTreeWidget):
             if item and not item.isSelected():
                 self.setCurrentItem(item)
         return QtWidgets.QTreeWidget.moveCursor(self, action, modifiers)
-
-    @property
-    def default_drop_target(self):
-        return None
-
-    def setup_find_box(self):
-        self.find_box = FindBox(self)
-        self.find_box.findChanged.connect(self.filter_items)
-
-        self.find_box.hide()  # Hide the find box initially
-
-        return self.find_box
-
-    def filter_items(self, text, filters):
-        if not text:  # When text is empty, show all items
-            self._restore_all_items()
-            return
-
-        text = text.lower()
-        self._filter_tree_items(self.invisibleRootItem(), text, filters)
-
-    def _filter_tree_items(self, parent, text, filters):
-        """Recursively filter tree items based on find text."""
-
-        match_found = False
-
-        for i in range(parent.childCount()):
-            child = parent.child(i)
-            child_match = False
-
-            # Special handling for different object types
-            if hasattr(child, 'obj'):
-                obj = child.obj
-
-                # Handle Clusters
-                if filters == [] or "filename" in filters:
-                    # Handle Tracks with files
-                    if hasattr(obj, 'iterfiles'):
-                        for file_ in obj.iterfiles():
-                            if filters == [] or "filename" in filters:
-                                if text in file_.base_filename.lower():
-                                    child_match = True
-                                    break
-                            if filters == [] or "filepath" in filters:
-                                if text in file_.filename.lower():
-                                    child_match = True
-                                    break
-
-                # Handle metadata in Files
-                if hasattr(obj, 'metadata'):
-                    for tag, values in obj.metadata.rawitems():
-                        if isinstance(values, list):
-                            for value in values:
-                                if filters == [] or tag.lower() in filters:
-                                    if text in str(value).lower():
-                                        child_match = True
-                                        break
-                        elif text in str(values).lower():
-                            child_match = True
-                            break
-
-            # Recursively check children
-            if child.childCount() > 0:
-                child_matches = self._filter_tree_items(child, text, filters)
-                child_match |= child_matches
-
-            # Hide/show based on match
-            child.setHidden(not child_match)
-            match_found |= child_match
-
-        return match_found
-
-    def _restore_all_items(self):
-        """Show all items in the tree."""
-        self._restore_tree_items(self.invisibleRootItem())
-
-    def _restore_tree_items(self, parent):
-        """Recursively show all items."""
-        for i in range(parent.childCount()):
-            child = parent.child(i)
-            child.setHidden(False)
-            if child.childCount() > 0:
-                self._restore_tree_items(child)
 
     def setup_find_box(self):
         self.find_box = FindBox(self)
