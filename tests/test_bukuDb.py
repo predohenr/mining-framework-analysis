@@ -8,13 +8,11 @@ import re
 import sqlite3
 import sys
 import unittest
-from genericpath import exists
-from tempfile import NamedTemporaryFile, TemporaryDirectory
-from random import shuffle
 from unittest import mock
-
 from genericpath import exists
 import pytest
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from random import shuffle
 import yaml
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
@@ -65,17 +63,6 @@ def vcr_cassette_dir(request):
     return os.path.join("tests", "vcr_cassettes", request.module.__name__)
 
 
-def rmdb(*bdbs):
-    for bdb in bdbs:
-        try:
-            bdb.cur.close()
-            bdb.conn.close()
-        except Exception:
-            pass
-    if exists(TEST_TEMP_DBFILE_PATH):
-        os.remove(TEST_TEMP_DBFILE_PATH)
-
-
 @pytest.fixture()
 def bukuDb():
     os.environ["XDG_DATA_HOME"] = TEST_TEMP_DIR_PATH
@@ -92,714 +79,6 @@ def bukuDb():
 
     yield _bukuDb
     rmdb(*bdbs)
-
-
-class PrettySafeLoader(
-    yaml.SafeLoader
-):  # pylint: disable=too-many-ancestors,too-few-public-methods
-    def construct_python_tuple(self, node):
-        return tuple(self.construct_sequence(node))
-
-
-PrettySafeLoader.add_constructor(
-    "tag:yaml.org,2002:python/tuple", PrettySafeLoader.construct_python_tuple
-)
-
-
-class TestBukuDb(unittest.TestCase):
-    def setUp(self):
-        os.environ["XDG_DATA_HOME"] = TEST_TEMP_DIR_PATH
-
-        # start every test from a clean state
-        rmdb()
-
-        self.bookmarks = TEST_BOOKMARKS
-        self.bdb = BukuDb()
-
-    def tearDown(self):
-        os.environ["XDG_DATA_HOME"] = TEST_TEMP_DIR_PATH
-        rmdb(self.bdb)
-
-    @pytest.mark.non_tox
-    def test_get_default_dbdir(self):
-        dbdir_expected = TEST_TEMP_DBDIR_PATH
-        home = os.path.expanduser("~")
-        dbdir_local_expected = (os.path.join(home, ".local", "share", "buku") if sys.platform != 'win32' else
-                                os.path.join(home, "AppData", "Roaming", "buku"))
-        dbdir_relative_expected = os.path.abspath(".")
-
-        # desktop linux
-        self.assertEqual(dbdir_expected, BukuDb.get_default_dbdir())
-
-        # desktop generic
-        os.environ.pop("XDG_DATA_HOME")
-        self.assertEqual(dbdir_local_expected, BukuDb.get_default_dbdir())
-
-        # no desktop
-
-        # -- home is defined differently on various platforms.
-        # -- keep a copy and set it back once done
-        originals = {}
-        for env_var in ["HOME", "HOMEPATH", "HOMEDIR", "APPDATA"]:
-            if env_var in os.environ:
-                originals[env_var] = os.environ.pop(env_var)
-        try:
-            self.assertEqual(dbdir_relative_expected, BukuDb.get_default_dbdir())
-        finally:
-            os.environ.update(originals)
-
-    # # not sure how to test this in nondestructive manner
-    # def test_move_legacy_dbfile(self):
-    #     self.fail()
-
-    def test_initdb(self):
-        rmdb(self.bdb)
-        self.assertIs(False, exists(TEST_TEMP_DBFILE_PATH))
-        try:
-            conn, curr = BukuDb.initdb()
-            self.assertIsInstance(conn, sqlite3.Connection)
-            self.assertIsInstance(curr, sqlite3.Cursor)
-            self.assertIs(True, exists(TEST_TEMP_DBFILE_PATH))
-        finally:
-            curr.close()
-            conn.close()
-
-    def test_get_rec_by_id(self):
-        for bookmark in self.bookmarks:
-            # adding bookmark from self.bookmarks
-            _add_rec(self.bdb, *bookmark)
-
-        # the expected bookmark
-        expected = (1,) + tuple(TEST_BOOKMARKS[0]) + (0,)
-        bookmark_from_db = self.bdb.get_rec_by_id(1)
-        # asserting bookmark matches expected
-        self.assertEqual(expected, bookmark_from_db)
-        # asserting None returned if index out of range
-        self.assertIsNone(self.bdb.get_rec_by_id(len(self.bookmarks[0]) + 1))
-
-    def test_get_rec_all_by_ids(self):
-        for bookmark in self.bookmarks:
-            # adding bookmark from self.bookmarks
-            _add_rec(self.bdb, *bookmark)
-        expected = [(i+1,) + tuple(TEST_BOOKMARKS[i]) + (0,) for i in [0, 2]]
-        bookmarks_from_db = self.bdb.get_rec_all_by_ids([3, 1, 1, 3, 5])  # ignoring order and duplicates
-        self.assertEqual(expected, bookmarks_from_db)
-
-    def test_get_rec_id(self):
-        for idx, bookmark in enumerate(self.bookmarks):
-            # adding bookmark from self.bookmarks to database
-            _add_rec(self.bdb, *bookmark)
-            # asserting index is in order
-            idx_from_db = self.bdb.get_rec_id(bookmark[0])
-            self.assertEqual(idx + 1, idx_from_db)
-
-        # asserting None is returned for nonexistent url
-        idx_from_db = self.bdb.get_rec_id("http://nonexistent.url")
-        self.assertIsNone(idx_from_db)
-
-    def test_add_rec(self):
-        for bookmark in self.bookmarks:
-            # adding bookmark from self.bookmarks to database
-            self.bdb.add_rec(*bookmark, fetch=False)
-            # retrieving bookmark from database
-            index = self.bdb.get_rec_id(bookmark[0])
-            from_db = self.bdb.get_rec_by_id(index)
-            self.assertIsNotNone(from_db)
-            # comparing data
-            for pair in zip(from_db[1:], bookmark):
-                self.assertEqual(*pair)
-
-    def test_swap_recs(self):
-        for bookmark in self.bookmarks:
-            _add_rec(self.bdb, *bookmark)
-        for id1, id2 in [(0, 1), (1, 4), (1, 1)]:
-            self.assertFalse(self.bdb.swap_recs(id1, id2), 'Not a valid index pair: (%d, %d)' % (id1, id2))
-        self.assertTrue(self.bdb.swap_recs(1, 3), 'This one should be valid')  # 3, 2, 1
-        self.assertEqual([x[0] for x in reversed(self.bookmarks)], [x.url for x in self.bdb.get_rec_all()])
-
-    # TODO: tags should be passed to the api as a sequence...
-    def test_suggest_tags(self):
-        for bookmark in self.bookmarks:
-            _add_rec(self.bdb, *bookmark)
-
-        tagstr = ",test,old,"
-        with mock.patch("builtins.input", return_value="1 2 3"):
-            expected_results = ",es,est,news,old,test,"
-            suggested_results = self.bdb.suggest_similar_tag(tagstr)
-            self.assertEqual(expected_results, suggested_results)
-
-        # returns user supplied tags if none are in the DB
-        tagstr = ",uniquetag1,uniquetag2,"
-        expected_results = tagstr
-        suggested_results = self.bdb.suggest_similar_tag(tagstr)
-        self.assertEqual(expected_results, suggested_results)
-
-    def test_update_rec(self):
-        old_values = self.bookmarks[0]
-        new_values = self.bookmarks[1]
-
-        # adding bookmark and getting index
-        _add_rec(self.bdb, *old_values)
-        index = self.bdb.get_rec_id(old_values[0])
-        # updating with new values
-        self.bdb.update_rec(index, *new_values)
-        # retrieving bookmark from database
-        from_db = self.bdb.get_rec_by_id(index)
-        self.assertIsNotNone(from_db)
-        # checking if values are updated
-        for pair in zip(from_db[1:], new_values):
-            self.assertEqual(*pair)
-
-    def test_append_tag_at_index(self):
-        for bookmark in self.bookmarks:
-            _add_rec(self.bdb, *bookmark)
-
-        # tags to add
-        old_tags = self.bdb.get_rec_by_id(1)[3]
-        new_tags = ",foo,bar,baz"
-        self.bdb.append_tag_at_index(1, new_tags)
-        # updated list of tags
-        from_db = self.bdb.get_rec_by_id(1)[3]
-
-        # checking if new tags were added to the bookmark
-        self.assertTrue(split_and_test_membership(new_tags, from_db))
-        # checking if old tags still exist
-        self.assertTrue(split_and_test_membership(old_tags, from_db))
-
-    def test_append_tag_at_all_indices(self):
-        for bookmark in self.bookmarks:
-            _add_rec(self.bdb, *bookmark)
-
-        # tags to add
-        new_tags = ",foo,bar,baz"
-        # record of original tags for each bookmark
-        old_tagsets = {
-            i: self.bdb.get_rec_by_id(i)[3]
-            for i in inclusive_range(1, len(self.bookmarks))
-        }
-
-        with mock.patch("builtins.input", return_value="y"):
-            self.bdb.append_tag_at_index(0, new_tags)
-            # updated tags for each bookmark
-            from_db = [
-                (i, self.bdb.get_rec_by_id(i)[3])
-                for i in inclusive_range(1, len(self.bookmarks))
-            ]
-            for index, tagset in from_db:
-                # checking if new tags added to bookmark
-                self.assertTrue(split_and_test_membership(new_tags, tagset))
-                # checking if old tags still exist for bookmark
-                self.assertTrue(split_and_test_membership(old_tagsets[index], tagset))
-
-    def test_delete_tag_at_index(self):
-        # adding bookmarks
-        for bookmark in self.bookmarks:
-            _add_rec(self.bdb, *bookmark)
-
-        get_tags_at_idx = lambda i: self.bdb.get_rec_by_id(i)[3]
-        # list of two-tuples, each containing bookmark index and corresponding tags
-        tags_by_index = [
-            (i, get_tags_at_idx(i)) for i in inclusive_range(1, len(self.bookmarks))
-        ]
-
-        for i, tags in tags_by_index:
-            # get the first tag from the bookmark
-            to_delete = re.match(",.*?,", tags).group(0)
-            self.bdb.delete_tag_at_index(i, to_delete)
-            # get updated tags from db
-            from_db = get_tags_at_idx(i)
-            self.assertNotIn(to_delete, from_db)
-
-    def test_search_keywords_and_filter_by_tags(self):
-        # adding bookmark
-        for bookmark in self.bookmarks:
-            _add_rec(self.bdb, *bookmark)
-
-        with mock.patch("buku.prompt"):
-            expected = [
-                (
-                    3,
-                    "http://example.com/",
-                    "test",
-                    ",es,est,tes,test,",
-                    "a case for replace_tag test",
-                    0,
-                )
-            ]
-            results = self.bdb.search_keywords_and_filter_by_tags(
-                ["News", "case"],
-                False,
-                False,
-                False,
-                ["est"],
-            )
-            self.assertIn(expected[0], results)
-            expected = [
-                (
-                    3,
-                    "http://example.com/",
-                    "test",
-                    ",es,est,tes,test,",
-                    "a case for replace_tag test",
-                    0,
-                ),
-                (
-                    2,
-                    "http://www.zażółćgęśląjaźń.pl/",
-                    "ZAŻÓŁĆ",
-                    ",gęślą,jaźń,zażółć,",
-                    "Testing UTF-8, zażółć gęślą jaźń.",
-                    0,
-                ),
-            ]
-            results = self.bdb.search_keywords_and_filter_by_tags(
-                ["UTF-8", "case"],
-                False,
-                False,
-                False,
-                "jaźń, test",
-            )
-            self.assertIn(expected[0], results)
-            self.assertIn(expected[1], results)
-
-    def test_searchdb(self):
-        # adding bookmarks
-        for bookmark in self.bookmarks:
-            _add_rec(self.bdb, *bookmark)
-
-        get_first_tag = lambda x: "".join(x[2].split(",")[:2])
-        for i, bookmark in enumerate(self.bookmarks):
-            tag_search = get_first_tag(bookmark)
-            # search by the domain name for url
-            url_search = re.match(r"https?://(.*)?\..*", bookmark[0]).group(1)
-            title_search = bookmark[1]
-            # Expect a five-tuple containing all bookmark data
-            # db index, URL, title, tags, description
-            expected = [(i + 1,) + tuple(bookmark)]
-            expected[0] += tuple([0])
-            # search db by tag, url (domain name), and title
-            for keyword in (tag_search, url_search, title_search):
-                with mock.patch("buku.prompt"):
-                    # search by keyword
-                    results = self.bdb.searchdb([keyword])
-                    self.assertEqual(results, expected)
-
-    def test_search_by_tag(self):
-        # adding bookmarks
-        for bookmark in self.bookmarks:
-            _add_rec(self.bdb, *bookmark)
-
-        with mock.patch("buku.prompt"):
-            get_first_tag = lambda x: "".join(x[2].split(",")[:2])
-            for i, bookmark in enumerate(self.bookmarks):
-                # search for bookmark with a tag that is known to exist
-                results = self.bdb.search_by_tag(get_first_tag(bookmark))
-                # Expect a five-tuple containing all bookmark data
-                # db index, URL, title, tags, description
-                expected = [(i + 1,) + tuple(bookmark)]
-                expected[0] += tuple([0])
-                self.assertEqual(results, expected)
-
-    @pytest.mark.slow
-    @pytest.mark.vcr("tests/vcr_cassettes/test_search_by_multiple_tags_search_any.yaml")
-    def test_search_by_multiple_tags_search_any(self):
-        # adding bookmarks
-        for bookmark in self.bookmarks:
-            self.bdb.add_rec(*bookmark)
-
-        new_bookmark = [
-            "https://newbookmark.com",
-            "New Bookmark",
-            parse_tags(["test,old,new"]),
-            "additional bookmark to test multiple tag search",
-            0,
-        ]
-
-        self.bdb.add_rec(*new_bookmark)
-
-        with mock.patch("buku.prompt"):
-            # search for bookmarks matching ANY of the supplied tags
-            results = self.bdb.search_by_tag("test, old")
-            # Expect a list of five-element tuples containing all bookmark data
-            # db index, URL, title, tags, description, ordered by records with
-            # the most number of matches.
-            expected = [
-                (
-                    4,
-                    "https://newbookmark.com",
-                    "New Bookmark",
-                    parse_tags([",test,old,new,"]),
-                    "additional bookmark to test multiple tag search",
-                    0,
-                ),
-                (
-                    1,
-                    "http://slashdot.org",
-                    "SLASHDOT",
-                    parse_tags([",news,old,"]),
-                    "News for old nerds, stuff that doesn't matter",
-                    0,
-                ),
-                (
-                    3,
-                    "http://example.com/",
-                    "test",
-                    ",es,est,tes,test,",
-                    "a case for replace_tag test",
-                    0,
-                ),
-            ]
-            self.assertEqual(results, expected)
-
-    @pytest.mark.slow
-    @pytest.mark.vcr("tests/vcr_cassettes/test_search_by_multiple_tags_search_all.yaml")
-    def test_search_by_multiple_tags_search_all(self):
-        # adding bookmarks
-        for bookmark in self.bookmarks:
-            self.bdb.add_rec(*bookmark)
-
-        new_bookmark = [
-            "https://newbookmark.com",
-            "New Bookmark",
-            parse_tags(["test,old,new"]),
-            "additional bookmark to test multiple tag search",
-        ]
-
-        self.bdb.add_rec(*new_bookmark)
-
-        with mock.patch("buku.prompt"):
-            # search for bookmarks matching ALL of the supplied tags
-            results = self.bdb.search_by_tag("test + old")
-            # Expect a list of five-element tuples containing all bookmark data
-            # db index, URL, title, tags, description
-            expected = [
-                (
-                    4,
-                    "https://newbookmark.com",
-                    "New Bookmark",
-                    parse_tags([",test,old,new,"]),
-                    "additional bookmark to test multiple tag search",
-                    0,
-                )
-            ]
-            self.assertEqual(results, expected)
-
-    def test_search_by_tags_enforces_space_seprations_search_all(self):
-
-        bookmark1 = [
-            "https://bookmark1.com",
-            "Bookmark One",
-            parse_tags(["tag, two,tag+two"]),
-            "test case for bookmark with '+' in tag",
-        ]
-
-        bookmark2 = [
-            "https://bookmark2.com",
-            "Bookmark Two",
-            parse_tags(["tag,two, tag-two"]),
-            "test case for bookmark with hyphenated tag",
-        ]
-
-        _add_rec(self.bdb, *bookmark1)
-        _add_rec(self.bdb, *bookmark2)
-
-        with mock.patch("buku.prompt"):
-            # check that space separation for ' + ' operator is enforced
-            results = self.bdb.search_by_tag("tag+two")
-            # Expect a list of five-element tuples containing all bookmark data
-            # db index, URL, title, tags, description
-            expected = [
-                (
-                    1,
-                    "https://bookmark1.com",
-                    "Bookmark One",
-                    parse_tags([",tag,two,tag+two,"]),
-                    "test case for bookmark with '+' in tag",
-                    0,
-                )
-            ]
-            self.assertEqual(results, expected)
-            results = self.bdb.search_by_tag("tag + two")
-            # Expect a list of five-element tuples containing all bookmark data
-            # db index, URL, title, tags, description
-            expected = [
-                (
-                    1,
-                    "https://bookmark1.com",
-                    "Bookmark One",
-                    parse_tags([",tag,two,tag+two,"]),
-                    "test case for bookmark with '+' in tag",
-                    0,
-                ),
-                (
-                    2,
-                    "https://bookmark2.com",
-                    "Bookmark Two",
-                    parse_tags([",tag,two,tag-two,"]),
-                    "test case for bookmark with hyphenated tag",
-                    0,
-                ),
-            ]
-            self.assertEqual(results, expected)
-
-    def test_search_by_tags_exclusion(self):
-        # adding bookmarks
-        for bookmark in self.bookmarks:
-            _add_rec(self.bdb, *bookmark)
-
-        new_bookmark = [
-            "https://newbookmark.com",
-            "New Bookmark",
-            parse_tags(["test,old,new"]),
-            "additional bookmark to test multiple tag search",
-        ]
-
-        _add_rec(self.bdb, *new_bookmark)
-
-        with mock.patch("buku.prompt"):
-            # search for bookmarks matching ANY of the supplied tags
-            # while excluding bookmarks from results that match a given tag
-            results = self.bdb.search_by_tag("test, old - est")
-            # Expect a list of five-element tuples containing all bookmark data
-            # db index, URL, title, tags, description
-            expected = [
-                (
-                    4,
-                    "https://newbookmark.com",
-                    "New Bookmark",
-                    parse_tags([",test,old,new,"]),
-                    "additional bookmark to test multiple tag search",
-                    0,
-                ),
-                (
-                    1,
-                    "http://slashdot.org",
-                    "SLASHDOT",
-                    parse_tags([",news,old,"]),
-                    "News for old nerds, stuff that doesn't matter",
-                    0,
-                ),
-            ]
-            self.assertEqual(results, expected)
-
-    @pytest.mark.vcr("tests/vcr_cassettes/test_search_by_tags_enforces_space_seprations_exclusion.yaml")
-    def test_search_by_tags_enforces_space_seprations_exclusion(self):
-
-        bookmark1 = [
-            "https://bookmark1.com",
-            "Bookmark One",
-            parse_tags(["tag, two,tag+two"]),
-            "test case for bookmark with '+' in tag",
-        ]
-
-        bookmark2 = [
-            "https://bookmark2.com",
-            "Bookmark Two",
-            parse_tags(["tag,two, tag-two"]),
-            "test case for bookmark with hyphenated tag",
-        ]
-
-        bookmark3 = [
-            "https://bookmark3.com",
-            "Bookmark Three",
-            parse_tags(["tag, tag three"]),
-            "second test case for bookmark with hyphenated tag",
-        ]
-
-        self.bdb.add_rec(*bookmark1)
-        self.bdb.add_rec(*bookmark2)
-        self.bdb.add_rec(*bookmark3)
-
-        with mock.patch("buku.prompt"):
-            # check that space separation for ' - ' operator is enforced
-            results = self.bdb.search_by_tag("tag-two")
-            # Expect a list of five-element tuples containing all bookmark data
-            # db index, URL, title, tags, description
-            expected = [
-                (
-                    2,
-                    "https://bookmark2.com",
-                    "Bookmark Two",
-                    parse_tags([",tag,two,tag-two,"]),
-                    "test case for bookmark with hyphenated tag",
-                    0,
-                ),
-            ]
-            self.assertEqual(results, expected)
-            results = self.bdb.search_by_tag("tag - two")
-            # Expect a list of five-element tuples containing all bookmark data
-            # db index, URL, title, tags, description
-            expected = [
-                (
-                    3,
-                    "https://bookmark3.com",
-                    "Bookmark Three",
-                    parse_tags([",tag,tag three,"]),
-                    "second test case for bookmark with hyphenated tag",
-                    0,
-                ),
-            ]
-            self.assertEqual(results, expected)
-
-    def test_search_and_open_in_browser_by_range(self):
-        # adding bookmarks
-        for bookmark in self.bookmarks:
-            _add_rec(self.bdb, *bookmark)
-
-        # simulate user input, select range of indices 1-3
-        index_range = "1-%s" % len(self.bookmarks)
-        with mock.patch("builtins.input", side_effect=[index_range]):
-            with mock.patch("buku.browse") as mock_browse:
-                try:
-                    # search the db with keywords from each bookmark
-                    # searching using the first tag from bookmarks
-                    get_first_tag = lambda x: x[2].split(",")[1]
-                    results = self.bdb.searchdb(
-                        [get_first_tag(bm) for bm in self.bookmarks]
-                    )
-                    prompt(self.bdb, results)
-                except StopIteration:
-                    # catch exception thrown by reaching the end of the side effect iterable
-                    pass
-
-                # collect arguments passed to browse
-                arg_list = [args[0] for args, _ in mock_browse.call_args_list]
-                # expect a list of one-tuples that are bookmark URLs
-                expected = [x[0] for x in self.bookmarks]
-                # checking if browse called with expected arguments
-                self.assertEqual(arg_list, expected)
-
-    @pytest.mark.slow
-    @pytest.mark.vcr("tests/vcr_cassettes/test_search_and_open_all_in_browser.yaml")
-    def test_search_and_open_all_in_browser(self):
-        # adding bookmarks
-        for bookmark in self.bookmarks:
-            self.bdb.add_rec(*bookmark)
-
-        # simulate user input, select 'a' to open all bookmarks in results
-        with mock.patch("builtins.input", side_effect=["a"]):
-            with mock.patch("buku.browse") as mock_browse:
-                try:
-                    # search the db with keywords from each bookmark
-                    # searching using the first tag from bookmarks
-                    get_first_tag = lambda x: x[2].split(",")[1]
-                    results = self.bdb.searchdb(
-                        [get_first_tag(bm) for bm in self.bookmarks[:2]]
-                    )
-                    prompt(self.bdb, results)
-                except StopIteration:
-                    # catch exception thrown by reaching the end of the side effect iterable
-                    pass
-
-                # collect arguments passed to browse
-                arg_list = [args[0] for args, _ in mock_browse.call_args_list]
-                # expect a list of one-tuples that are bookmark URLs
-                expected = [x[0] for x in self.bookmarks][:2]
-                # checking if browse called with expected arguments
-                self.assertEqual(arg_list, expected)
-
-    def test_delete_rec(self):
-        # adding bookmark and getting index
-        _add_rec(self.bdb, *self.bookmarks[0])
-        index = self.bdb.get_rec_id(self.bookmarks[0][0])
-        # deleting bookmark
-        self.bdb.delete_rec(index)
-        # asserting it doesn't exist
-        from_db = self.bdb.get_rec_by_id(index)
-        self.assertIsNone(from_db)
-
-    def test_delete_rec_yes(self):
-        # checking that "y" response causes delete_rec to return True
-        with mock.patch("builtins.input", return_value="y"):
-            self.assertTrue(self.bdb.delete_rec(0))
-
-    def test_delete_rec_no(self):
-        # checking that non-"y" response causes delete_rec to return None
-        with mock.patch("builtins.input", return_value="n"):
-            self.assertFalse(self.bdb.delete_rec(0))
-
-    def test_cleardb(self):
-        # adding bookmarks
-        _add_rec(self.bdb, *self.bookmarks[0])
-        # deleting all bookmarks
-        with mock.patch("builtins.input", return_value="y"):
-            self.bdb.cleardb()
-        # assert table has been dropped
-        assert self.bdb.get_rec_by_id(0) is None
-
-    def test_replace_tag(self):
-        indices = []
-        for bookmark in self.bookmarks:
-            # adding bookmark, getting index
-            _add_rec(self.bdb, *bookmark)
-            index = self.bdb.get_rec_id(bookmark[0])
-            indices += [index]
-
-        # replacing tags
-        with mock.patch("builtins.input", return_value="y"):
-            self.bdb.replace_tag("news", ["__01"])
-        with mock.patch("builtins.input", return_value="y"):
-            self.bdb.replace_tag("zażółć", ["__02,__03"])
-
-        # replacing tag which is also a substring of other tag
-        with mock.patch("builtins.input", return_value="y"):
-            self.bdb.replace_tag("es", ["__04"])
-
-        # removing tags
-        with mock.patch("builtins.input", return_value="y"):
-            self.bdb.replace_tag("gęślą")
-        with mock.patch("builtins.input", return_value="y"):
-            self.bdb.replace_tag("old")
-
-        # removing non-existent tag
-        with mock.patch("builtins.input", return_value="y"):
-            self.bdb.replace_tag("_")
-
-        # removing nonexistent tag which is also a substring of other tag
-        with mock.patch("builtins.input", return_value="y"):
-            self.bdb.replace_tag("e")
-
-        for url, title, _, _ in self.bookmarks:
-            # retrieving from db
-            index = self.bdb.get_rec_id(url)
-            from_db = self.bdb.get_rec_by_id(index)
-            # asserting tags were replaced
-            if title == "SLASHDOT":
-                self.assertEqual(from_db[3], parse_tags(["__01"]))
-            elif title == "ZAŻÓŁĆ":
-                self.assertEqual(from_db[3], parse_tags(["__02,__03,jaźń"]))
-            elif title == "test":
-                self.assertEqual(from_db[3], parse_tags(["test,tes,est,__04"]))
-
-    def test_tnyfy_url(self):
-        tny, full = 'http://tny.im/yt', 'https://www.google.com'
-        # shorten a well-known url
-        with mock_http(tny, status=200):
-            shorturl = self.bdb.tnyfy_url(url=full, shorten=True)
-        self.assertEqual(shorturl, tny)
-
-        # expand a well-known short url
-        with mock_http(full, status=200):
-            url = self.bdb.tnyfy_url(url=tny, shorten=False)
-        self.assertEqual(url, full)
-
-    # def test_browse_by_index(self):
-    # self.fail()
-
-    def test_close_quit(self):
-        # quitting with no args
-        try:
-            self.bdb.close_quit()
-        except SystemExit as err:
-            self.assertEqual(err.args[0], 0)
-        # quitting with custom arg
-        try:
-            self.bdb.close_quit(1)
-        except SystemExit as err:
-            self.assertEqual(err.args[0], 1)
-
-    # def test_import_bookmark(self):
-    # self.fail()
 
 
 @pytest.mark.parametrize('status', [None, 200, 302, 308, 404, 500])
@@ -1182,54 +461,6 @@ def test_print_rec(bukuDb, kwargs, rec, exp_res, tmp_path, caplog):
     assert (bdb.print_rec(**kwargs), caplog.record_tuples) == exp_res
 
 
-def test_list_tags(capsys, bukuDb):
-    bdb = bukuDb()
-
-    # adding bookmarks
-    _add_rec(bdb, "http://one.com", "", parse_tags(["cat,ant,bee,1"]), "")
-    _add_rec(bdb, "http://two.com", "", parse_tags(["Cat,Ant,bee,1"]), "")
-    _add_rec(bdb, "http://three.com", "", parse_tags(["Cat,Ant,3,Bee,2"]), "")
-
-    # listing tags, asserting output
-    out, err = capsys.readouterr()
-    prompt(bdb, None, True, listtags=True)
-    out, err = capsys.readouterr()
-    exp_out = "     1. 1 (2)\n     2. 2 (1)\n     3. 3 (1)\n     4. ant (3)\n     5. bee (3)\n     6. cat (3)\n\n"
-    assert out == exp_out
-    assert err == ""
-
-
-def test_compactdb(bukuDb):
-    bdb = bukuDb()
-
-    # adding bookmarks
-    for bookmark in TEST_BOOKMARKS:
-        _add_rec(bdb, *bookmark)
-
-    # manually deleting 2nd index from db, calling compactdb
-    bdb.cur.execute("DELETE FROM bookmarks WHERE id = ?", (2,))
-    bdb.compactdb(2)
-
-    # asserting bookmarks have correct indices
-    assert bdb.get_rec_by_id(1) == (
-        1,
-        "http://slashdot.org",
-        "SLASHDOT",
-        ",news,old,",
-        "News for old nerds, stuff that doesn't matter",
-        0,
-    )
-    assert bdb.get_rec_by_id(2) == (
-        2,
-        "http://example.com/",
-        "test",
-        ",es,est,tes,test,",
-        "a case for replace_tag test",
-        0,
-    )
-    assert bdb.get_rec_by_id(3) is None
-
-
 @pytest.mark.vcr()
 @pytest.mark.parametrize(
     "low, high, delay_commit, input_retval, exp_res",
@@ -1451,15 +682,6 @@ def test_add_rec_exec_arg(bukuDb, kwargs, exp_arg):
         assert bdb.cur.execute.call_args[0][1] == exp_arg
     finally:
         bdb.cur = _cur
-
-
-def test_update_rec_index_0(bukuDb, caplog):
-    """test method."""
-    bdb = bukuDb()
-    res = bdb.update_rec(index=0, url="http://example.com")
-    assert not res
-    assert caplog.records[0].getMessage() == "All URLs cannot be same"
-    assert caplog.records[0].levelname == "ERROR"
 
 
 @pytest.mark.parametrize(
@@ -1817,39 +1039,6 @@ def test_exclude_results_from_search(bukuDb, search_results, exclude_results, ex
         assert exp_res == bukuDb().exclude_results_from_search(search_results, ['without'])
 
 
-def test_exportdb_empty_db():
-    with NamedTemporaryFile(delete=False) as f:
-        db = BukuDb(dbfile=f.name)
-        with NamedTemporaryFile(delete=False) as f2:
-            res = db.exportdb(f2.name)
-            assert not res
-
-
-def test_exportdb_single_rec(tmpdir):
-    f1 = NamedTemporaryFile(delete=False)
-    f1.close()
-    db = BukuDb(dbfile=f1.name)
-    _add_rec(db, "http://example.com")
-    exp_file = tmpdir.join("export")
-    db.exportdb(exp_file.strpath)
-    with open(exp_file.strpath, encoding="utf8", errors="surrogateescape") as f2:
-        assert f2.read()
-
-
-def test_exportdb_to_db():
-    f1 = NamedTemporaryFile(delete=False)
-    f1.close()
-    f2 = NamedTemporaryFile(delete=False, suffix=".db")
-    f2.close()
-    db = BukuDb(dbfile=f1.name)
-    _add_rec(db, "http://example.com")
-    _add_rec(db, "http://google.com")
-    with mock.patch("builtins.input", return_value="y"):
-        db.exportdb(f2.name)
-    db2 = BukuDb(dbfile=f2.name)
-    assert db.get_rec_all() == db2.get_rec_all()
-
-
 @pytest.mark.parametrize('pick', [None, 0, 3, 7, 10])
 @mock.patch('builtins.print')
 @mock.patch('builtins.open')
@@ -1895,6 +1084,815 @@ def test_get_max_id(urls, exp_res):
         if urls:
             list(map(lambda x: _add_rec(db, x), urls))
         assert db.get_max_id() == exp_res
+
+
+def rmdb(*bdbs):
+    for bdb in bdbs:
+        try:
+            bdb.cur.close()
+            bdb.conn.close()
+        except Exception:
+            pass
+    if exists(TEST_TEMP_DBFILE_PATH):
+        os.remove(TEST_TEMP_DBFILE_PATH)
+
+
+class PrettySafeLoader(
+    yaml.SafeLoader
+):  # pylint: disable=too-many-ancestors,too-few-public-methods
+    def construct_python_tuple(self, node):
+        return tuple(self.construct_sequence(node))
+
+
+PrettySafeLoader.add_constructor(
+    "tag:yaml.org,2002:python/tuple", PrettySafeLoader.construct_python_tuple
+)
+
+
+class TestBukuDb(unittest.TestCase):
+    def setUp(self):
+        os.environ["XDG_DATA_HOME"] = TEST_TEMP_DIR_PATH
+
+        # start every test from a clean state
+        rmdb()
+
+        self.bookmarks = TEST_BOOKMARKS
+        self.bdb = BukuDb()
+
+    def tearDown(self):
+        os.environ["XDG_DATA_HOME"] = TEST_TEMP_DIR_PATH
+        rmdb(self.bdb)
+
+    @pytest.mark.non_tox
+    def test_get_default_dbdir(self):
+        dbdir_expected = TEST_TEMP_DBDIR_PATH
+        home = os.path.expanduser("~")
+        dbdir_local_expected = (os.path.join(home, ".local", "share", "buku") if sys.platform != 'win32' else
+                                os.path.join(home, "AppData", "Roaming", "buku"))
+        dbdir_relative_expected = os.path.abspath(".")
+
+        # desktop linux
+        self.assertEqual(dbdir_expected, BukuDb.get_default_dbdir())
+
+        # desktop generic
+        os.environ.pop("XDG_DATA_HOME")
+        self.assertEqual(dbdir_local_expected, BukuDb.get_default_dbdir())
+
+        # no desktop
+
+        # -- home is defined differently on various platforms.
+        # -- keep a copy and set it back once done
+        originals = {}
+        for env_var in ["HOME", "HOMEPATH", "HOMEDIR", "APPDATA"]:
+            if env_var in os.environ:
+                originals[env_var] = os.environ.pop(env_var)
+        try:
+            self.assertEqual(dbdir_relative_expected, BukuDb.get_default_dbdir())
+        finally:
+            os.environ.update(originals)
+
+    @pytest.mark.slow
+    @pytest.mark.vcr("tests/vcr_cassettes/test_search_by_multiple_tags_search_any.yaml")
+    def test_search_by_multiple_tags_search_any(self):
+        # adding bookmarks
+        for bookmark in self.bookmarks:
+            self.bdb.add_rec(*bookmark)
+
+        new_bookmark = [
+            "https://newbookmark.com",
+            "New Bookmark",
+            parse_tags(["test,old,new"]),
+            "additional bookmark to test multiple tag search",
+            0,
+        ]
+
+        self.bdb.add_rec(*new_bookmark)
+
+        with mock.patch("buku.prompt"):
+            # search for bookmarks matching ANY of the supplied tags
+            results = self.bdb.search_by_tag("test, old")
+            # Expect a list of five-element tuples containing all bookmark data
+            # db index, URL, title, tags, description, ordered by records with
+            # the most number of matches.
+            expected = [
+                (
+                    4,
+                    "https://newbookmark.com",
+                    "New Bookmark",
+                    parse_tags([",test,old,new,"]),
+                    "additional bookmark to test multiple tag search",
+                    0,
+                ),
+                (
+                    1,
+                    "http://slashdot.org",
+                    "SLASHDOT",
+                    parse_tags([",news,old,"]),
+                    "News for old nerds, stuff that doesn't matter",
+                    0,
+                ),
+                (
+                    3,
+                    "http://example.com/",
+                    "test",
+                    ",es,est,tes,test,",
+                    "a case for replace_tag test",
+                    0,
+                ),
+            ]
+            self.assertEqual(results, expected)
+
+    @pytest.mark.slow
+    @pytest.mark.vcr("tests/vcr_cassettes/test_search_by_multiple_tags_search_all.yaml")
+    def test_search_by_multiple_tags_search_all(self):
+        # adding bookmarks
+        for bookmark in self.bookmarks:
+            self.bdb.add_rec(*bookmark)
+
+        new_bookmark = [
+            "https://newbookmark.com",
+            "New Bookmark",
+            parse_tags(["test,old,new"]),
+            "additional bookmark to test multiple tag search",
+        ]
+
+        self.bdb.add_rec(*new_bookmark)
+
+        with mock.patch("buku.prompt"):
+            # search for bookmarks matching ALL of the supplied tags
+            results = self.bdb.search_by_tag("test + old")
+            # Expect a list of five-element tuples containing all bookmark data
+            # db index, URL, title, tags, description
+            expected = [
+                (
+                    4,
+                    "https://newbookmark.com",
+                    "New Bookmark",
+                    parse_tags([",test,old,new,"]),
+                    "additional bookmark to test multiple tag search",
+                    0,
+                )
+            ]
+            self.assertEqual(results, expected)
+
+    @pytest.mark.vcr("tests/vcr_cassettes/test_search_by_tags_enforces_space_seprations_exclusion.yaml")
+    def test_search_by_tags_enforces_space_seprations_exclusion(self):
+
+        bookmark1 = [
+            "https://bookmark1.com",
+            "Bookmark One",
+            parse_tags(["tag, two,tag+two"]),
+            "test case for bookmark with '+' in tag",
+        ]
+
+        bookmark2 = [
+            "https://bookmark2.com",
+            "Bookmark Two",
+            parse_tags(["tag,two, tag-two"]),
+            "test case for bookmark with hyphenated tag",
+        ]
+
+        bookmark3 = [
+            "https://bookmark3.com",
+            "Bookmark Three",
+            parse_tags(["tag, tag three"]),
+            "second test case for bookmark with hyphenated tag",
+        ]
+
+        self.bdb.add_rec(*bookmark1)
+        self.bdb.add_rec(*bookmark2)
+        self.bdb.add_rec(*bookmark3)
+
+        with mock.patch("buku.prompt"):
+            # check that space separation for ' - ' operator is enforced
+            results = self.bdb.search_by_tag("tag-two")
+            # Expect a list of five-element tuples containing all bookmark data
+            # db index, URL, title, tags, description
+            expected = [
+                (
+                    2,
+                    "https://bookmark2.com",
+                    "Bookmark Two",
+                    parse_tags([",tag,two,tag-two,"]),
+                    "test case for bookmark with hyphenated tag",
+                    0,
+                ),
+            ]
+            self.assertEqual(results, expected)
+            results = self.bdb.search_by_tag("tag - two")
+            # Expect a list of five-element tuples containing all bookmark data
+            # db index, URL, title, tags, description
+            expected = [
+                (
+                    3,
+                    "https://bookmark3.com",
+                    "Bookmark Three",
+                    parse_tags([",tag,tag three,"]),
+                    "second test case for bookmark with hyphenated tag",
+                    0,
+                ),
+            ]
+            self.assertEqual(results, expected)
+
+    @pytest.mark.slow
+    @pytest.mark.vcr("tests/vcr_cassettes/test_search_and_open_all_in_browser.yaml")
+    def test_search_and_open_all_in_browser(self):
+        # adding bookmarks
+        for bookmark in self.bookmarks:
+            self.bdb.add_rec(*bookmark)
+
+        # simulate user input, select 'a' to open all bookmarks in results
+        with mock.patch("builtins.input", side_effect=["a"]):
+            with mock.patch("buku.browse") as mock_browse:
+                try:
+                    # search the db with keywords from each bookmark
+                    # searching using the first tag from bookmarks
+                    get_first_tag = lambda x: x[2].split(",")[1]
+                    results = self.bdb.searchdb(
+                        [get_first_tag(bm) for bm in self.bookmarks[:2]]
+                    )
+                    prompt(self.bdb, results)
+                except StopIteration:
+                    # catch exception thrown by reaching the end of the side effect iterable
+                    pass
+
+                # collect arguments passed to browse
+                arg_list = [args[0] for args, _ in mock_browse.call_args_list]
+                # expect a list of one-tuples that are bookmark URLs
+                expected = [x[0] for x in self.bookmarks][:2]
+                # checking if browse called with expected arguments
+                self.assertEqual(arg_list, expected)
+
+    # # not sure how to test this in nondestructive manner
+    # def test_move_legacy_dbfile(self):
+    #     self.fail()
+
+    def test_initdb(self):
+        rmdb(self.bdb)
+        self.assertIs(False, exists(TEST_TEMP_DBFILE_PATH))
+        try:
+            conn, curr = BukuDb.initdb()
+            self.assertIsInstance(conn, sqlite3.Connection)
+            self.assertIsInstance(curr, sqlite3.Cursor)
+            self.assertIs(True, exists(TEST_TEMP_DBFILE_PATH))
+        finally:
+            curr.close()
+            conn.close()
+
+    def test_get_rec_by_id(self):
+        for bookmark in self.bookmarks:
+            # adding bookmark from self.bookmarks
+            _add_rec(self.bdb, *bookmark)
+
+        # the expected bookmark
+        expected = (1,) + tuple(TEST_BOOKMARKS[0]) + (0,)
+        bookmark_from_db = self.bdb.get_rec_by_id(1)
+        # asserting bookmark matches expected
+        self.assertEqual(expected, bookmark_from_db)
+        # asserting None returned if index out of range
+        self.assertIsNone(self.bdb.get_rec_by_id(len(self.bookmarks[0]) + 1))
+
+    def test_get_rec_all_by_ids(self):
+        for bookmark in self.bookmarks:
+            # adding bookmark from self.bookmarks
+            _add_rec(self.bdb, *bookmark)
+        expected = [(i+1,) + tuple(TEST_BOOKMARKS[i]) + (0,) for i in [0, 2]]
+        bookmarks_from_db = self.bdb.get_rec_all_by_ids([3, 1, 1, 3, 5])  # ignoring order and duplicates
+        self.assertEqual(expected, bookmarks_from_db)
+
+    def test_get_rec_id(self):
+        for idx, bookmark in enumerate(self.bookmarks):
+            # adding bookmark from self.bookmarks to database
+            _add_rec(self.bdb, *bookmark)
+            # asserting index is in order
+            idx_from_db = self.bdb.get_rec_id(bookmark[0])
+            self.assertEqual(idx + 1, idx_from_db)
+
+        # asserting None is returned for nonexistent url
+        idx_from_db = self.bdb.get_rec_id("http://nonexistent.url")
+        self.assertIsNone(idx_from_db)
+
+    def test_add_rec(self):
+        for bookmark in self.bookmarks:
+            # adding bookmark from self.bookmarks to database
+            self.bdb.add_rec(*bookmark, fetch=False)
+            # retrieving bookmark from database
+            index = self.bdb.get_rec_id(bookmark[0])
+            from_db = self.bdb.get_rec_by_id(index)
+            self.assertIsNotNone(from_db)
+            # comparing data
+            for pair in zip(from_db[1:], bookmark):
+                self.assertEqual(*pair)
+
+    def test_swap_recs(self):
+        for bookmark in self.bookmarks:
+            _add_rec(self.bdb, *bookmark)
+        for id1, id2 in [(0, 1), (1, 4), (1, 1)]:
+            self.assertFalse(self.bdb.swap_recs(id1, id2), 'Not a valid index pair: (%d, %d)' % (id1, id2))
+        self.assertTrue(self.bdb.swap_recs(1, 3), 'This one should be valid')  # 3, 2, 1
+        self.assertEqual([x[0] for x in reversed(self.bookmarks)], [x.url for x in self.bdb.get_rec_all()])
+
+    # TODO: tags should be passed to the api as a sequence...
+    def test_suggest_tags(self):
+        for bookmark in self.bookmarks:
+            _add_rec(self.bdb, *bookmark)
+
+        tagstr = ",test,old,"
+        with mock.patch("builtins.input", return_value="1 2 3"):
+            expected_results = ",es,est,news,old,test,"
+            suggested_results = self.bdb.suggest_similar_tag(tagstr)
+            self.assertEqual(expected_results, suggested_results)
+
+        # returns user supplied tags if none are in the DB
+        tagstr = ",uniquetag1,uniquetag2,"
+        expected_results = tagstr
+        suggested_results = self.bdb.suggest_similar_tag(tagstr)
+        self.assertEqual(expected_results, suggested_results)
+
+    def test_update_rec(self):
+        old_values = self.bookmarks[0]
+        new_values = self.bookmarks[1]
+
+        # adding bookmark and getting index
+        _add_rec(self.bdb, *old_values)
+        index = self.bdb.get_rec_id(old_values[0])
+        # updating with new values
+        self.bdb.update_rec(index, *new_values)
+        # retrieving bookmark from database
+        from_db = self.bdb.get_rec_by_id(index)
+        self.assertIsNotNone(from_db)
+        # checking if values are updated
+        for pair in zip(from_db[1:], new_values):
+            self.assertEqual(*pair)
+
+    def test_append_tag_at_index(self):
+        for bookmark in self.bookmarks:
+            _add_rec(self.bdb, *bookmark)
+
+        # tags to add
+        old_tags = self.bdb.get_rec_by_id(1)[3]
+        new_tags = ",foo,bar,baz"
+        self.bdb.append_tag_at_index(1, new_tags)
+        # updated list of tags
+        from_db = self.bdb.get_rec_by_id(1)[3]
+
+        # checking if new tags were added to the bookmark
+        self.assertTrue(split_and_test_membership(new_tags, from_db))
+        # checking if old tags still exist
+        self.assertTrue(split_and_test_membership(old_tags, from_db))
+
+    def test_append_tag_at_all_indices(self):
+        for bookmark in self.bookmarks:
+            _add_rec(self.bdb, *bookmark)
+
+        # tags to add
+        new_tags = ",foo,bar,baz"
+        # record of original tags for each bookmark
+        old_tagsets = {
+            i: self.bdb.get_rec_by_id(i)[3]
+            for i in inclusive_range(1, len(self.bookmarks))
+        }
+
+        with mock.patch("builtins.input", return_value="y"):
+            self.bdb.append_tag_at_index(0, new_tags)
+            # updated tags for each bookmark
+            from_db = [
+                (i, self.bdb.get_rec_by_id(i)[3])
+                for i in inclusive_range(1, len(self.bookmarks))
+            ]
+            for index, tagset in from_db:
+                # checking if new tags added to bookmark
+                self.assertTrue(split_and_test_membership(new_tags, tagset))
+                # checking if old tags still exist for bookmark
+                self.assertTrue(split_and_test_membership(old_tagsets[index], tagset))
+
+    def test_delete_tag_at_index(self):
+        # adding bookmarks
+        for bookmark in self.bookmarks:
+            _add_rec(self.bdb, *bookmark)
+
+        get_tags_at_idx = lambda i: self.bdb.get_rec_by_id(i)[3]
+        # list of two-tuples, each containing bookmark index and corresponding tags
+        tags_by_index = [
+            (i, get_tags_at_idx(i)) for i in inclusive_range(1, len(self.bookmarks))
+        ]
+
+        for i, tags in tags_by_index:
+            # get the first tag from the bookmark
+            to_delete = re.match(",.*?,", tags).group(0)
+            self.bdb.delete_tag_at_index(i, to_delete)
+            # get updated tags from db
+            from_db = get_tags_at_idx(i)
+            self.assertNotIn(to_delete, from_db)
+
+    def test_search_keywords_and_filter_by_tags(self):
+        # adding bookmark
+        for bookmark in self.bookmarks:
+            _add_rec(self.bdb, *bookmark)
+
+        with mock.patch("buku.prompt"):
+            expected = [
+                (
+                    3,
+                    "http://example.com/",
+                    "test",
+                    ",es,est,tes,test,",
+                    "a case for replace_tag test",
+                    0,
+                )
+            ]
+            results = self.bdb.search_keywords_and_filter_by_tags(
+                ["News", "case"],
+                False,
+                False,
+                False,
+                ["est"],
+            )
+            self.assertIn(expected[0], results)
+            expected = [
+                (
+                    3,
+                    "http://example.com/",
+                    "test",
+                    ",es,est,tes,test,",
+                    "a case for replace_tag test",
+                    0,
+                ),
+                (
+                    2,
+                    "http://www.zażółćgęśląjaźń.pl/",
+                    "ZAŻÓŁĆ",
+                    ",gęślą,jaźń,zażółć,",
+                    "Testing UTF-8, zażółć gęślą jaźń.",
+                    0,
+                ),
+            ]
+            results = self.bdb.search_keywords_and_filter_by_tags(
+                ["UTF-8", "case"],
+                False,
+                False,
+                False,
+                "jaźń, test",
+            )
+            self.assertIn(expected[0], results)
+            self.assertIn(expected[1], results)
+
+    def test_searchdb(self):
+        # adding bookmarks
+        for bookmark in self.bookmarks:
+            _add_rec(self.bdb, *bookmark)
+
+        get_first_tag = lambda x: "".join(x[2].split(",")[:2])
+        for i, bookmark in enumerate(self.bookmarks):
+            tag_search = get_first_tag(bookmark)
+            # search by the domain name for url
+            url_search = re.match(r"https?://(.*)?\..*", bookmark[0]).group(1)
+            title_search = bookmark[1]
+            # Expect a five-tuple containing all bookmark data
+            # db index, URL, title, tags, description
+            expected = [(i + 1,) + tuple(bookmark)]
+            expected[0] += tuple([0])
+            # search db by tag, url (domain name), and title
+            for keyword in (tag_search, url_search, title_search):
+                with mock.patch("buku.prompt"):
+                    # search by keyword
+                    results = self.bdb.searchdb([keyword])
+                    self.assertEqual(results, expected)
+
+    def test_search_by_tag(self):
+        # adding bookmarks
+        for bookmark in self.bookmarks:
+            _add_rec(self.bdb, *bookmark)
+
+        with mock.patch("buku.prompt"):
+            get_first_tag = lambda x: "".join(x[2].split(",")[:2])
+            for i, bookmark in enumerate(self.bookmarks):
+                # search for bookmark with a tag that is known to exist
+                results = self.bdb.search_by_tag(get_first_tag(bookmark))
+                # Expect a five-tuple containing all bookmark data
+                # db index, URL, title, tags, description
+                expected = [(i + 1,) + tuple(bookmark)]
+                expected[0] += tuple([0])
+                self.assertEqual(results, expected)
+
+    def test_search_by_tags_enforces_space_seprations_search_all(self):
+
+        bookmark1 = [
+            "https://bookmark1.com",
+            "Bookmark One",
+            parse_tags(["tag, two,tag+two"]),
+            "test case for bookmark with '+' in tag",
+        ]
+
+        bookmark2 = [
+            "https://bookmark2.com",
+            "Bookmark Two",
+            parse_tags(["tag,two, tag-two"]),
+            "test case for bookmark with hyphenated tag",
+        ]
+
+        _add_rec(self.bdb, *bookmark1)
+        _add_rec(self.bdb, *bookmark2)
+
+        with mock.patch("buku.prompt"):
+            # check that space separation for ' + ' operator is enforced
+            results = self.bdb.search_by_tag("tag+two")
+            # Expect a list of five-element tuples containing all bookmark data
+            # db index, URL, title, tags, description
+            expected = [
+                (
+                    1,
+                    "https://bookmark1.com",
+                    "Bookmark One",
+                    parse_tags([",tag,two,tag+two,"]),
+                    "test case for bookmark with '+' in tag",
+                    0,
+                )
+            ]
+            self.assertEqual(results, expected)
+            results = self.bdb.search_by_tag("tag + two")
+            # Expect a list of five-element tuples containing all bookmark data
+            # db index, URL, title, tags, description
+            expected = [
+                (
+                    1,
+                    "https://bookmark1.com",
+                    "Bookmark One",
+                    parse_tags([",tag,two,tag+two,"]),
+                    "test case for bookmark with '+' in tag",
+                    0,
+                ),
+                (
+                    2,
+                    "https://bookmark2.com",
+                    "Bookmark Two",
+                    parse_tags([",tag,two,tag-two,"]),
+                    "test case for bookmark with hyphenated tag",
+                    0,
+                ),
+            ]
+            self.assertEqual(results, expected)
+
+    def test_search_by_tags_exclusion(self):
+        # adding bookmarks
+        for bookmark in self.bookmarks:
+            _add_rec(self.bdb, *bookmark)
+
+        new_bookmark = [
+            "https://newbookmark.com",
+            "New Bookmark",
+            parse_tags(["test,old,new"]),
+            "additional bookmark to test multiple tag search",
+        ]
+
+        _add_rec(self.bdb, *new_bookmark)
+
+        with mock.patch("buku.prompt"):
+            # search for bookmarks matching ANY of the supplied tags
+            # while excluding bookmarks from results that match a given tag
+            results = self.bdb.search_by_tag("test, old - est")
+            # Expect a list of five-element tuples containing all bookmark data
+            # db index, URL, title, tags, description
+            expected = [
+                (
+                    4,
+                    "https://newbookmark.com",
+                    "New Bookmark",
+                    parse_tags([",test,old,new,"]),
+                    "additional bookmark to test multiple tag search",
+                    0,
+                ),
+                (
+                    1,
+                    "http://slashdot.org",
+                    "SLASHDOT",
+                    parse_tags([",news,old,"]),
+                    "News for old nerds, stuff that doesn't matter",
+                    0,
+                ),
+            ]
+            self.assertEqual(results, expected)
+
+    def test_search_and_open_in_browser_by_range(self):
+        # adding bookmarks
+        for bookmark in self.bookmarks:
+            _add_rec(self.bdb, *bookmark)
+
+        # simulate user input, select range of indices 1-3
+        index_range = "1-%s" % len(self.bookmarks)
+        with mock.patch("builtins.input", side_effect=[index_range]):
+            with mock.patch("buku.browse") as mock_browse:
+                try:
+                    # search the db with keywords from each bookmark
+                    # searching using the first tag from bookmarks
+                    get_first_tag = lambda x: x[2].split(",")[1]
+                    results = self.bdb.searchdb(
+                        [get_first_tag(bm) for bm in self.bookmarks]
+                    )
+                    prompt(self.bdb, results)
+                except StopIteration:
+                    # catch exception thrown by reaching the end of the side effect iterable
+                    pass
+
+                # collect arguments passed to browse
+                arg_list = [args[0] for args, _ in mock_browse.call_args_list]
+                # expect a list of one-tuples that are bookmark URLs
+                expected = [x[0] for x in self.bookmarks]
+                # checking if browse called with expected arguments
+                self.assertEqual(arg_list, expected)
+
+    def test_delete_rec(self):
+        # adding bookmark and getting index
+        _add_rec(self.bdb, *self.bookmarks[0])
+        index = self.bdb.get_rec_id(self.bookmarks[0][0])
+        # deleting bookmark
+        self.bdb.delete_rec(index)
+        # asserting it doesn't exist
+        from_db = self.bdb.get_rec_by_id(index)
+        self.assertIsNone(from_db)
+
+    def test_delete_rec_yes(self):
+        # checking that "y" response causes delete_rec to return True
+        with mock.patch("builtins.input", return_value="y"):
+            self.assertTrue(self.bdb.delete_rec(0))
+
+    def test_delete_rec_no(self):
+        # checking that non-"y" response causes delete_rec to return None
+        with mock.patch("builtins.input", return_value="n"):
+            self.assertFalse(self.bdb.delete_rec(0))
+
+    def test_cleardb(self):
+        # adding bookmarks
+        _add_rec(self.bdb, *self.bookmarks[0])
+        # deleting all bookmarks
+        with mock.patch("builtins.input", return_value="y"):
+            self.bdb.cleardb()
+        # assert table has been dropped
+        assert self.bdb.get_rec_by_id(0) is None
+
+    def test_replace_tag(self):
+        indices = []
+        for bookmark in self.bookmarks:
+            # adding bookmark, getting index
+            _add_rec(self.bdb, *bookmark)
+            index = self.bdb.get_rec_id(bookmark[0])
+            indices += [index]
+
+        # replacing tags
+        with mock.patch("builtins.input", return_value="y"):
+            self.bdb.replace_tag("news", ["__01"])
+        with mock.patch("builtins.input", return_value="y"):
+            self.bdb.replace_tag("zażółć", ["__02,__03"])
+
+        # replacing tag which is also a substring of other tag
+        with mock.patch("builtins.input", return_value="y"):
+            self.bdb.replace_tag("es", ["__04"])
+
+        # removing tags
+        with mock.patch("builtins.input", return_value="y"):
+            self.bdb.replace_tag("gęślą")
+        with mock.patch("builtins.input", return_value="y"):
+            self.bdb.replace_tag("old")
+
+        # removing non-existent tag
+        with mock.patch("builtins.input", return_value="y"):
+            self.bdb.replace_tag("_")
+
+        # removing nonexistent tag which is also a substring of other tag
+        with mock.patch("builtins.input", return_value="y"):
+            self.bdb.replace_tag("e")
+
+        for url, title, _, _ in self.bookmarks:
+            # retrieving from db
+            index = self.bdb.get_rec_id(url)
+            from_db = self.bdb.get_rec_by_id(index)
+            # asserting tags were replaced
+            if title == "SLASHDOT":
+                self.assertEqual(from_db[3], parse_tags(["__01"]))
+            elif title == "ZAŻÓŁĆ":
+                self.assertEqual(from_db[3], parse_tags(["__02,__03,jaźń"]))
+            elif title == "test":
+                self.assertEqual(from_db[3], parse_tags(["test,tes,est,__04"]))
+
+    def test_tnyfy_url(self):
+        tny, full = 'http://tny.im/yt', 'https://www.google.com'
+        # shorten a well-known url
+        with mock_http(tny, status=200):
+            shorturl = self.bdb.tnyfy_url(url=full, shorten=True)
+        self.assertEqual(shorturl, tny)
+
+        # expand a well-known short url
+        with mock_http(full, status=200):
+            url = self.bdb.tnyfy_url(url=tny, shorten=False)
+        self.assertEqual(url, full)
+
+    # def test_browse_by_index(self):
+    # self.fail()
+
+    def test_close_quit(self):
+        # quitting with no args
+        try:
+            self.bdb.close_quit()
+        except SystemExit as err:
+            self.assertEqual(err.args[0], 0)
+        # quitting with custom arg
+        try:
+            self.bdb.close_quit(1)
+        except SystemExit as err:
+            self.assertEqual(err.args[0], 1)
+
+    # def test_import_bookmark(self):
+    # self.fail()
+
+
+def test_list_tags(capsys, bukuDb):
+    bdb = bukuDb()
+
+    # adding bookmarks
+    _add_rec(bdb, "http://one.com", "", parse_tags(["cat,ant,bee,1"]), "")
+    _add_rec(bdb, "http://two.com", "", parse_tags(["Cat,Ant,bee,1"]), "")
+    _add_rec(bdb, "http://three.com", "", parse_tags(["Cat,Ant,3,Bee,2"]), "")
+
+    # listing tags, asserting output
+    out, err = capsys.readouterr()
+    prompt(bdb, None, True, listtags=True)
+    out, err = capsys.readouterr()
+    exp_out = "     1. 1 (2)\n     2. 2 (1)\n     3. 3 (1)\n     4. ant (3)\n     5. bee (3)\n     6. cat (3)\n\n"
+    assert out == exp_out
+    assert err == ""
+
+
+def test_compactdb(bukuDb):
+    bdb = bukuDb()
+
+    # adding bookmarks
+    for bookmark in TEST_BOOKMARKS:
+        _add_rec(bdb, *bookmark)
+
+    # manually deleting 2nd index from db, calling compactdb
+    bdb.cur.execute("DELETE FROM bookmarks WHERE id = ?", (2,))
+    bdb.compactdb(2)
+
+    # asserting bookmarks have correct indices
+    assert bdb.get_rec_by_id(1) == (
+        1,
+        "http://slashdot.org",
+        "SLASHDOT",
+        ",news,old,",
+        "News for old nerds, stuff that doesn't matter",
+        0,
+    )
+    assert bdb.get_rec_by_id(2) == (
+        2,
+        "http://example.com/",
+        "test",
+        ",es,est,tes,test,",
+        "a case for replace_tag test",
+        0,
+    )
+    assert bdb.get_rec_by_id(3) is None
+
+
+def test_update_rec_index_0(bukuDb, caplog):
+    """test method."""
+    bdb = bukuDb()
+    res = bdb.update_rec(index=0, url="http://example.com")
+    assert not res
+    assert caplog.records[0].getMessage() == "All URLs cannot be same"
+    assert caplog.records[0].levelname == "ERROR"
+
+
+def test_exportdb_empty_db():
+    with NamedTemporaryFile(delete=False) as f:
+        db = BukuDb(dbfile=f.name)
+        with NamedTemporaryFile(delete=False) as f2:
+            res = db.exportdb(f2.name)
+            assert not res
+
+
+def test_exportdb_single_rec(tmpdir):
+    f1 = NamedTemporaryFile(delete=False)
+    f1.close()
+    db = BukuDb(dbfile=f1.name)
+    _add_rec(db, "http://example.com")
+    exp_file = tmpdir.join("export")
+    db.exportdb(exp_file.strpath)
+    with open(exp_file.strpath, encoding="utf8", errors="surrogateescape") as f2:
+        assert f2.read()
+
+
+def test_exportdb_to_db():
+    f1 = NamedTemporaryFile(delete=False)
+    f1.close()
+    f2 = NamedTemporaryFile(delete=False, suffix=".db")
+    f2.close()
+    db = BukuDb(dbfile=f1.name)
+    _add_rec(db, "http://example.com")
+    _add_rec(db, "http://google.com")
+    with mock.patch("builtins.input", return_value="y"):
+        db.exportdb(f2.name)
+    db2 = BukuDb(dbfile=f2.name)
+    assert db.get_rec_all() == db2.get_rec_all()
 
 
 # Helper functions for testcases
