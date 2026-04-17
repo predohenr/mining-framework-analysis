@@ -243,6 +243,8 @@ type Config struct {
 // Scheduler is based on the Linux sched_setattr(2) syscall.
 type Scheduler = specs.Scheduler
 
+type IOPriority = specs.LinuxIOPriority
+
 // ToSchedAttr is to convert *configs.Scheduler to *unix.SchedAttr.
 func ToSchedAttr(scheduler *Scheduler) (*unix.SchedAttr, error) {
 	var policy uint32
@@ -298,8 +300,6 @@ func ToSchedAttr(scheduler *Scheduler) (*unix.SchedAttr, error) {
 		Period:   scheduler.Period,
 	}, nil
 }
-
-type IOPriority = specs.LinuxIOPriority
 
 type CPUAffinity struct {
 	Initial, Final *unix.CPUSet
