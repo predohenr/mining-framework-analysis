@@ -321,18 +321,6 @@ class ChatMemberUpdated(JsonDeserializable):
         obj['invite_link'] = ChatInviteLink.de_json(obj.get('invite_link'))
         return cls(**obj)
 
-    def __init__(self, chat, from_user, date, old_chat_member, new_chat_member, invite_link=None,
-                 via_join_request=None, via_chat_folder_invite_link=None,
-                 **kwargs):
-        self.chat: Chat = chat
-        self.from_user: User = from_user
-        self.date: int = date
-        self.old_chat_member: ChatMember = old_chat_member
-        self.new_chat_member: ChatMember = new_chat_member
-        self.invite_link: Optional[ChatInviteLink] = invite_link
-        self.via_join_request: Optional[bool] = via_join_request
-        self.via_chat_folder_invite_link: Optional[bool] = via_chat_folder_invite_link
-
     @property
     def difference(self) -> Dict[str, List]:
         """
@@ -352,6 +340,18 @@ class ChatMemberUpdated(JsonDeserializable):
             if new[key] != old[key]:
                 dif[key] = [old[key], new[key]]
         return dif
+
+    def __init__(self, chat, from_user, date, old_chat_member, new_chat_member, invite_link=None,
+                 via_join_request=None, via_chat_folder_invite_link=None,
+                 **kwargs):
+        self.chat: Chat = chat
+        self.from_user: User = from_user
+        self.date: int = date
+        self.old_chat_member: ChatMember = old_chat_member
+        self.new_chat_member: ChatMember = new_chat_member
+        self.invite_link: Optional[ChatInviteLink] = invite_link
+        self.via_join_request: Optional[bool] = via_join_request
+        self.via_chat_folder_invite_link: Optional[bool] = via_chat_folder_invite_link
 
 
 class ChatJoinRequest(JsonDeserializable):
@@ -527,6 +527,16 @@ class User(JsonDeserializable, Dictionaryable, JsonSerializable):
         obj = cls.check_json(json_string, dict_copy=False)
         return cls(**obj)
 
+    @property
+    def full_name(self) -> str:
+        """
+        :return: User's full name
+        """
+        full_name = self.first_name
+        if self.last_name:
+            full_name += ' {0}'.format(self.last_name)
+        return full_name
+
     # noinspection PyShadowingBuiltins
     def __init__(self, id, is_bot, first_name, last_name=None, username=None, language_code=None,
                  can_join_groups=None, can_read_all_group_messages=None, supports_inline_queries=None, 
@@ -547,16 +557,6 @@ class User(JsonDeserializable, Dictionaryable, JsonSerializable):
         self.has_main_web_app: Optional[bool] = has_main_web_app
         self.has_topics_enabled: Optional[bool] = has_topics_enabled
         self.allows_users_to_create_topics: Optional[bool] = allows_users_to_create_topics
-
-    @property
-    def full_name(self) -> str:
-        """
-        :return: User's full name
-        """
-        full_name = self.first_name
-        if self.last_name:
-            full_name += ' {0}'.format(self.last_name)
-        return full_name
 
     def to_json(self):
         return json.dumps(self.to_dict())
@@ -760,7 +760,7 @@ class ChatFullInfo(JsonDeserializable):
 
     :param paid_message_star_count: Optional. The number of Telegram Stars a general user have to pay to send a message to the chat
     :type paid_message_star_count: :obj:`int`
-
+    
     :param first_profile_audio: Optional. For private chats, the first audio added to the profile of the user
     :type first_profile_audio: :class:`telebot.types.Audio`
 
@@ -805,6 +805,19 @@ class ChatFullInfo(JsonDeserializable):
         if 'first_profile_audio' in obj:
             obj['first_profile_audio'] = Audio.de_json(obj['first_profile_audio'])
         return cls(**obj)
+
+
+    @property
+    def can_send_gift(self) -> bool:
+        """
+        Deprecated. Use `accepted_gift_types` instead.
+
+        :return: True if the chat can send gifts
+        """
+        log_deprecation_warning("The parameter 'can_send_gift' is deprecated. Use 'accepted_gift_types' instead.")
+        if self.accepted_gift_types is not None: # just in case
+            return any([self.accepted_gift_types.unique_gifts, self.accepted_gift_types.unlimited_gifts, self.accepted_gift_types.limited_gifts])
+        return False
 
     def __init__(self, id, type, title=None, username=None, first_name=None,
                 last_name=None, photo=None, bio=None, has_private_forwards=None,
@@ -873,19 +886,6 @@ class ChatFullInfo(JsonDeserializable):
         self.paid_message_star_count: Optional[int] = paid_message_star_count
         self.unique_gift_colors: Optional[UniqueGiftColors] = unique_gift_colors
         self.first_profile_audio: Optional[Audio] = first_profile_audio
-
-
-    @property
-    def can_send_gift(self) -> bool:
-        """
-        Deprecated. Use `accepted_gift_types` instead.
-
-        :return: True if the chat can send gifts
-        """
-        log_deprecation_warning("The parameter 'can_send_gift' is deprecated. Use 'accepted_gift_types' instead.")
-        if self.accepted_gift_types is not None: # just in case
-            return any([self.accepted_gift_types.unique_gifts, self.accepted_gift_types.unlimited_gifts, self.accepted_gift_types.limited_gifts])
-        return False
 
 
 class Chat(ChatFullInfo):
@@ -1635,6 +1635,108 @@ class Message(JsonDeserializable):
             ret.append(MessageEntity.de_json(me))
         return ret
 
+    @property
+    def html_text(self) -> Optional[str]:
+        """
+        Returns html-rendered text.
+        """
+        if self.text is None:
+            return None
+        return apply_html_entities(self.text, self.entities, getattr(self, "custom_subs", None))
+
+    @property
+    def html_caption(self) -> Optional[str]:
+        """
+        Returns html-rendered caption.
+        """
+        if self.caption is None:
+            return None
+        return apply_html_entities(self.caption, self.caption_entities, getattr(self, "custom_subs", None))
+
+    @property
+    def voice_chat_scheduled(self):
+        log_deprecation_warning('The parameter "voice_chat_scheduled" is deprecated, use "video_chat_scheduled" instead')
+        return self.video_chat_scheduled
+
+    @property
+    def voice_chat_started(self):
+        log_deprecation_warning('The parameter "voice_chat_started" is deprecated, use "video_chat_started" instead')
+        return self.video_chat_started
+
+    @property
+    def voice_chat_ended(self):
+        log_deprecation_warning('The parameter "voice_chat_ended" is deprecated, use "video_chat_ended" instead')
+        return self.video_chat_ended
+
+    @property
+    def voice_chat_participants_invited(self):
+        log_deprecation_warning('The parameter "voice_chat_participants_invited" is deprecated, use "video_chat_participants_invited" instead')
+        return self.video_chat_participants_invited
+
+    @property
+    def new_chat_member(self):
+        log_deprecation_warning('The parameter "new_chat_member" is deprecated, use "new_chat_members" instead')
+        return None
+
+    @property
+    def forward_from(self):
+        log_deprecation_warning('The parameter "forward_from" is deprecated, use "forward_origin" instead')
+        if self.forward_origin and isinstance(self.forward_origin, MessageOriginUser):
+            return self.forward_origin.sender_user
+        return None
+
+    @property
+    def forward_from_chat(self):
+        log_deprecation_warning('The parameter "forward_from_chat" is deprecated, use "forward_origin" instead')
+        if self.forward_origin and isinstance(self.forward_origin, MessageOriginChat):
+            return self.forward_origin.sender_chat
+        elif self.forward_origin and isinstance(self.forward_origin, MessageOriginChannel):
+            return self.forward_origin.chat
+        return None
+
+    @property
+    def forward_from_message_id(self):
+        log_deprecation_warning('The parameter "forward_from_message_id" is deprecated, use "forward_origin" instead')
+        if self.forward_origin and isinstance(self.forward_origin, MessageOriginChannel):
+            return self.forward_origin.message_id
+        return None
+
+    @property
+    def forward_signature(self):
+        log_deprecation_warning('The parameter "forward_signature" is deprecated, use "forward_origin" instead')
+        if self.forward_origin and isinstance(self.forward_origin, MessageOriginChat):
+            return self.forward_origin.author_signature
+        elif self.forward_origin and isinstance(self.forward_origin, MessageOriginChannel):
+            return self.forward_origin.author_signature
+        return None
+
+    @property
+    def forward_sender_name(self):
+        log_deprecation_warning('The parameter "forward_sender_name" is deprecated, use "forward_origin" instead')
+        if self.forward_origin and isinstance(self.forward_origin, MessageOriginHiddenUser):
+            return self.forward_origin.sender_user_name
+        return None
+
+    @property
+    def forward_date(self):
+        log_deprecation_warning('The parameter "forward_date" is deprecated, use "forward_origin" instead')
+        if self.forward_origin:
+            return self.forward_origin.date
+        return None
+
+    @property
+    def user_shared(self):
+        log_deprecation_warning('The parameter "user_shared" is deprecated, use "users_shared" instead')
+        return self.users_shared
+
+    @property
+    def any_text(self) -> Optional[str]:
+        return self.caption if (self.caption is not None) else self.text
+
+    @property
+    def any_entities(self) -> Optional[List[MessageEntity]]:
+        return self.caption_entities if (self.caption_entities is not None) else self.entities
+
     def __init__(self, message_id, from_user, date, chat, content_type, options, json_string):
         self.content_type: str = content_type
         self.id: int = message_id           # Lets fix the telegram usability ####up with ID in Message :)
@@ -1744,108 +1846,6 @@ class Message(JsonDeserializable):
         for key in options:
             setattr(self, key, options[key])
         self.json = json_string
-
-    @property
-    def html_text(self) -> Optional[str]:
-        """
-        Returns html-rendered text.
-        """
-        if self.text is None:
-            return None
-        return apply_html_entities(self.text, self.entities, getattr(self, "custom_subs", None))
-
-    @property
-    def html_caption(self) -> Optional[str]:
-        """
-        Returns html-rendered caption.
-        """
-        if self.caption is None:
-            return None
-        return apply_html_entities(self.caption, self.caption_entities, getattr(self, "custom_subs", None))
-
-    @property
-    def voice_chat_scheduled(self):
-        log_deprecation_warning('The parameter "voice_chat_scheduled" is deprecated, use "video_chat_scheduled" instead')
-        return self.video_chat_scheduled
-
-    @property
-    def voice_chat_started(self):
-        log_deprecation_warning('The parameter "voice_chat_started" is deprecated, use "video_chat_started" instead')
-        return self.video_chat_started
-
-    @property
-    def voice_chat_ended(self):
-        log_deprecation_warning('The parameter "voice_chat_ended" is deprecated, use "video_chat_ended" instead')
-        return self.video_chat_ended
-
-    @property
-    def voice_chat_participants_invited(self):
-        log_deprecation_warning('The parameter "voice_chat_participants_invited" is deprecated, use "video_chat_participants_invited" instead')
-        return self.video_chat_participants_invited
-
-    @property
-    def new_chat_member(self):
-        log_deprecation_warning('The parameter "new_chat_member" is deprecated, use "new_chat_members" instead')
-        return None
-
-    @property
-    def forward_from(self):
-        log_deprecation_warning('The parameter "forward_from" is deprecated, use "forward_origin" instead')
-        if self.forward_origin and isinstance(self.forward_origin, MessageOriginUser):
-            return self.forward_origin.sender_user
-        return None
-
-    @property
-    def forward_from_chat(self):
-        log_deprecation_warning('The parameter "forward_from_chat" is deprecated, use "forward_origin" instead')
-        if self.forward_origin and isinstance(self.forward_origin, MessageOriginChat):
-            return self.forward_origin.sender_chat
-        elif self.forward_origin and isinstance(self.forward_origin, MessageOriginChannel):
-            return self.forward_origin.chat
-        return None
-
-    @property
-    def forward_from_message_id(self):
-        log_deprecation_warning('The parameter "forward_from_message_id" is deprecated, use "forward_origin" instead')
-        if self.forward_origin and isinstance(self.forward_origin, MessageOriginChannel):
-            return self.forward_origin.message_id
-        return None
-
-    @property
-    def forward_signature(self):
-        log_deprecation_warning('The parameter "forward_signature" is deprecated, use "forward_origin" instead')
-        if self.forward_origin and isinstance(self.forward_origin, MessageOriginChat):
-            return self.forward_origin.author_signature
-        elif self.forward_origin and isinstance(self.forward_origin, MessageOriginChannel):
-            return self.forward_origin.author_signature
-        return None
-
-    @property
-    def forward_sender_name(self):
-        log_deprecation_warning('The parameter "forward_sender_name" is deprecated, use "forward_origin" instead')
-        if self.forward_origin and isinstance(self.forward_origin, MessageOriginHiddenUser):
-            return self.forward_origin.sender_user_name
-        return None
-
-    @property
-    def forward_date(self):
-        log_deprecation_warning('The parameter "forward_date" is deprecated, use "forward_origin" instead')
-        if self.forward_origin:
-            return self.forward_origin.date
-        return None
-
-    @property
-    def user_shared(self):
-        log_deprecation_warning('The parameter "user_shared" is deprecated, use "users_shared" instead')
-        return self.users_shared
-
-    @property
-    def any_text(self) -> Optional[str]:
-        return self.caption if (self.caption is not None) else self.text
-
-    @property
-    def any_entities(self) -> Optional[List[MessageEntity]]:
-        return self.caption_entities if (self.caption_entities is not None) else self.entities
 
 
 # noinspection PyShadowingBuiltins
@@ -2047,6 +2047,11 @@ class Audio(JsonDeserializable):
             obj['thumbnail'] = None
         return cls(**obj)
 
+    @property
+    def thumb(self) -> Optional[PhotoSize]:
+        log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
+        return self.thumbnail
+
     def __init__(self, file_id, file_unique_id, duration, performer=None, title=None, file_name=None, mime_type=None,
                  file_size=None, thumbnail=None, **kwargs):
         self.file_id: str = file_id
@@ -2058,11 +2063,6 @@ class Audio(JsonDeserializable):
         self.mime_type: Optional[str] = mime_type
         self.file_size: Optional[int] = file_size
         self.thumbnail: Optional[PhotoSize] = thumbnail
-
-    @property
-    def thumb(self) -> Optional[PhotoSize]:
-        log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
-        return self.thumbnail
 
 
 class Voice(JsonDeserializable):
@@ -2146,6 +2146,11 @@ class Document(JsonDeserializable):
             obj['thumbnail'] = None
         return cls(**obj)
 
+    @property
+    def thumb(self) -> Optional[PhotoSize]:
+        log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
+        return self.thumbnail
+
     def __init__(self, file_id, file_unique_id, thumbnail=None, file_name=None, mime_type=None, file_size=None, **kwargs):
         self.file_id: str = file_id
         self.file_unique_id: str = file_unique_id
@@ -2153,11 +2158,6 @@ class Document(JsonDeserializable):
         self.file_name: Optional[str] = file_name
         self.mime_type: Optional[str] = mime_type
         self.file_size: Optional[int] = file_size
-
-    @property
-    def thumb(self) -> Optional[PhotoSize]:
-        log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
-        return self.thumbnail
 
 
 class Video(JsonDeserializable):
@@ -2220,6 +2220,11 @@ class Video(JsonDeserializable):
             obj['qualities'] = [VideoQuality.de_json(q) for q in obj['qualities']]
         return cls(**obj)
 
+    @property
+    def thumb(self) -> Optional[PhotoSize]:
+        log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
+        return self.thumbnail
+
     def __init__(self, file_id, file_unique_id, width, height, duration, thumbnail=None, file_name=None, mime_type=None, file_size=None,
                     cover=None, start_timestamp=None, qualities=None, **kwargs):
         self.file_id: str = file_id
@@ -2234,11 +2239,6 @@ class Video(JsonDeserializable):
         self.cover: Optional[List[PhotoSize]] = cover
         self.start_timestamp: Optional[int] = start_timestamp
         self.qualities: Optional[List[VideoQuality]] = qualities
-
-    @property
-    def thumb(self) -> Optional[PhotoSize]:
-        log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
-        return self.thumbnail
 
 
 class VideoNote(JsonDeserializable):
@@ -2277,6 +2277,11 @@ class VideoNote(JsonDeserializable):
             obj['thumbnail'] = PhotoSize.de_json(obj['thumbnail'])
         return cls(**obj)
 
+    @property
+    def thumb(self) -> Optional[PhotoSize]:
+        log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
+        return self.thumbnail
+
     def __init__(self, file_id, file_unique_id, length, duration, thumbnail=None, file_size=None, **kwargs):
         self.file_id: str = file_id
         self.file_unique_id: str = file_unique_id
@@ -2284,11 +2289,6 @@ class VideoNote(JsonDeserializable):
         self.duration: int = duration
         self.thumbnail: Optional[PhotoSize] = thumbnail
         self.file_size: Optional[int] = file_size
-
-    @property
-    def thumb(self) -> Optional[PhotoSize]:
-        log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
-        return self.thumbnail
 
 
 class Contact(JsonDeserializable):
@@ -6321,6 +6321,11 @@ class Animation(JsonDeserializable):
             obj['thumbnail'] = None
         return cls(**obj)
 
+    @property
+    def thumb(self) -> Optional[PhotoSize]:
+        log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
+        return self.thumbnail
+
     def __init__(self, file_id, file_unique_id, width=None, height=None, duration=None,
                  thumbnail=None, file_name=None, mime_type=None, file_size=None, **kwargs):
         self.file_id: str = file_id
@@ -6332,11 +6337,6 @@ class Animation(JsonDeserializable):
         self.file_name: Optional[str] = file_name
         self.mime_type: Optional[str] = mime_type
         self.file_size: Optional[int] = file_size
-
-    @property
-    def thumb(self) -> Optional[PhotoSize]:
-        log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
-        return self.thumbnail
 
 
 class GameHighScore(JsonDeserializable):
@@ -6755,13 +6755,6 @@ class StickerSet(JsonDeserializable):
             obj['thumbnail'] = None
         return cls(**obj)
 
-    def __init__(self, name, title, sticker_type, stickers, thumbnail=None, **kwargs):
-        self.name: str = name
-        self.title: str = title
-        self.sticker_type: str = sticker_type
-        self.stickers: List[Sticker] = stickers
-        self.thumbnail: Optional[PhotoSize] = thumbnail
-
     @property
     def thumb(self) -> Optional[PhotoSize]:
         log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
@@ -6781,6 +6774,13 @@ class StickerSet(JsonDeserializable):
     def is_video(self) -> bool:
         log_deprecation_warning('The parameter "is_video" is deprecated since Bot API 7.2. Stickers can now be mixed')
         return False
+
+    def __init__(self, name, title, sticker_type, stickers, thumbnail=None, **kwargs):
+        self.name: str = name
+        self.title: str = title
+        self.sticker_type: str = sticker_type
+        self.stickers: List[Sticker] = stickers
+        self.thumbnail: Optional[PhotoSize] = thumbnail
 
 
 # noinspection PyShadowingBuiltins
@@ -6857,6 +6857,11 @@ class Sticker(JsonDeserializable):
             obj['premium_animation'] = File.de_json(obj['premium_animation'])
         return cls(**obj)
 
+    @property
+    def thumb(self) -> Optional[PhotoSize]:
+        log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
+        return self.thumbnail
+
     def __init__(self, file_id, file_unique_id, type, width, height, is_animated,
                 is_video, thumbnail=None, emoji=None, set_name=None, mask_position=None, file_size=None,
                 premium_animation=None, custom_emoji_id=None, needs_repainting=None, **kwargs):
@@ -6875,11 +6880,6 @@ class Sticker(JsonDeserializable):
         self.premium_animation: Optional[File] = premium_animation
         self.custom_emoji_id: Optional[str] = custom_emoji_id
         self.needs_repainting: Optional[bool] = needs_repainting
-
-    @property
-    def thumb(self) -> Optional[PhotoSize]:
-        log_deprecation_warning('The parameter "thumb" is deprecated, use "thumbnail" instead')
-        return self.thumbnail
 
 
 class MaskPosition(Dictionaryable, JsonDeserializable, JsonSerializable):
@@ -9529,14 +9529,6 @@ class TextQuote(JsonDeserializable):
             obj['entities'] = [MessageEntity.de_json(entity) for entity in obj['entities']]
         return cls(**obj)
 
-    def __init__(self, text: str, position: int,
-                 entities: Optional[List[MessageEntity]] = None,
-                 is_manual: Optional[bool] = None, **kwargs) -> None:
-        self.text: str = text
-        self.entities: Optional[List[MessageEntity]] = entities
-        self.position: Optional[int] = position
-        self.is_manual: Optional[bool] = is_manual
-
     @property
     def html_text(self):
         """
@@ -9545,6 +9537,14 @@ class TextQuote(JsonDeserializable):
         if self.text is None:
             return None
         return apply_html_entities(self.text, self.entities, getattr(self, "custom_subs", None))
+
+    def __init__(self, text: str, position: int,
+                 entities: Optional[List[MessageEntity]] = None,
+                 is_manual: Optional[bool] = None, **kwargs) -> None:
+        self.text: str = text
+        self.entities: Optional[List[MessageEntity]] = entities
+        self.position: Optional[int] = position
+        self.is_manual: Optional[bool] = is_manual
 
 
 class ReplyParameters(JsonDeserializable, Dictionaryable, JsonSerializable):
@@ -9649,10 +9649,6 @@ class UsersShared(JsonDeserializable):
         obj['users'] = [SharedUser.de_json(user) for user in obj['users']]
         return cls(**obj)
 
-    def __init__(self, request_id: int, users: List[SharedUser], **kwargs):
-        self.request_id: int = request_id
-        self.users: List[SharedUser] = users
-
     @property
     def user_id(self) -> None:
         log_deprecation_warning('The parameter "user_id" is deprecated, use "user_ids" instead')
@@ -9662,6 +9658,10 @@ class UsersShared(JsonDeserializable):
     def user_ids(self) -> List[SharedUser]:
         log_deprecation_warning('The parameter "user_ids" is deprecated, use "users" instead')
         return self.users
+
+    def __init__(self, request_id: int, users: List[SharedUser], **kwargs):
+        self.request_id: int = request_id
+        self.users: List[SharedUser] = users
 
 
 class ChatBoostUpdated(JsonDeserializable):
@@ -9954,15 +9954,15 @@ class InaccessibleMessage(JsonDeserializable):
         obj['chat'] = Chat.de_json(obj['chat'])
         return cls(**obj)
 
-    def __init__(self, chat, message_id, date, **kwargs):
-        self.chat: Chat = chat
-        self.message_id: int = message_id
-        self.date: int = date
-
     @staticmethod
     def __universal_deprecation(property_name):
         log_deprecation_warning(f'Deprecation warning: the field "{property_name}" is not accessible for InaccessibleMessage. You should check if your object is Message instance before access.')
         return None
+
+    def __init__(self, chat, message_id, date, **kwargs):
+        self.chat: Chat = chat
+        self.message_id: int = message_id
+        self.date: int = date
 
     def __getattr__(self, item):
         if item in [
@@ -10048,6 +10048,14 @@ class BusinessConnection(JsonDeserializable):
         obj['rights'] = BusinessBotRights.de_json(obj.get('rights'))
         return cls(**obj)
 
+    @property
+    def can_reply(self) -> bool:
+        """
+        Deprecated, use :attr:`rights` instead.
+        """
+        log_deprecation_warning('The field "can_reply" is deprecated, use "rights" instead')
+        return self.rights is not None and self.rights.can_reply
+
     def __init__(self, id, user, user_chat_id, date, can_reply, is_enabled,
                     rights=None, **kwargs):
         self.id: str = id
@@ -10056,14 +10064,6 @@ class BusinessConnection(JsonDeserializable):
         self.date: int = date
         self.rights: Optional[BusinessBotRights] = rights
         self.is_enabled: bool = is_enabled
-
-    @property
-    def can_reply(self) -> bool:
-        """
-        Deprecated, use :attr:`rights` instead.
-        """
-        log_deprecation_warning('The field "can_reply" is deprecated, use "rights" instead')
-        return self.rights is not None and self.rights.can_reply
 
 
 
@@ -13563,7 +13563,7 @@ class ChatOwnerLeft(JsonDeserializable):
     """
     def __init__(self, new_owner: Optional[User] = None, **kwargs):
         self.new_owner: Optional[User] = new_owner
-
+        
     @classmethod
     def de_json(cls, json_string):
         if json_string is None: return None
@@ -13571,7 +13571,7 @@ class ChatOwnerLeft(JsonDeserializable):
         if 'new_owner' in obj:
             obj['new_owner'] = User.de_json(obj['new_owner'])
         return cls(**obj)
-
+    
 class ChatOwnerChanged(JsonDeserializable):
     """
     Describes a service message about an ownership change in the chat.
@@ -13593,7 +13593,7 @@ class ChatOwnerChanged(JsonDeserializable):
         obj = cls.check_json(json_string)
         obj['new_owner'] = User.de_json(obj['new_owner'])
         return cls(**obj)
-
+    
 class VideoQuality(JsonDeserializable):
     """
     This object represents a video file of a specific quality.
@@ -13635,7 +13635,7 @@ class VideoQuality(JsonDeserializable):
         if json_string is None: return None
         obj = cls.check_json(json_string)
         return cls(**obj)
-
+    
 
 class UserProfileAudios(JsonDeserializable):
     """
