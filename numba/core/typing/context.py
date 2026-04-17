@@ -7,6 +7,7 @@ import threading
 import contextlib
 import operator
 
+import numba
 from numba.core import types, errors, config
 from numba.core.typeconv import Conversion, rules
 from numba.core.typing import templates
