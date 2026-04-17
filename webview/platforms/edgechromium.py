@@ -298,13 +298,8 @@ class EdgeChrome:
             self.form.Show()
             self.form.Activate()
 
-    def on_web_resource_response(self, sender, args):
-        headers = {}
-        for header in args.Response.Headers.GetEnumerator():
-            headers[header.Key] = header.Value
-
-        response = Response(str(args.Request.Uri), args.Response.StatusCode, headers)
-        self.pywebview_window.events.response_received.set(response)
+    def on_navigation_start(self, sender, args):
+        pass
 
     def on_web_resource_request(self, sender, args):
         original_headers = {}
@@ -325,6 +320,14 @@ class EdgeChrome:
 
         for k in missing_headers:
             args.Request.Headers.RemoveHeader(k)
+
+    def on_web_resource_response(self, sender, args):
+        headers = {}
+        for header in args.Response.Headers.GetEnumerator():
+            headers[header.Key] = header.Value
+
+        response = Response(str(args.Request.Uri), args.Response.StatusCode, headers)
+        self.pywebview_window.events.response_received.set(response)
 
     def on_navigation_completed(self, sender, _):
         url = str(sender.Source)
