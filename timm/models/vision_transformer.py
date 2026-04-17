@@ -756,12 +756,10 @@ class VisionTransformer(nn.Module):
         else:
             blocks = self.blocks[:max_index + 1]
         for i, blk in enumerate(blocks):
-            if attn_mask is not None:
-                x = blk(x, attn_mask=attn_mask)
-            elif self.grad_checkpointing and not torch.jit.is_scripting():
+            if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk. x)
             else:
-                x = blk(x)
+                x = blk(x, attn_mask=attn_mask)
             if i in take_indices:
                 # normalize intermediates with final norm layer if enabled
                 intermediates.append(self.norm(x) if norm else x)
