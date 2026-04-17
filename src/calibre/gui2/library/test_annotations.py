@@ -3,9 +3,8 @@
 
 import unittest
 from unittest.mock import MagicMock
-
-from calibre.gui2.library.annotations import get_group_key, get_group_keys_list
 from calibre.utils.icu import primary_sort_key
+from calibre.gui2.library.annotations import get_group_key, get_group_keys_list
 
 
 def _make_result(book_id=1, annot_id=1, **extra):
