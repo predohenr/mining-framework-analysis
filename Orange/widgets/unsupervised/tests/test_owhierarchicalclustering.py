@@ -229,7 +229,6 @@ class TestOWHierarchicalClustering(WidgetTest, WidgetOutputsTestMixin):
         self.send_signal(self.widget.Inputs.distances, None)
         self.assertFalse(w.Warning.many_clusters.is_shown())
 
-
 class TestSelectedLabelsModel(unittest.TestCase):
     def test_model_extend(self):
         model = SelectedLabelsModel()
