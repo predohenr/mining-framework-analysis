@@ -600,6 +600,12 @@ class Classifier(Model[DT], typing.Generic[DT], ReduceTransformerVocabMixin, ABC
         """
         raise NotImplementedError
 
+    @classmethod
+    def load(cls, model_path: Union[str, Path, dict[str, Any]]) -> "Classifier":
+        from typing import cast
+
+        return cast("Classifier", super().load(model_path=model_path))
+
     def _print_predictions(self, batch: list[DT], gold_label_type: str) -> list[str]:
         lines = []
         for datapoint in batch:
@@ -625,12 +631,6 @@ class Classifier(Model[DT], typing.Generic[DT], ReduceTransformerVocabMixin, ABC
             yield [t.text for t in sentence]
             yield [t.text for t in sentence.left_context(context_length, respect_document_boundaries)]
             yield [t.text for t in sentence.right_context(context_length, respect_document_boundaries)]
-
-    @classmethod
-    def load(cls, model_path: Union[str, Path, dict[str, Any]]) -> "Classifier":
-        from typing import cast
-
-        return cast("Classifier", super().load(model_path=model_path))
 
 
 class DefaultClassifier(Classifier[DT], typing.Generic[DT, DT2], ABC):
