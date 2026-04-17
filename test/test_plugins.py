@@ -46,10 +46,7 @@ from beets.util import displayable_path, syspath
 
 class TestPluginRegistration(PluginTestCase):
     class RatingPlugin(plugins.BeetsPlugin):
-        item_types = {
-            "rating": types.Float(),
-            "multi_value": types.MULTI_VALUE_DSV,
-        }
+        item_types = {"rating": types.Float()}
 
         def __init__(self):
             super().__init__()
@@ -87,6 +84,11 @@ class TestPluginRegistration(PluginTestCase):
         assert MediaFile(syspath(item.path)).artist == "YYY"
 
     def test_multi_value_flex_field_type(self):
+        class MultiValuePlugin(plugins.BeetsPlugin):
+            item_types = {"multi_value": types.MULTI_VALUE_DSV}
+
+        self.register_plugin(MultiValuePlugin)
+
         item = Item(path="apath", artist="aaa")
         item.multi_value = ["one", "two", "three"]
         item.add(self.lib)
