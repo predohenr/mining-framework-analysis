@@ -7,8 +7,12 @@ extend CKAN.
 from __future__ import annotations
 
 from typing import (
+    Any, Callable, Iterable, Mapping, Optional, Sequence,
+    TYPE_CHECKING, Union, List,
+)
+from typing import (
     Any, Callable, IO, Iterable, Mapping, Optional, Sequence,
-    TYPE_CHECKING, Tuple, Union, List
+    TYPE_CHECKING, Tuple, Union
 )
 
 from flask.blueprints import Blueprint
