@@ -5,6 +5,7 @@
 
 from typing import List, Tuple
 
+import torch
 import numpy as np
 import torch
 from transformers import AutoConfig, AutoTokenizer
