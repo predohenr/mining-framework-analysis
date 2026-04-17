@@ -11,7 +11,7 @@
 import unittest
 from functools import partial
 from types import EllipsisType
-from typing import Any, TypeVar
+from typing import TypeVar, Any
 
 from django import forms as df, test as dt
 from django.contrib.staticfiles import testing as dst
