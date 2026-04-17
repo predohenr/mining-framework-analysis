@@ -1101,8 +1101,8 @@ class ssh(Timeout, Logger):
             process with ``argv=[]``.
         """
         script = '''
-from ctypes import *; libc = CDLL('libc.so.6'); print(libc.getenv(%r))
-''' % variable
+    from ctypes import *; libc = CDLL('libc.so.6'); print(libc.getenv(%r))
+    ''' % variable
 
         with context.local(log_level='error'):
             python = self.which('python') or self.which('python2.7') or self.which('python3')

@@ -2199,7 +2199,7 @@ class ELF(ELFFile):
         """:class:`bool`: Whether the current binary was built with
         Undefined Behavior Sanitizer (``UBSAN``)."""
         return any(s.startswith('__ubsan_') for s in self.symbols)
-    
+
     @property
     def shadowstack(self):
         """:class:`bool`: Whether the current binary was built with	
@@ -2354,7 +2354,7 @@ class ELF(ELFFile):
                 return
 
         log.error("Could not find PT_GNU_STACK, stack should already be executable")
-    
+
     @staticmethod
     def set_runpath(exepath, runpath):
         r"""set_runpath(exepath, runpath) -> ELF
