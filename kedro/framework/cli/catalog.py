@@ -13,8 +13,10 @@ from click import secho
 from kedro.framework.cli.utils import KedroCliError, env_option, split_string
 from kedro.framework.project import pipelines, settings
 from kedro.framework.session import KedroSession
-from kedro.io.core import is_parameter
 from kedro.io.kedro_data_catalog import KedroDataCatalog, _LazyDataset
+from kedro.io.core import is_parameter
+from kedro.io.data_catalog import DataCatalog
+from kedro.io.kedro_data_catalog import _LazyDataset
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -112,23 +114,6 @@ def list_datasets(metadata: ProjectMetadata, pipeline: str, env: str) -> None:
     secho(yaml.dump(result))
 
 
-def _map_type_to_datasets(
-    datasets: set[str], datasets_meta: dict[str, AbstractDataset]
-) -> dict:
-    """Build dictionary with a dataset type as a key and list of
-    datasets of the specific type as a value.
-    """
-    mapping = defaultdict(list)  # type: ignore[var-annotated]
-    for dataset_name in filterfalse(is_parameter, datasets):
-        if isinstance(datasets_meta[dataset_name], _LazyDataset):
-            ds_type = str(datasets_meta[dataset_name]).split(".")[-1]
-        else:
-            ds_type = datasets_meta[dataset_name].__class__.__name__
-        if dataset_name not in mapping[ds_type]:
-            mapping[ds_type].append(dataset_name)
-    return mapping
-
-
 @catalog.command("create")
 @env_option(help="Environment to create Data Catalog YAML file in. Defaults to `base`.")
 @click.option(
@@ -179,22 +164,6 @@ def create_catalog(metadata: ProjectMetadata, pipeline_name: str, env: str) -> N
         click.echo(f"Data Catalog YAML configuration was created: {catalog_path}")
     else:
         click.echo("All datasets are already configured.")
-
-
-def _add_missing_datasets_to_catalog(missing_ds: list[str], catalog_path: Path) -> None:
-    if catalog_path.is_file():
-        catalog_config = yaml.safe_load(catalog_path.read_text()) or {}
-    else:
-        catalog_config = {}
-
-    for ds_name in missing_ds:
-        catalog_config[ds_name] = {"type": "MemoryDataset"}
-
-    # Create only `catalog` folder under existing environment
-    # (all parent folders must exist).
-    catalog_path.parent.mkdir(exist_ok=True)
-    with catalog_path.open(mode="w") as catalog_file:
-        yaml.safe_dump(catalog_config, catalog_file, default_flow_style=False)
 
 
 @catalog.command("rank")
@@ -253,3 +222,36 @@ def resolve_patterns(metadata: ProjectMetadata, env: str) -> None:
             explicit_datasets[ds_name] = ds_config
 
     secho(yaml.dump(explicit_datasets))
+
+
+def _map_type_to_datasets(
+    datasets: set[str], datasets_meta: dict[str, AbstractDataset]
+) -> dict:
+    """Build dictionary with a dataset type as a key and list of
+    datasets of the specific type as a value.
+    """
+    mapping = defaultdict(list)  # type: ignore[var-annotated]
+    for dataset_name in filterfalse(is_parameter, datasets):
+        if isinstance(datasets_meta[dataset_name], _LazyDataset):
+            ds_type = str(datasets_meta[dataset_name]).split(".")[-1]
+        else:
+            ds_type = datasets_meta[dataset_name].__class__.__name__
+        if dataset_name not in mapping[ds_type]:
+            mapping[ds_type].append(dataset_name)
+    return mapping
+
+
+def _add_missing_datasets_to_catalog(missing_ds: list[str], catalog_path: Path) -> None:
+    if catalog_path.is_file():
+        catalog_config = yaml.safe_load(catalog_path.read_text()) or {}
+    else:
+        catalog_config = {}
+
+    for ds_name in missing_ds:
+        catalog_config[ds_name] = {"type": "MemoryDataset"}
+
+    # Create only `catalog` folder under existing environment
+    # (all parent folders must exist).
+    catalog_path.parent.mkdir(exist_ok=True)
+    with catalog_path.open(mode="w") as catalog_file:
+        yaml.safe_dump(catalog_config, catalog_file, default_flow_style=False)
