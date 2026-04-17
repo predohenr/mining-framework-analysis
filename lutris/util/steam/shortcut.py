@@ -192,7 +192,8 @@ def generate_standalone_shortcut(game, launch_config_name):
         "DevkitOverrideAppID": 0,
         "LastPlayTime": 0,
     }
-  
+
+
 def is_flatpak_lutris():
     return shutil.which("lutris") == "/app/bin/lutris"
 
