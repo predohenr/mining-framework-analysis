@@ -693,8 +693,6 @@ class _ConnectionRecord(ConnectionPoolEntry):
     def connection(self) -> Optional[DBAPIConnection]:
         return self.dbapi_connection
 
-    _soft_invalidate_time: float = 0
-
     @util.ro_memoized_property
     def info(self) -> _InfoType:
         return {}
@@ -739,6 +737,16 @@ class _ConnectionRecord(ConnectionPoolEntry):
             )
         return fairy
 
+    @property
+    def in_use(self) -> bool:
+        return self.fairy_ref is not None
+
+    @property
+    def last_connect_time(self) -> float:
+        return self.starttime
+
+    _soft_invalidate_time: float = 0
+
     def _checkin_failed(
         self, err: BaseException, _fairy_was_created: bool = True
     ) -> None:
@@ -769,14 +777,6 @@ class _ConnectionRecord(ConnectionPoolEntry):
             pool.dispatch.checkin(connection, self)
 
         pool._return_conn(self)
-
-    @property
-    def in_use(self) -> bool:
-        return self.fairy_ref is not None
-
-    @property
-    def last_connect_time(self) -> float:
-        return self.starttime
 
     def close(self) -> None:
         if self.dbapi_connection is not None:
@@ -1166,14 +1166,14 @@ class _AdhocProxiedConnection(PoolProxiedConnection):
         """
         return self._is_valid
 
+    @util.ro_non_memoized_property
+    def record_info(self) -> Optional[_InfoType]:
+        return self._connection_record.record_info
+
     def invalidate(
         self, e: Optional[BaseException] = None, soft: bool = False
     ) -> None:
         self._is_valid = False
-
-    @util.ro_non_memoized_property
-    def record_info(self) -> Optional[_InfoType]:
-        return self._connection_record.record_info
 
     def cursor(self, *args: Any, **kwargs: Any) -> DBAPICursor:
         return self.dbapi_connection.cursor(*args, **kwargs)
@@ -1377,6 +1377,32 @@ class _ConnectionFairy(PoolProxiedConnection):
         fairy.invalidate()
         raise exc.InvalidRequestError("This connection is closed")
 
+    @property
+    def _logger(self) -> log._IdentifiedLoggerType:
+        return self._pool.logger
+
+    @property
+    def is_valid(self) -> bool:
+        return self.dbapi_connection is not None
+
+    @property
+    def is_detached(self) -> bool:
+        return self._connection_record is None
+
+    @util.ro_memoized_property
+    def info(self) -> _InfoType:
+        if self._connection_record is None:
+            return {}
+        else:
+            return self._connection_record.info
+
+    @util.ro_non_memoized_property
+    def record_info(self) -> Optional[_InfoType]:
+        if self._connection_record is None:
+            return None
+        else:
+            return self._connection_record.record_info
+
     def _checkout_existing(self) -> _ConnectionFairy:
         return _ConnectionFairy._checkout(self._pool, fairy=self)
 
@@ -1436,32 +1462,6 @@ class _ConnectionFairy(PoolProxiedConnection):
                     self.dbapi_connection,
                 )
             pool._dialect.do_commit(self)
-
-    @property
-    def _logger(self) -> log._IdentifiedLoggerType:
-        return self._pool.logger
-
-    @property
-    def is_valid(self) -> bool:
-        return self.dbapi_connection is not None
-
-    @property
-    def is_detached(self) -> bool:
-        return self._connection_record is None
-
-    @util.ro_memoized_property
-    def info(self) -> _InfoType:
-        if self._connection_record is None:
-            return {}
-        else:
-            return self._connection_record.info
-
-    @util.ro_non_memoized_property
-    def record_info(self) -> Optional[_InfoType]:
-        if self._connection_record is None:
-            return None
-        else:
-            return self._connection_record.record_info
 
     def invalidate(
         self, e: Optional[BaseException] = None, soft: bool = False

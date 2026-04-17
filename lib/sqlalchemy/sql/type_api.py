@@ -1668,6 +1668,103 @@ class TypeDecorator(SchemaEventTarget, ExternalType, TypeEngine[_T]):
     def impl_instance(self) -> TypeEngine[Any]:
         return self.impl  # type: ignore
 
+    @staticmethod
+    def _reduce_td_comparator(
+        impl: TypeEngine[Any], expr: ColumnElement[_T]
+    ) -> Any:
+        return TypeDecorator._create_td_comparator_type(impl)(expr)
+
+    @staticmethod
+    def _create_td_comparator_type(
+        impl: TypeEngine[Any],
+    ) -> _ComparatorFactory[Any]:
+
+        def __reduce__(self: TypeDecorator.Comparator[Any]) -> Any:
+            return (TypeDecorator._reduce_td_comparator, (impl, self.expr))
+
+        return type(
+            "TDComparator",
+            (TypeDecorator.Comparator, impl.comparator_factory),  # type: ignore # noqa: E501
+            {"__reduce__": __reduce__},
+        )
+
+    @property
+    def comparator_factory(  # type: ignore  # mypy properties bug
+        self,
+    ) -> _ComparatorFactory[Any]:
+        if TypeDecorator.Comparator in self.impl.comparator_factory.__mro__:  # type: ignore # noqa: E501
+            return self.impl_instance.comparator_factory
+        else:
+            # reconcile the Comparator class on the impl with that
+            # of TypeDecorator.
+            # the use of multiple staticmethods is to support repeated
+            # pickling of the Comparator itself
+            return TypeDecorator._create_td_comparator_type(self.impl_instance)
+
+    @util.ro_non_memoized_property
+    def _type_affinity(self) -> Optional[Type[TypeEngine[Any]]]:
+        return self.impl_instance._type_affinity
+
+    @util.memoized_property
+    def _has_bind_processor(self) -> bool:
+        """memoized boolean, check if process_bind_param is implemented.
+
+        Allows the base process_bind_param to raise
+        NotImplementedError without needing to test an expensive
+        exception throw.
+
+        """
+
+        return util.method_is_overridden(
+            self, TypeDecorator.process_bind_param
+        )
+
+    @util.memoized_property
+    def _has_literal_processor(self) -> bool:
+        """memoized boolean, check if process_literal_param is implemented."""
+
+        return util.method_is_overridden(
+            self, TypeDecorator.process_literal_param
+        )
+
+    @util.memoized_property
+    def _has_result_processor(self) -> bool:
+        """memoized boolean, check if process_result_value is implemented.
+
+        Allows the base process_result_value to raise
+        NotImplementedError without needing to test an expensive
+        exception throw.
+
+        """
+
+        return util.method_is_overridden(
+            self, TypeDecorator.process_result_value
+        )
+
+    @util.memoized_property
+    def _has_bind_expression(self) -> bool:
+        return (
+            util.method_is_overridden(self, TypeDecorator.bind_expression)
+            or self.impl_instance._has_bind_expression
+        )
+
+    @util.memoized_property
+    def _has_column_expression(self) -> bool:
+        """memoized boolean, check if column_expression is implemented.
+
+        Allows the method to be skipped for the vast majority of expression
+        types that don't use this feature.
+
+        """
+
+        return (
+            util.method_is_overridden(self, TypeDecorator.column_expression)
+            or self.impl_instance._has_column_expression
+        )
+    @property
+    def sort_key_function(self) -> Optional[Callable[[Any], Any]]:  # type: ignore # noqa: E501
+        return self.impl_instance.sort_key_function
+
     def __init__(self, *args: Any, **kwargs: Any):
         """Construct a :class:`.TypeDecorator`.
 
@@ -1741,39 +1838,6 @@ class TypeDecorator(SchemaEventTarget, ExternalType, TypeEngine[_T]):
             kwargs["_python_is_types"] = self.expr.type.coerce_to_is_types
             return super().reverse_operate(op, other, **kwargs)
 
-    @staticmethod
-    def _reduce_td_comparator(
-        impl: TypeEngine[Any], expr: ColumnElement[_T]
-    ) -> Any:
-        return TypeDecorator._create_td_comparator_type(impl)(expr)
-
-    @staticmethod
-    def _create_td_comparator_type(
-        impl: TypeEngine[Any],
-    ) -> _ComparatorFactory[Any]:
-
-        def __reduce__(self: TypeDecorator.Comparator[Any]) -> Any:
-            return (TypeDecorator._reduce_td_comparator, (impl, self.expr))
-
-        return type(
-            "TDComparator",
-            (TypeDecorator.Comparator, impl.comparator_factory),  # type: ignore # noqa: E501
-            {"__reduce__": __reduce__},
-        )
-
-    @property
-    def comparator_factory(  # type: ignore  # mypy properties bug
-        self,
-    ) -> _ComparatorFactory[Any]:
-        if TypeDecorator.Comparator in self.impl.comparator_factory.__mro__:  # type: ignore # noqa: E501
-            return self.impl_instance.comparator_factory
-        else:
-            # reconcile the Comparator class on the impl with that
-            # of TypeDecorator.
-            # the use of multiple staticmethods is to support repeated
-            # pickling of the Comparator itself
-            return TypeDecorator._create_td_comparator_type(self.impl_instance)
-
     def _copy_with_check(self) -> Self:
         tt = self.copy()
         if not isinstance(tt, self.__class__):
@@ -1808,10 +1872,6 @@ class TypeDecorator(SchemaEventTarget, ExternalType, TypeEngine[_T]):
             collation
         )
         return tt
-
-    @util.ro_non_memoized_property
-    def _type_affinity(self) -> Optional[Type[TypeEngine[Any]]]:
-        return self.impl_instance._type_affinity
 
     def _set_parent(
         self, parent: SchemaEventTarget, outer: bool = False, **kw: Any
@@ -1969,28 +2029,6 @@ class TypeDecorator(SchemaEventTarget, ExternalType, TypeEngine[_T]):
 
         raise NotImplementedError()
 
-    @util.memoized_property
-    def _has_bind_processor(self) -> bool:
-        """memoized boolean, check if process_bind_param is implemented.
-
-        Allows the base process_bind_param to raise
-        NotImplementedError without needing to test an expensive
-        exception throw.
-
-        """
-
-        return util.method_is_overridden(
-            self, TypeDecorator.process_bind_param
-        )
-
-    @util.memoized_property
-    def _has_literal_processor(self) -> bool:
-        """memoized boolean, check if process_literal_param is implemented."""
-
-        return util.method_is_overridden(
-            self, TypeDecorator.process_literal_param
-        )
-
     def literal_processor(
         self, dialect: Dialect
     ) -> Optional[_LiteralProcessorType[_T]]:
@@ -2100,20 +2138,6 @@ class TypeDecorator(SchemaEventTarget, ExternalType, TypeEngine[_T]):
         else:
             return self.impl_instance.bind_processor(dialect)
 
-    @util.memoized_property
-    def _has_result_processor(self) -> bool:
-        """memoized boolean, check if process_result_value is implemented.
-
-        Allows the base process_result_value to raise
-        NotImplementedError without needing to test an expensive
-        exception throw.
-
-        """
-
-        return util.method_is_overridden(
-            self, TypeDecorator.process_result_value
-        )
-
     def result_processor(
         self, dialect: Dialect, coltype: Any
     ) -> Optional[_ResultProcessorType[_T]]:
@@ -2159,13 +2183,6 @@ class TypeDecorator(SchemaEventTarget, ExternalType, TypeEngine[_T]):
         else:
             return self.impl_instance.result_processor(dialect, coltype)
 
-    @util.memoized_property
-    def _has_bind_expression(self) -> bool:
-        return (
-            util.method_is_overridden(self, TypeDecorator.bind_expression)
-            or self.impl_instance._has_bind_expression
-        )
-
     def bind_expression(
         self, bindparam: BindParameter[_T]
     ) -> Optional[ColumnElement[_T]]:
@@ -2188,20 +2205,6 @@ class TypeDecorator(SchemaEventTarget, ExternalType, TypeEngine[_T]):
 
         """
         return self.impl_instance.bind_expression(bindparam)
-
-    @util.memoized_property
-    def _has_column_expression(self) -> bool:
-        """memoized boolean, check if column_expression is implemented.
-
-        Allows the method to be skipped for the vast majority of expression
-        types that don't use this feature.
-
-        """
-
-        return (
-            util.method_is_overridden(self, TypeDecorator.column_expression)
-            or self.impl_instance._has_column_expression
-        )
 
     def column_expression(
         self, column: ColumnElement[_T]
@@ -2288,9 +2291,6 @@ class TypeDecorator(SchemaEventTarget, ExternalType, TypeEngine[_T]):
         return self.impl_instance.compare_values(x, y)
 
     # mypy property bug
-    @property
-    def sort_key_function(self) -> Optional[Callable[[Any], Any]]:  # type: ignore # noqa: E501
-        return self.impl_instance.sort_key_function
 
     def __repr__(self) -> str:
         return util.generic_repr(self, to_inspect=self.impl_instance)
