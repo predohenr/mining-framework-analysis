@@ -32,8 +32,8 @@ from aiohttp.client_reqrep import (
     Fingerprint,
     _gen_default_accept_encoding,
 )
-from aiohttp.connector import Connection
 from aiohttp.http import HttpVersion10, HttpVersion11
+from aiohttp.connector import Connection
 from aiohttp.test_utils import make_mocked_coro
 from aiohttp.typedefs import LooseCookies
 
