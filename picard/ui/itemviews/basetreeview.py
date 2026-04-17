@@ -374,6 +374,32 @@ class BaseTreeView(QtWidgets.QTreeWidget):
 
         header.lock(config.persist[self.header_locked])
 
+    @staticmethod
+    def drop_urls(urls, target, move_to_multi_tracks=True):
+        files = []
+        new_paths = []
+        tagger = QtCore.QCoreApplication.instance()
+        for url in urls:
+            log.debug("Dropped the URL: %r", url.toString(QtCore.QUrl.UrlFormattingOption.RemoveUserInfo))
+            if url.scheme() == 'file' or not url.scheme():
+                filename = normpath(url.toLocalFile().rstrip('\0'))
+                file = tagger.files.get(filename)
+                if file:
+                    files.append(file)
+                else:
+                    new_paths.append(filename)
+            elif url.scheme() in {'http', 'https'}:
+                file_lookup = tagger.get_file_lookup()
+                file_lookup.mbid_lookup(url.path(), browser_fallback=False)
+        if files:
+            tagger.move_files(files, target, move_to_multi_tracks)
+        if new_paths:
+            tagger.add_paths(new_paths, target=target)
+
+    @property
+    def default_drop_target(self):
+        return None
+
     def save_state(self):
         config = get_config()
         header = self.header()
@@ -470,28 +496,6 @@ class BaseTreeView(QtWidgets.QTreeWidget):
         super().scrollTo(index, scrolltype)
         hscrollbar.setValue(xpos)
 
-    @staticmethod
-    def drop_urls(urls, target, move_to_multi_tracks=True):
-        files = []
-        new_paths = []
-        tagger = QtCore.QCoreApplication.instance()
-        for url in urls:
-            log.debug("Dropped the URL: %r", url.toString(QtCore.QUrl.UrlFormattingOption.RemoveUserInfo))
-            if url.scheme() == 'file' or not url.scheme():
-                filename = normpath(url.toLocalFile().rstrip('\0'))
-                file = tagger.files.get(filename)
-                if file:
-                    files.append(file)
-                else:
-                    new_paths.append(filename)
-            elif url.scheme() in {'http', 'https'}:
-                file_lookup = tagger.get_file_lookup()
-                file_lookup.mbid_lookup(url.path(), browser_fallback=False)
-        if files:
-            tagger.move_files(files, target, move_to_multi_tracks)
-        if new_paths:
-            tagger.add_paths(new_paths, target=target)
-
     def dropEvent(self, event):
         if event.proposedAction() == QtCore.Qt.DropAction.IgnoreAction:
             event.acceptProposedAction()
@@ -564,10 +568,6 @@ class BaseTreeView(QtWidgets.QTreeWidget):
             if item and not item.isSelected():
                 self.setCurrentItem(item)
         return QtWidgets.QTreeWidget.moveCursor(self, action, modifiers)
-
-    @property
-    def default_drop_target(self):
-        return None
 
     def setup_find_box(self):
         self.find_box = FindBox(self)
