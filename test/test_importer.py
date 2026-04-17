@@ -845,6 +845,10 @@ class GroupAlbumsImportTest(AutotagImportTestCase):
         self.importer.add_choice(importer.Action.ASIS)
         self.importer.add_choice(importer.Action.ASIS)
 
+    def tearDown(self):
+        super().tearDown()
+        self.matcher.restore()
+
     def test_add_album_for_different_artist_and_different_album(self):
         self.import_media[0].artist = "Artist B"
         self.import_media[0].album = "Album B"
