@@ -1049,9 +1049,9 @@ Please see the install instructions at:
 except DependencyException as err:
     msg = f"""
 
-The headers or library files could not be found for {str(err)},
-which was requested by the option flag '-C {str(err)}=enable'
+    The headers or library files could not be found for {str(err)},
+    which was requested by the option flag '-C {str(err)}=enable'
 
-"""
+    """
     sys.stderr.write(msg)
     raise DependencyException(msg)
