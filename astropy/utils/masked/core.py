@@ -272,6 +272,15 @@ class Masked(NDArrayShapeMethods):
             )
 
         return masked_cls
+    @property
+    def unmasked(self):
+        """The unmasked values.
+
+        See Also
+        --------
+        astropy.utils.masked.Masked.filled
+        """
+        return self._unmasked
 
     def _get_mask(self):
         """The mask.
@@ -304,15 +313,6 @@ class Masked(NDArrayShapeMethods):
 
     # Note: subclass should generally override the unmasked property.
     # This one assumes the unmasked data is stored in a private attribute.
-    @property
-    def unmasked(self):
-        """The unmasked values.
-
-        See Also
-        --------
-        astropy.utils.masked.Masked.filled
-        """
-        return self._unmasked
 
     def filled(self, fill_value):
         """Get a copy of the underlying data, with masked values filled in.
@@ -670,6 +670,67 @@ class MaskedNDArray(Masked, np.ndarray, base_cls=np.ndarray, data_cls=np.ndarray
         """
         return self._data_cls
 
+    @property
+    def shape(self):
+        """The shape of the data and the mask.
+
+        Usually used to get the current shape of an array, but may also be
+        used to reshape the array in-place by assigning a tuple of array
+        dimensions to it.  As with `numpy.reshape`, one of the new shape
+        dimensions can be -1, in which case its value is inferred from the
+        size of the array and the remaining dimensions.
+
+        Raises
+        ------
+        AttributeError
+            If a copy is required, of either the data or the mask.
+
+        """
+        # Redefinition to allow defining a setter and add a docstring.
+        return super().shape
+
+    @shape.setter
+    def shape(self, shape):
+        old_shape = self.shape
+        self._mask.shape = shape
+        # Reshape array proper in try/except just in case some broadcasting
+        # or so causes it to fail.
+        try:
+            super(MaskedNDArray, type(self)).shape.__set__(self, shape)
+        except Exception as exc:
+            self._mask.shape = old_shape
+            # Given that the mask reshaping succeeded, the only logical
+            # reason for an exception is something like a broadcast error in
+            # in __array_finalize__, or a different memory ordering between
+            # mask and data.  For those, give a more useful error message;
+            # otherwise just raise the error.
+            if "could not broadcast" in exc.args[0]:
+                raise AttributeError(
+                    "Incompatible shape for in-place modification. "
+                    "Use `.reshape()` to make a copy with the desired "
+                    "shape."
+                ) from None
+            else:  # pragma: no cover
+                raise
+
+    @staticmethod
+    def _get_data_and_masks(arrays):
+        """Extracts the data and masks from the given arrays.
+
+        Parameters
+        ----------
+        arrays : iterable of array
+            An iterable of arrays, possibly masked.
+
+        Returns
+        -------
+        datas, masks: tuple of array
+            Extracted data and mask arrays. For any input array without
+            a mask, the corresponding entry in ``masks`` is `None`.
+        """
+        data_masks = [get_data_and_mask(array) for array in arrays]
+        return tuple(zip(*data_masks))
+
     def view(self, dtype=None, type=None):
         """New view of the masked array.
 
@@ -722,49 +783,6 @@ class MaskedNDArray(Masked, np.ndarray, base_cls=np.ndarray, data_cls=np.ndarray
         if "info" in obj.__dict__:
             self.info = obj.info
 
-    @property
-    def shape(self):
-        """The shape of the data and the mask.
-
-        Usually used to get the current shape of an array, but may also be
-        used to reshape the array in-place by assigning a tuple of array
-        dimensions to it.  As with `numpy.reshape`, one of the new shape
-        dimensions can be -1, in which case its value is inferred from the
-        size of the array and the remaining dimensions.
-
-        Raises
-        ------
-        AttributeError
-            If a copy is required, of either the data or the mask.
-
-        """
-        # Redefinition to allow defining a setter and add a docstring.
-        return super().shape
-
-    @shape.setter
-    def shape(self, shape):
-        old_shape = self.shape
-        self._mask.shape = shape
-        # Reshape array proper in try/except just in case some broadcasting
-        # or so causes it to fail.
-        try:
-            super(MaskedNDArray, type(self)).shape.__set__(self, shape)
-        except Exception as exc:
-            self._mask.shape = old_shape
-            # Given that the mask reshaping succeeded, the only logical
-            # reason for an exception is something like a broadcast error in
-            # in __array_finalize__, or a different memory ordering between
-            # mask and data.  For those, give a more useful error message;
-            # otherwise just raise the error.
-            if "could not broadcast" in exc.args[0]:
-                raise AttributeError(
-                    "Incompatible shape for in-place modification. "
-                    "Use `.reshape()` to make a copy with the desired "
-                    "shape."
-                ) from None
-            else:  # pragma: no cover
-                raise
-
     _eq_simple = _comparison_method("__eq__")
     _ne_simple = _comparison_method("__ne__")
     __lt__ = _comparison_method("__lt__")
@@ -795,24 +813,6 @@ class MaskedNDArray(Masked, np.ndarray, base_cls=np.ndarray, data_cls=np.ndarray
             [self[field] != other[field] for field in self.dtype.names], axis=-1
         )
         return result.any(axis=-1)
-
-    @staticmethod
-    def _get_data_and_masks(arrays):
-        """Extracts the data and masks from the given arrays.
-
-        Parameters
-        ----------
-        arrays : iterable of array
-            An iterable of arrays, possibly masked.
-
-        Returns
-        -------
-        datas, masks: tuple of array
-            Extracted data and mask arrays. For any input array without
-            a mask, the corresponding entry in ``masks`` is `None`.
-        """
-        data_masks = [get_data_and_mask(array) for array in arrays]
-        return tuple(zip(*data_masks))
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         # Get inputs and there masks.
