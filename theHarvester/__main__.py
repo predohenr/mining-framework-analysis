@@ -42,7 +42,6 @@ from theHarvester.discovery import (
     rapiddns,
     rocketreach,
     search_dehashed,
-    search_dnsdumpster,
     searchhunterhow,
     securitytrailssearch,
     shodansearch,
@@ -57,6 +56,49 @@ from theHarvester.discovery import (
     securityscorecard,
     builtwith,
     api_endpoints,
+    urlscan,
+    venacussearch,
+    virustotal,
+    whoisxml,
+    yahoosearch,
+    zoomeyesearch,
+)
+from theHarvester.discovery import (
+    anubis,
+    baidusearch,
+    bevigil,
+    bingsearch,
+    bravesearch,
+    bufferoverun,
+    censysearch,
+    certspottersearch,
+    criminalip,
+    crtsh,
+    dnssearch,
+    duckduckgosearch,
+    fullhuntsearch,
+    githubcode,
+    hackertarget,
+    huntersearch,
+    intelxsearch,
+    netlas,
+    onyphe,
+    otxsearch,
+    pentesttools,
+    projectdiscovery,
+    rapiddns,
+    rocketreach,
+    search_dehashed,
+    search_dnsdumpster,
+    searchhunterhow,
+    securitytrailssearch,
+    shodansearch,
+    sitedossier,
+    subdomaincenter,
+    subdomainfinderc99,
+    takeover,
+    threatminer,
+    tombasearch,
     urlscan,
     venacussearch,
     virustotal,
@@ -1398,7 +1440,7 @@ async def start(rest_args: argparse.Namespace | None = None):
         except Exception as er:
             print(f'[!] An error occurred while saving the JSON file: {er} ')
         print('\n\n')
-    
+
     # Enhanced code block for API Endpoint scanning feature
     if args.api_scan or 'api_endpoints' in engines:
         try:
