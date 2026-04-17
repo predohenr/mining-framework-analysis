@@ -1,7 +1,7 @@
 import logging
-from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
 from django import template
+from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 from django.templatetags.static import static
 
 from extras.choices import CustomFieldTypeChoices
