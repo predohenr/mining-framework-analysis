@@ -1,5 +1,6 @@
 # Adapted from TorchAudio
 # github.com/pytorch/audio/blob/main/src/torchaudio/models/wav2vec2/components.py
+
 from typing import List, Literal, Optional, Tuple, Union
 
 import torch

@@ -433,6 +433,7 @@ class ConvolutionalPositionalEmbedding(torch.nn.Module):
                 padding=kernel_size // 2,
                 groups=groups,
             )
+
             if weight_norm != "none" and weight_norm is not None:
                 std = math.sqrt((4 * (1.0)) / (kernel_size * embed_dim))
                 torch.nn.init.normal_(conv.weight, mean=0, std=std)
@@ -448,7 +449,7 @@ class ConvolutionalPositionalEmbedding(torch.nn.Module):
                     else:
                         weight_norm = "legacy"
                         logging.warning(
-                            f"torch.nn.utils.parametrizations.weight_norm is only "
+                            "torch.nn.utils.parametrizations.weight_norm is only "
                             + "supported for pytorch versions >= 2.2.0. "
                             + "Defaulting to torch.nn.utils.weight_norm."
                         )
