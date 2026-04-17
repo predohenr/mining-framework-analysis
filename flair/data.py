@@ -237,27 +237,9 @@ class Label:
     def score(self) -> float:
         return self._score
 
-    def to_dict(self):
-        return {"value": self.value, "confidence": self.score}
-
-    def __str__(self) -> str:
-        return f"{self.data_point.unlabeled_identifier}{flair._arrow}{self._value}{self.metadata_str} ({round(self._score, 4)})"
-
     @property
     def shortstring(self):
         return f'"{self.data_point.text}"/{self._value}'
-
-    def __repr__(self) -> str:
-        return f"'{self.data_point.unlabeled_identifier}'/'{self._value}'{self.metadata_str} ({round(self._score, 4)})"
-
-    def __eq__(self, other):
-        return self.value == other.value and self.score == other.score and self.data_point == other.data_point
-
-    def __hash__(self):
-        return hash(self.__repr__())
-
-    def __lt__(self, other):
-        return self.data_point < other.data_point
 
     @property
     def metadata_str(self) -> str:
@@ -273,6 +255,24 @@ class Label:
     @property
     def unlabeled_identifier(self):
         return f"{self.data_point.unlabeled_identifier}"
+
+    def to_dict(self):
+        return {"value": self.value, "confidence": self.score}
+
+    def __str__(self) -> str:
+        return f"{self.data_point.unlabeled_identifier}{flair._arrow}{self._value}{self.metadata_str} ({round(self._score, 4)})"
+
+    def __repr__(self) -> str:
+        return f"'{self.data_point.unlabeled_identifier}'/'{self._value}'{self.metadata_str} ({round(self._score, 4)})"
+
+    def __eq__(self, other):
+        return self.value == other.value and self.score == other.score and self.data_point == other.data_point
+
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def __lt__(self, other):
+        return self.data_point < other.data_point
 
 
 class DataPoint:
@@ -293,6 +293,41 @@ class DataPoint:
     @abstractmethod
     def embedding(self) -> torch.Tensor:
         pass
+
+    @property
+    def labels(self) -> list[Label]:
+        all_labels = []
+        for key in self.annotation_layers:
+            all_labels.extend(self.annotation_layers[key])
+        return all_labels
+
+    @property
+    @abstractmethod
+    def unlabeled_identifier(self):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def start_position(self) -> int:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def end_position(self) -> int:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def text(self):
+        raise NotImplementedError
+
+    @property
+    def tag(self):
+        return self.labels[0].value
+
+    @property
+    def score(self):
+        return self.labels[0].score
 
     def set_embedding(self, name: str, vector: torch.Tensor):
         self._embeddings[name] = vector
@@ -400,18 +435,6 @@ class DataPoint:
 
         return self.annotation_layers.get(typename, [])
 
-    @property
-    def labels(self) -> list[Label]:
-        all_labels = []
-        for key in self.annotation_layers:
-            all_labels.extend(self.annotation_layers[key])
-        return all_labels
-
-    @property
-    @abstractmethod
-    def unlabeled_identifier(self):
-        raise NotImplementedError
-
     def _printout_labels(self, main_label=None, add_score: bool = True, add_metadata: bool = True) -> str:
         all_labels = []
         keys = [main_label] if main_label is not None else self.annotation_layers.keys()
@@ -434,29 +457,6 @@ class DataPoint:
 
     def __str__(self) -> str:
         return self.unlabeled_identifier + self._printout_labels()
-
-    @property
-    @abstractmethod
-    def start_position(self) -> int:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def end_position(self) -> int:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def text(self):
-        raise NotImplementedError
-
-    @property
-    def tag(self):
-        return self.labels[0].value
-
-    @property
-    def score(self):
-        return self.labels[0].score
 
     def __lt__(self, other: "DataPoint"):
         return self.start_position < other.start_position
@@ -594,17 +594,6 @@ class Token(_PartOfSentence):
     def unlabeled_identifier(self) -> str:
         return f'Token[{self.idx - 1}]: "{self.text}"'
 
-    def add_tags_proba_dist(self, tag_type: str, tags: list[Label]) -> None:
-        self.tags_proba_dist[tag_type] = tags
-
-    def get_tags_proba_dist(self, tag_type: str) -> list[Label]:
-        if tag_type in self.tags_proba_dist:
-            return self.tags_proba_dist[tag_type]
-        return []
-
-    def get_head(self):
-        return self.sentence.get_token(self.head_id)
-
     @property
     def start_position(self) -> int:
         return self._start_position
@@ -620,6 +609,17 @@ class Token(_PartOfSentence):
     @property
     def embedding(self):
         return self.get_embedding()
+
+    def add_tags_proba_dist(self, tag_type: str, tags: list[Label]) -> None:
+        self.tags_proba_dist[tag_type] = tags
+
+    def get_tags_proba_dist(self, tag_type: str) -> list[Label]:
+        if tag_type in self.tags_proba_dist:
+            return self.tags_proba_dist[tag_type]
+        return []
+
+    def get_head(self):
+        return self.sentence.get_token(self.head_id)
 
     def __len__(self) -> int:
         return 1
@@ -696,6 +696,10 @@ class Span(_PartOfSentence):
     def unlabeled_identifier(self) -> str:
         return self._make_unlabeled_identifier(self.tokens)
 
+    @property
+    def embedding(self):
+        return self.get_embedding()
+
     def __repr__(self) -> str:
         return self.__str__()
 
@@ -707,10 +711,6 @@ class Span(_PartOfSentence):
 
     def __len__(self) -> int:
         return len(self.tokens)
-
-    @property
-    def embedding(self):
-        return self.get_embedding()
 
     def to_dict(self, tag_type: Optional[str] = None):
         return {
@@ -1302,7 +1302,6 @@ class Sentence(DataPoint):
 
         # delete labels at object itself first
         super().remove_labels(typename)
-
     def _is_tokenized(self) -> bool:
         return self._tokens is not None
 
@@ -1365,9 +1364,6 @@ class DataPair(DataPoint, typing.Generic[DT, DT2]):
     def embedding(self):
         return torch.cat([self.first.embedding, self.second.embedding])
 
-    def __len__(self) -> int:
-        return len(self.first) + len(self.second)
-
     @property
     def unlabeled_identifier(self):
         return f"DataPair: '{self.first.unlabeled_identifier}' + '{self.second.unlabeled_identifier}'"
@@ -1383,6 +1379,9 @@ class DataPair(DataPoint, typing.Generic[DT, DT2]):
     @property
     def text(self):
         return self.first.text + " || " + self.second.text
+
+    def __len__(self) -> int:
+        return len(self.first) + len(self.second)
 
 
 TextPair = DataPair[Sentence, Sentence]
@@ -1409,9 +1408,6 @@ class DataTriple(DataPoint, typing.Generic[DT, DT2, DT3]):
     def embedding(self):
         return torch.cat([self.first.embedding, self.second.embedding, self.third.embedding])
 
-    def __len__(self):
-        return len(self.first) + len(self.second) + len(self.third)
-
     @property
     def unlabeled_identifier(self):
         return f"DataTriple: '{self.first.unlabeled_identifier}' + '{self.second.unlabeled_identifier}' + '{self.third.unlabeled_identifier}'"
@@ -1427,6 +1423,9 @@ class DataTriple(DataPoint, typing.Generic[DT, DT2, DT3]):
     @property
     def text(self):
         return self.first.text + " || " + self.second.text + "||" + self.third.text
+
+    def __len__(self):
+        return len(self.first) + len(self.second) + len(self.third)
 
 
 TextTriple = DataTriple[Sentence, Sentence, Sentence]
@@ -1444,12 +1443,6 @@ class Image(DataPoint):
     def embedding(self):
         return self.get_embedding()
 
-    def __str__(self) -> str:
-        image_repr = self.data.size() if self.data else ""
-        image_url = self.imageURL if self.imageURL else ""
-
-        return f"Image: {image_repr} {image_url}"
-
     @property
     def start_position(self) -> int:
         raise NotImplementedError
@@ -1465,6 +1458,12 @@ class Image(DataPoint):
     @property
     def unlabeled_identifier(self) -> str:
         raise NotImplementedError
+
+    def __str__(self) -> str:
+        image_repr = self.data.size() if self.data else ""
+        image_url = self.imageURL if self.imageURL else ""
+
+        return f"Image: {image_repr} {image_url}"
 
 
 class Corpus(typing.Generic[T_co]):
@@ -2094,6 +2093,10 @@ class ConcatFlairDataset(Dataset):
             s += length_of_e
         return r
 
+    @property
+    def cummulative_sizes(self) -> list[int]:
+        return self.cumulative_sizes
+
     def __init__(self, datasets: Iterable[Dataset], ids: Iterable[str]) -> None:
         super().__init__()
         self.datasets = list(datasets)
@@ -2116,10 +2119,6 @@ class ConcatFlairDataset(Dataset):
         sentence = self.datasets[dataset_idx][sample_idx]
         sentence.set_label("multitask_id", self.ids[dataset_idx])
         return sentence
-
-    @property
-    def cummulative_sizes(self) -> list[int]:
-        return self.cumulative_sizes
 
 
 def randomly_split_into_two_datasets(
