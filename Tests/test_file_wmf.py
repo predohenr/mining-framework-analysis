@@ -36,13 +36,6 @@ def test_load() -> None:
             assert im.load()[0, 0] == (255, 255, 255)
 
 
-def test_load_zero_inch() -> None:
-    b = BytesIO(b"\xd7\xcd\xc6\x9a\x00\x00" + b"\x00" * 10)
-    with pytest.raises(ValueError):
-        with Image.open(b):
-            pass
-
-
 @pytest.mark.skipif(sys.maxsize <= 2**32, reason="Requires 64-bit system")
 def test_render() -> None:
     with open("Tests/images/drawing.emf", "rb") as fp:
@@ -51,6 +44,13 @@ def test_render() -> None:
     with Image.open(b) as im:
         if hasattr(Image.core, "drawwmf"):
             assert_image_equal_tofile(im, "Tests/images/drawing.emf")
+
+
+def test_load_zero_inch() -> None:
+    b = BytesIO(b"\xd7\xcd\xc6\x9a\x00\x00" + b"\x00" * 10)
+    with pytest.raises(ValueError):
+        with Image.open(b):
+            pass
 
 
 def test_register_handler(tmp_path: Path) -> None:
