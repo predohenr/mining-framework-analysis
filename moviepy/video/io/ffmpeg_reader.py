@@ -625,8 +625,6 @@ class FFmpegInfosParser:
                 self.result["video_size"] = stream_data.get("size", None)
                 self.result["video_bitrate"] = stream_data.get("bitrate", None)
                 self.result["video_fps"] = stream_data["fps"]
-                self.result["video_codec_name"] = stream_data.get("codec_name", None)
-                self.result["video_profile"] = stream_data.get("profile", None)
 
         # some video duration utilities
         if self.result["video_found"] and self.check_duration:
@@ -751,6 +749,12 @@ class FFmpegInfosParser:
             (codec_name, profile) = main_info_match.groups()
             stream_data["codec_name"] = codec_name
             stream_data["profile"] = profile
+
+        if self._current_stream["default"] or "video_codec_name" not in self.result:
+            global_data["video_codec_name"] = stream_data.get("codec_name", None)
+
+        if self._current_stream["default"] or "video_profile" not in self.result:
+            global_data["video_profile"] = stream_data.get("profile", None)
 
         return stream_data
 
