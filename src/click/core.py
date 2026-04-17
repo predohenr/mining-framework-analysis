@@ -451,43 +451,6 @@ class Context:
         )
         return self._protected_args
 
-    def to_info_dict(self) -> dict[str, t.Any]:
-        """Gather information that could be useful for a tool generating
-        user-facing documentation. This traverses the entire CLI
-        structure.
-
-        .. code-block:: python
-
-            with Context(cli) as ctx:
-                info = ctx.to_info_dict()
-
-        .. versionadded:: 8.0
-        """
-        return {
-            "command": self.command.to_info_dict(self),
-            "info_name": self.info_name,
-            "allow_extra_args": self.allow_extra_args,
-            "allow_interspersed_args": self.allow_interspersed_args,
-            "ignore_unknown_options": self.ignore_unknown_options,
-            "auto_envvar_prefix": self.auto_envvar_prefix,
-        }
-
-    def __enter__(self) -> Context:
-        self._depth += 1
-        push_context(self)
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        self._depth -= 1
-        if self._depth == 0:
-            self.close()
-        pop_context()
-
     @contextmanager
     def scope(self, cleanup: bool = True) -> cabc.Iterator[Context]:
         """This helper method can be used with the context object to promote
@@ -554,6 +517,80 @@ class Context:
         """
         return self._meta
 
+    @property
+    def command_path(self) -> str:
+        """The computed command path.  This is used for the ``usage``
+        information on the help page.  It's automatically created by
+        combining the info names of the chain of contexts to the root.
+        """
+        rv = ""
+        if self.info_name is not None:
+            rv = self.info_name
+        if self.parent is not None:
+            parent_command_path = [self.parent.command_path]
+
+            if isinstance(self.parent.command, Command):
+                for param in self.parent.command.get_params(self):
+                    parent_command_path.extend(param.get_usage_pieces(self))
+
+            rv = f"{' '.join(parent_command_path)} {rv}"
+        return rv.lstrip()
+
+    @t.overload
+    def lookup_default(
+        self, name: str, call: t.Literal[True] = True
+    ) -> t.Any | None: ...
+
+    @t.overload
+    def lookup_default(
+        self, name: str, call: t.Literal[False] = ...
+    ) -> t.Any | t.Callable[[], t.Any] | None: ...
+
+    @t.overload
+    def invoke(
+        self, callback: t.Callable[..., V], /, *args: t.Any, **kwargs: t.Any
+    ) -> V: ...
+
+    @t.overload
+    def invoke(self, callback: Command, /, *args: t.Any, **kwargs: t.Any) -> t.Any: ...
+
+    def to_info_dict(self) -> dict[str, t.Any]:
+        """Gather information that could be useful for a tool generating
+        user-facing documentation. This traverses the entire CLI
+        structure.
+
+        .. code-block:: python
+
+            with Context(cli) as ctx:
+                info = ctx.to_info_dict()
+
+        .. versionadded:: 8.0
+        """
+        return {
+            "command": self.command.to_info_dict(self),
+            "info_name": self.info_name,
+            "allow_extra_args": self.allow_extra_args,
+            "allow_interspersed_args": self.allow_interspersed_args,
+            "ignore_unknown_options": self.ignore_unknown_options,
+            "auto_envvar_prefix": self.auto_envvar_prefix,
+        }
+
+    def __enter__(self) -> Context:
+        self._depth += 1
+        push_context(self)
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self._depth -= 1
+        if self._depth == 0:
+            self.close()
+        pop_context()
+
     def make_formatter(self) -> HelpFormatter:
         """Creates the :class:`~click.HelpFormatter` for the help and
         usage output.
@@ -618,25 +655,6 @@ class Context:
         # In case the context is reused, create a new exit stack.
         self._exit_stack = ExitStack()
 
-    @property
-    def command_path(self) -> str:
-        """The computed command path.  This is used for the ``usage``
-        information on the help page.  It's automatically created by
-        combining the info names of the chain of contexts to the root.
-        """
-        rv = ""
-        if self.info_name is not None:
-            rv = self.info_name
-        if self.parent is not None:
-            parent_command_path = [self.parent.command_path]
-
-            if isinstance(self.parent.command, Command):
-                for param in self.parent.command.get_params(self):
-                    parent_command_path.extend(param.get_usage_pieces(self))
-
-            rv = f"{' '.join(parent_command_path)} {rv}"
-        return rv.lstrip()
-
     def find_root(self) -> Context:
         """Finds the outermost context."""
         node = self
@@ -664,16 +682,6 @@ class Context:
         if rv is None:
             self.obj = rv = object_type()
         return rv
-
-    @t.overload
-    def lookup_default(
-        self, name: str, call: t.Literal[True] = True
-    ) -> t.Any | None: ...
-
-    @t.overload
-    def lookup_default(
-        self, name: str, call: t.Literal[False] = ...
-    ) -> t.Any | t.Callable[[], t.Any] | None: ...
 
     def lookup_default(self, name: str, call: bool = True) -> t.Any | None:
         """Get the default for a parameter from :attr:`default_map`.
@@ -736,14 +744,6 @@ class Context:
         :meta private:
         """
         return type(self)(command, info_name=command.name, parent=self)
-
-    @t.overload
-    def invoke(
-        self, callback: t.Callable[..., V], /, *args: t.Any, **kwargs: t.Any
-    ) -> V: ...
-
-    @t.overload
-    def invoke(self, callback: Command, /, *args: t.Any, **kwargs: t.Any) -> t.Any: ...
 
     def invoke(
         self, callback: Command | t.Callable[..., V], /, *args: t.Any, **kwargs: t.Any
@@ -1594,6 +1594,14 @@ class Group(Command):
         self, *args: t.Any, **kwargs: t.Any
     ) -> t.Callable[[t.Callable[..., t.Any]], Command]: ...
 
+    @t.overload
+    def group(self, __func: t.Callable[..., t.Any]) -> Group: ...
+
+    @t.overload
+    def group(
+        self, *args: t.Any, **kwargs: t.Any
+    ) -> t.Callable[[t.Callable[..., t.Any]], Group]: ...
+
     def command(
         self, *args: t.Any, **kwargs: t.Any
     ) -> t.Callable[[t.Callable[..., t.Any]], Command] | Command:
@@ -1634,14 +1642,6 @@ class Group(Command):
             return decorator(func)
 
         return decorator
-
-    @t.overload
-    def group(self, __func: t.Callable[..., t.Any]) -> Group: ...
-
-    @t.overload
-    def group(
-        self, *args: t.Any, **kwargs: t.Any
-    ) -> t.Callable[[t.Callable[..., t.Any]], Group]: ...
 
     def group(
         self, *args: t.Any, **kwargs: t.Any
@@ -2205,6 +2205,16 @@ class Parameter:
         """
         return self.name  # type: ignore
 
+    @t.overload
+    def get_default(
+        self, ctx: Context, call: t.Literal[True] = True
+    ) -> t.Any | None: ...
+
+    @t.overload
+    def get_default(
+        self, ctx: Context, call: bool = ...
+    ) -> t.Any | t.Callable[[], t.Any] | None: ...
+
     def make_metavar(self, ctx: Context) -> str:
         if self.metavar is not None:
             return self.metavar
@@ -2218,16 +2228,6 @@ class Parameter:
             metavar += "..."
 
         return metavar
-
-    @t.overload
-    def get_default(
-        self, ctx: Context, call: t.Literal[True] = True
-    ) -> t.Any | None: ...
-
-    @t.overload
-    def get_default(
-        self, ctx: Context, call: bool = ...
-    ) -> t.Any | t.Callable[[], t.Any] | None: ...
 
     def get_default(
         self, ctx: Context, call: bool = True
