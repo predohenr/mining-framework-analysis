@@ -257,15 +257,9 @@ class ImmutBox:
   def ndim(self):
     return len(self.shape)
 
-def _is_zero(x):
-  return isinstance(x, ad.Zero)
-
-def _get_aval(x):
-  return x.aval if _is_zero(x) else core.typeof(x)
-
 def immutbox_to_aval(box: ImmutBox) -> 'ImmutBoxTy':
-  leaves, treedef = jax.tree.flatten(box._val, is_leaf=_is_zero)
-  leaf_avals = tuple(map(_get_aval, leaves))
+  leaves, treedef = jax.tree.flatten(box._val)
+  leaf_avals = tuple(map(core.typeof, leaves))
   return ImmutBoxTy(leaf_avals, treedef)
 
 @dataclass(frozen=True)
@@ -300,7 +294,7 @@ class ImmutBoxTy(HiType):
     return list(self.leaf_avals)
 
   def lower_val(self, hi_val: ImmutBox):
-    leaves, treedef = jax.tree.flatten(hi_val._val, is_leaf=_is_zero)
+    leaves, treedef = jax.tree.flatten(hi_val._val)
     assert treedef == self.treedef
     return leaves
 
@@ -348,15 +342,14 @@ class ImmutBoxNew(HiPrimitive):
 
   def transpose(self, out_bar, *leaves, leaf_avals, treedef):
     val = out_bar._val
-    leaves, _ = jax.tree.flatten(val, is_leaf=_is_zero)
+    leaves, _ = jax.tree.flatten(val)
     return leaves
 
 immutbox_new_p = ImmutBoxNew('immutbox_new')
 
 def immutbox_new(val):
-  leaves, treedef = jax.tree.flatten(val, is_leaf=_is_zero)
-  leaf_avals = tuple(map(_get_aval, leaves))
-  leaves = [ad.instantiate_zeros(leaf) for leaf in leaves]
+  leaves, treedef = jax.tree.flatten(val)
+  leaf_avals = tuple(map(core.typeof, leaves))
   return immutbox_new_p.bind(*leaves, leaf_avals=leaf_avals, treedef=treedef)
 
 class ImmutBoxGet(HiPrimitive):
@@ -370,7 +363,7 @@ class ImmutBoxGet(HiPrimitive):
     return list(leaf_avals), set()
 
   def to_lojax(self, box):
-    leaves, _ = jax.tree.flatten(box._val, is_leaf=_is_zero)
+    leaves, _ = jax.tree.flatten(box._val)
     return tuple(leaves)
 
   def jvp(self, primals, tangents):
