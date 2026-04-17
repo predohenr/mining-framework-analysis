@@ -1020,6 +1020,12 @@ def unbox_number_class(typ, val, c):
 def box_pyobject(typ, val, c):
     return val
 
+
+@box(types.Dispatcher)
+def box_pyobject(typ, val, c):
+    c.pyapi.incref(val)
+    return val
+
 @unbox(types.PyObject)
 @unbox(types.Object)
 def unbox_pyobject(typ, obj, c):
@@ -1070,12 +1076,6 @@ def unbox_deferred(typ, obj, c):
 def unbox_dispatcher(typ, obj, c):
     # In native code, Dispatcher types can be casted to FunctionType.
     return NativeValue(obj)
-
-
-@box(types.Dispatcher)
-def box_pyobject(typ, val, c):
-    c.pyapi.incref(val)
-    return val
 
 
 def unbox_unsupported(typ, obj, c):
