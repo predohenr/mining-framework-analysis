@@ -235,9 +235,6 @@ def test_load_invalid_input_type(val):
         Sch().load(val)
     assert e.value.messages == {"_schema": ["Invalid input type."]}
     assert e.value.valid_data == {}
-
-
-# regression test for https://github.com/marshmallow-code/marshmallow/issues/906
 @pytest.mark.parametrize("val", (None, False, 1, 1.2, object(), {}, {"1": 2}, "lol"))
 def test_load_many_invalid_input_type(val):
     class Sch(Schema):
@@ -285,6 +282,85 @@ def test_load_many_in_nested_empty_collection(val):
         list2 = fields.Nested(Inner, many=True)
 
     assert Outer().load({"list1": val, "list2": val}) == {"list1": [], "list2": []}
+
+
+@pytest.mark.parametrize("data_key", ("f1", "f5", None))
+def test_data_key_collision(data_key):
+    class MySchema(Schema):
+        f1 = fields.Raw()
+        f2 = fields.Raw(data_key=data_key)
+        f3 = fields.Raw(data_key="f5")
+        f4 = fields.Raw(data_key="f1", load_only=True)
+
+    if data_key is None:
+        MySchema()
+    else:
+        with pytest.raises(ValueError, match=data_key):
+            MySchema()
+
+
+@pytest.mark.parametrize("attribute", ("f1", "f5", None))
+def test_attribute_collision(attribute):
+    class MySchema(Schema):
+        f1 = fields.Raw()
+        f2 = fields.Raw(attribute=attribute)
+        f3 = fields.Raw(attribute="f5")
+        f4 = fields.Raw(attribute="f1", dump_only=True)
+
+    if attribute is None:
+        MySchema()
+    else:
+        with pytest.raises(ValueError, match=attribute):
+            MySchema()
+
+
+@pytest.mark.parametrize("param", ("only", "exclude"))
+def test_only_and_exclude_as_string(param):
+    class MySchema(Schema):
+        foo = fields.Raw()
+
+    with pytest.raises(StringNotCollectionError):
+        MySchema(**{param: "foo"})
+
+
+@pytest.mark.parametrize("usage_location", ["meta", "init", "load"])
+def test_unknown_parameter_value_is_validated(usage_location):
+    class MySchema(Schema):
+        foo = fields.String()
+
+    with pytest.raises(
+        ValueError,
+        match="Object 'badval' is not a valid value for the 'unknown' parameter",
+    ):
+        # Meta.unknown setting gets caught at class creation time, since that's when
+        # metaclass __new__ runs
+        if usage_location == "meta":
+
+            class SubSchema(MySchema):
+                class Meta:
+                    unknown = "badval"
+
+        # usages in init and load are caught at call time, as expected
+        elif usage_location == "init":
+            MySchema(unknown="badval")
+        else:
+            MySchema().load({"foo": "bar"}, unknown="badval")
+
+
+@pytest.mark.parametrize("dict_cls", (dict, OrderedDict))
+def test_set_dict_class(dict_cls):
+    """Demonstrate how to specify dict_class as class attribute"""
+
+    class MySchema(Schema):
+        dict_class = dict_cls
+        foo = fields.String()
+
+    result = MySchema().dump({"foo": "bar"})
+    assert result == {"foo": "bar"}
+    assert isinstance(result, dict_cls)
+
+
+# regression test for https://github.com/marshmallow-code/marshmallow/issues/906
 
 
 def test_loads_returns_a_user():
@@ -1220,36 +1296,6 @@ def test_nested_lambda():
     }
 
 
-@pytest.mark.parametrize("data_key", ("f1", "f5", None))
-def test_data_key_collision(data_key):
-    class MySchema(Schema):
-        f1 = fields.Raw()
-        f2 = fields.Raw(data_key=data_key)
-        f3 = fields.Raw(data_key="f5")
-        f4 = fields.Raw(data_key="f1", load_only=True)
-
-    if data_key is None:
-        MySchema()
-    else:
-        with pytest.raises(ValueError, match=data_key):
-            MySchema()
-
-
-@pytest.mark.parametrize("attribute", ("f1", "f5", None))
-def test_attribute_collision(attribute):
-    class MySchema(Schema):
-        f1 = fields.Raw()
-        f2 = fields.Raw(attribute=attribute)
-        f3 = fields.Raw(attribute="f5")
-        f4 = fields.Raw(attribute="f1", dump_only=True)
-
-    if attribute is None:
-        MySchema()
-    else:
-        with pytest.raises(ValueError, match=attribute):
-            MySchema()
-
-
 class TestDeeplyNestedLoadOnly:
     @pytest.fixture()
     def schema(self):
@@ -1479,15 +1525,6 @@ def test_only_empty():
 
     sch = MySchema(only=())
     assert "foo" not in sch.dump({"foo": "bar"})
-
-
-@pytest.mark.parametrize("param", ("only", "exclude"))
-def test_only_and_exclude_as_string(param):
-    class MySchema(Schema):
-        foo = fields.Raw()
-
-    with pytest.raises(StringNotCollectionError):
-        MySchema(**{param: "foo"})
 
 
 def test_nested_with_sets():
@@ -1773,6 +1810,26 @@ class TestNestedSchema:
         )
         return blog
 
+    @pytest.mark.parametrize("unknown", (None, RAISE, INCLUDE, EXCLUDE))
+    def test_nested_unknown_validation(self, unknown):
+        class ChildSchema(Schema):
+            num = fields.Int()
+
+        class ParentSchema(Schema):
+            child = fields.Nested(ChildSchema, unknown=unknown)
+
+        data = {"child": {"num": 1, "extra": 1}}
+        if unknown is None or unknown == RAISE:
+            with pytest.raises(ValidationError) as exc:
+                ParentSchema().load(data)
+                assert exc.messages == {"child": {"extra": ["Unknown field."]}}
+        else:
+            output = {
+                INCLUDE: {"child": {"num": 1, "extra": 1}},
+                EXCLUDE: {"child": {"num": 1}},
+            }[unknown]
+            assert ParentSchema().load(data) == output
+
     # regression test for https://github.com/marshmallow-code/marshmallow/issues/64
     def test_nested_many_with_missing_attribute(self, user):
         class SimpleBlogSchema(Schema):
@@ -1938,26 +1995,6 @@ class TestNestedSchema:
         errors = excinfo.value.messages
         assert "inner" in errors
         assert "_schema" in errors["inner"]
-
-    @pytest.mark.parametrize("unknown", (None, RAISE, INCLUDE, EXCLUDE))
-    def test_nested_unknown_validation(self, unknown):
-        class ChildSchema(Schema):
-            num = fields.Int()
-
-        class ParentSchema(Schema):
-            child = fields.Nested(ChildSchema, unknown=unknown)
-
-        data = {"child": {"num": 1, "extra": 1}}
-        if unknown is None or unknown == RAISE:
-            with pytest.raises(ValidationError) as exc:
-                ParentSchema().load(data)
-                assert exc.messages == {"child": {"extra": ["Unknown field."]}}
-        else:
-            output = {
-                INCLUDE: {"child": {"num": 1, "extra": 1}},
-                EXCLUDE: {"child": {"num": 1}},
-            }[unknown]
-            assert ParentSchema().load(data) == output
 
 
 class TestPluckSchema:
@@ -2152,6 +2189,145 @@ def test_deserialization_with_required_field_and_custom_validator():
     errors = excinfo.value.messages
     assert "color" in errors
     assert "Color must be red or blue" in errors["color"]
+
+
+class TestContext:
+    def test_context_method(self):
+        owner = User("Joe")
+        blog = Blog(title="Joe Blog", user=owner)
+        context = {"blog": blog}
+        serializer = UserContextSchema()
+        serializer.context = context
+        data = serializer.dump(owner)
+        assert data["is_owner"] is True
+        nonowner = User("Fred")
+        data = serializer.dump(nonowner)
+        assert data["is_owner"] is False
+
+    def test_context_method_function(self):
+        owner = User("Fred")
+        blog = Blog("Killer Queen", user=owner)
+        collab = User("Brian")
+        blog.collaborators.append(collab)
+        context = {"blog": blog}
+        serializer = UserContextSchema()
+        serializer.context = context
+        data = serializer.dump(collab)
+        assert data["is_collab"] is True
+        noncollab = User("Foo")
+        data = serializer.dump(noncollab)
+        assert data["is_collab"] is False
+
+    def test_function_field_raises_error_when_context_not_available(self):
+        # only has a function field
+        class UserFunctionContextSchema(Schema):
+            is_collab = fields.Function(lambda user, ctx: user in ctx["blog"])
+
+        owner = User("Joe")
+        serializer = UserFunctionContextSchema()
+        # no context
+        serializer.context = None
+        msg = "No context available for Function field {!r}".format("is_collab")
+        with pytest.raises(ValidationError, match=msg):
+            serializer.dump(owner)
+
+    def test_function_field_handles_bound_serializer(self):
+        class SerializeA:
+            def __call__(self, value):
+                return "value"
+
+        serialize = SerializeA()
+
+        # only has a function field
+        class UserFunctionContextSchema(Schema):
+            is_collab = fields.Function(serialize)
+
+        owner = User("Joe")
+        serializer = UserFunctionContextSchema()
+        # no context
+        serializer.context = None
+        data = serializer.dump(owner)
+        assert data["is_collab"] == "value"
+
+    def test_fields_context(self):
+        class CSchema(Schema):
+            name = fields.String()
+
+        ser = CSchema()
+        ser.context["foo"] = 42
+
+        assert ser.fields["name"].context == {"foo": 42}
+
+    def test_nested_fields_inherit_context(self):
+        class InnerSchema(Schema):
+            likes_bikes = fields.Function(lambda obj, ctx: "bikes" in ctx["info"])
+
+        class CSchema(Schema):
+            inner = fields.Nested(InnerSchema)
+
+        ser = CSchema()
+        ser.context["info"] = "i like bikes"
+        obj = {"inner": {}}
+        result = ser.dump(obj)
+        assert result["inner"]["likes_bikes"] is True
+
+    # Regression test for https://github.com/marshmallow-code/marshmallow/issues/820
+    def test_nested_list_fields_inherit_context(self):
+        class InnerSchema(Schema):
+            foo = fields.Raw()
+
+            @validates("foo")
+            def validate_foo(self, value):
+                if "foo_context" not in self.context:
+                    raise ValidationError("Missing context")
+
+        class OuterSchema(Schema):
+            bars = fields.List(fields.Nested(InnerSchema()))
+
+        inner = InnerSchema()
+        inner.context["foo_context"] = "foo"
+        assert inner.load({"foo": 42})
+
+        outer = OuterSchema()
+        outer.context["foo_context"] = "foo"
+        assert outer.load({"bars": [{"foo": 42}]})
+
+    # Regression test for https://github.com/marshmallow-code/marshmallow/issues/820
+    def test_nested_dict_fields_inherit_context(self):
+        class InnerSchema(Schema):
+            foo = fields.Raw()
+
+            @validates("foo")
+            def validate_foo(self, value):
+                if "foo_context" not in self.context:
+                    raise ValidationError("Missing context")
+
+        class OuterSchema(Schema):
+            bars = fields.Dict(values=fields.Nested(InnerSchema()))
+
+        inner = InnerSchema()
+        inner.context["foo_context"] = "foo"
+        assert inner.load({"foo": 42})
+
+        outer = OuterSchema()
+        outer.context["foo_context"] = "foo"
+        assert outer.load({"bars": {"test": {"foo": 42}}})
+
+    # Regression test for https://github.com/marshmallow-code/marshmallow/issues/1404
+    def test_nested_field_with_unpicklable_object_in_context(self):
+        class Unpicklable:
+            def __deepcopy__(self, _):
+                raise NotImplementedError
+
+        class InnerSchema(Schema):
+            foo = fields.Raw()
+
+        class OuterSchema(Schema):
+            inner = fields.Nested(InnerSchema(context={"unp": Unpicklable()}))
+
+        outer = OuterSchema()
+        obj = {"inner": {"foo": 42}}
+        assert outer.dump(obj)
 
 
 def test_serializer_can_specify_nested_object_as_attribute(blog):
@@ -2483,40 +2659,3 @@ def test_class_registry_returns_schema_type():
 
     SchemaClass = class_registry.get_class(DefinitelyUniqueSchema.__name__)
     assert SchemaClass is DefinitelyUniqueSchema
-
-
-@pytest.mark.parametrize("usage_location", ["meta", "init", "load"])
-def test_unknown_parameter_value_is_validated(usage_location):
-    class MySchema(Schema):
-        foo = fields.String()
-
-    with pytest.raises(
-        ValueError,
-        match="Object 'badval' is not a valid value for the 'unknown' parameter",
-    ):
-        # Meta.unknown setting gets caught at class creation time, since that's when
-        # metaclass __new__ runs
-        if usage_location == "meta":
-
-            class SubSchema(MySchema):
-                class Meta:
-                    unknown = "badval"
-
-        # usages in init and load are caught at call time, as expected
-        elif usage_location == "init":
-            MySchema(unknown="badval")
-        else:
-            MySchema().load({"foo": "bar"}, unknown="badval")
-
-
-@pytest.mark.parametrize("dict_cls", (dict, OrderedDict))
-def test_set_dict_class(dict_cls):
-    """Demonstrate how to specify dict_class as class attribute"""
-
-    class MySchema(Schema):
-        dict_class = dict_cls
-        foo = fields.String()
-
-    result = MySchema().dump({"foo": "bar"})
-    assert result == {"foo": "bar"}
-    assert isinstance(result, dict_cls)
