@@ -5,7 +5,7 @@ import json
 import unittest.mock
 from io import StringIO
 from pathlib import Path
-from typing import AsyncIterator, Iterator, List, Optional, TextIO, Union
+from typing import Iterator, List, AsyncIterator, Optional, TextIO, Union
 
 import pytest
 from multidict import CIMultiDict
