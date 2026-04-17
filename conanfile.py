@@ -676,7 +676,8 @@ class CuraConan(ConanFile):
         copy(self, "*.mo", os.path.join(self.build_folder, "resources"), os.path.join(self.package_folder, "resources"))
         copy(self, "*", src = os.path.join(self.source_folder, "plugins"), dst = os.path.join(self.package_folder, self.cpp.package.resdirs[1]))
         copy(self, "*", src = os.path.join(self.source_folder, "packaging"), dst = os.path.join(self.package_folder, self.cpp.package.resdirs[2]))
-        copy(self, "pip_requirements_*.txt", src = self.generators_folder, dst = os.path.join(self.package_folder, self.cpp.package.resdirs[-1]))
+        copy(self, "pip_requirements_*.txt", src=self.generators_folder,
+             dst=os.path.join(self.package_folder, self.cpp.package.resdirs[-1]))
         copy(self, "pip_requirements_summary.yml", src = self.generators_folder, dst = os.path.join(self.package_folder, self.cpp.package.resdirs[-1]))
 
         # Remove the fdm_materials from the package
