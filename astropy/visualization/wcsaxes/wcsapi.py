@@ -402,6 +402,9 @@ class WCSPixel2WorldTransform(CurvedTransform):
 
     has_inverse = True
 
+    def __hash__(self):
+        return hash((type(self), self.wcs, self.invert_xy))
+
     def __init__(self, wcs, invert_xy=False):
         super().__init__()
 
@@ -413,9 +416,6 @@ class WCSPixel2WorldTransform(CurvedTransform):
 
         self.frame_out = wcsapi_to_celestial_frame(wcs)
         self.units_out = wcs.world_axis_units
-
-    def __hash__(self):
-        return hash((type(self), self.wcs, self.invert_xy))
 
     def __eq__(self, other):
         return (
