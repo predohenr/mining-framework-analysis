@@ -3008,6 +3008,18 @@ def combinedLogFormatter(timestamp, request):
     return line
 
 
+@provider(IAccessLogFormatter)
+def proxiedLogFormatter(timestamp, request):
+    """
+    @return: A combined log formatted log line for the given request but use
+        the value of the I{X-Forwarded-For} header as the value for the client
+        IP address.
+
+    @see: L{IAccessLogFormatter}
+    """
+    return combinedLogFormatter(timestamp, _XForwardedForRequest(request))
+
+
 @implementer(interfaces.IAddress)
 class _XForwardedForAddress:
     """
@@ -3070,18 +3082,6 @@ class _XForwardedForRequest(proxyForInterface(IRequest, "_request")):  # type: i
         @rtype: L{int}
         """
         return self._request.sentLength
-
-
-@provider(IAccessLogFormatter)
-def proxiedLogFormatter(timestamp, request):
-    """
-    @return: A combined log formatted log line for the given request but use
-        the value of the I{X-Forwarded-For} header as the value for the client
-        IP address.
-
-    @see: L{IAccessLogFormatter}
-    """
-    return combinedLogFormatter(timestamp, _XForwardedForRequest(request))
 
 
 class _GenericHTTPChannelProtocol(proxyForInterface(IProtocol, "_channel")):  # type: ignore[misc]
