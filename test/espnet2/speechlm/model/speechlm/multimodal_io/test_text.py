@@ -68,6 +68,7 @@ class TestHuggingFaceTextIO:
         assert length > 0
 
     def test_decode_batch(self, text_io):
+        
         tokens_1stream = torch.tensor([[[1], [2], [3]],
                                        [[4], [5], [0]]])
         lengths = torch.tensor([3, 2])
