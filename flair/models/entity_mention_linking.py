@@ -512,6 +512,22 @@ class SemanticCandidateSearchIndex(CandidateSearchIndex):
             hybrid_search=hybrid_search,
         )
 
+    @classmethod
+    def _from_state(cls, state_dict: dict[str, Any]) -> "SemanticCandidateSearchIndex":
+        index = cls(
+            embeddings=cast(
+                dict[str, DocumentEmbeddings], {k: load_embeddings(emb) for k, emb in state_dict["embeddings"].items()}
+            ),
+            similarity_metric=SimilarityMetric(state_dict["similarity_metric"]),
+            sparse_weight=state_dict["sparse_weight"],
+            batch_size=state_dict["batch_size"],
+            hybrid_search=state_dict["hybrid_search"],
+            show_progress=state_dict["show_progress"],
+        )
+        index.ids = state_dict["ids"]
+        index._precomputed_embeddings = state_dict["precomputed_embeddings"]
+        return index
+
     def index(self, dictionary: EntityLinkingDictionary, preprocessor: Optional[EntityPreprocessor] = None) -> None:
         def p(text: str) -> str:
             return preprocessor.process_entity_name(text) if preprocessor is not None else text
@@ -634,22 +650,6 @@ class SemanticCandidateSearchIndex(CandidateSearchIndex):
 
         return results
 
-    @classmethod
-    def _from_state(cls, state_dict: dict[str, Any]) -> "SemanticCandidateSearchIndex":
-        index = cls(
-            embeddings=cast(
-                dict[str, DocumentEmbeddings], {k: load_embeddings(emb) for k, emb in state_dict["embeddings"].items()}
-            ),
-            similarity_metric=SimilarityMetric(state_dict["similarity_metric"]),
-            sparse_weight=state_dict["sparse_weight"],
-            batch_size=state_dict["batch_size"],
-            hybrid_search=state_dict["hybrid_search"],
-            show_progress=state_dict["show_progress"],
-        )
-        index.ids = state_dict["ids"]
-        index._precomputed_embeddings = state_dict["precomputed_embeddings"]
-        return index
-
     def _get_state(self) -> dict[str, Any]:
         return {
             **super()._get_state(),
@@ -729,105 +729,6 @@ class EntityMentionLinker(flair.nn.Model[Sentence]):
     def dictionary(self) -> EntityLinkingDictionary:
         return self._dictionary
 
-    def extract_entities_mentions(self, sentence: Sentence, entity_label_types: dict[str, set[str]]) -> list[Label]:
-        """Extract tagged mentions from sentences."""
-        entities_mentions: list[Label] = []
-
-        # NOTE: This is a hacky workaround for the fact that
-        # the `label_type`s in `Classifier.load('hunflair)` are
-        # 'diseases', 'genes', 'species', 'chemical' instead of 'ner'.
-        # We warn users once they need to update SequenceTagger model
-        # See: https://github.com/flairNLP/flair/pull/3387
-        if any(label in ["diseases", "genes", "species", "chemical"] for label in sentence.annotation_layers):
-            if not self._warned_legacy_sequence_tagger:
-                logger.warning(
-                    "It appears that the sentences have been annotated with HunFlair (version 1). "
-                    "Consider using HunFlair2 for improved extraction performance: Classifier.load('hunflair2')."
-                    "See https://github.com/flairNLP/flair/blob/master/resources/docs/HUNFLAIR2.md for further "
-                    "information."
-                )
-                self._warned_legacy_sequence_tagger = True
-
-            entity_types = {e for sublist in entity_label_types.values() for e in sublist}
-            entities_mentions = [
-                label for label in sentence.get_labels() if normalize_entity_type(label.value) in entity_types
-            ]
-        else:
-            for label_type, entity_types in entity_label_types.items():
-                labels = sentence.get_labels(label_type)
-                if len(entity_types) > 0:
-                    labels = [label for label in labels if normalize_entity_type(label.value) in entity_types]
-                entities_mentions.extend(labels)
-
-        return entities_mentions
-
-    def predict(
-        self,
-        sentences: Union[list[Sentence], Sentence],
-        top_k: int = 1,
-        pred_label_type: Optional[str] = None,
-        entity_label_types: Optional[Union[str, Sequence[str], dict[str, set[str]]]] = None,
-        batch_size: Optional[int] = None,
-    ) -> None:
-        """Predicts the best matching top-k entity / concept identifiers of all named entities annotated with tag input_entity_annotation_layer.
-
-        Args:
-            sentences: One or more sentences to run the prediction on
-            top_k: Number of best-matching entity / concept identifiers
-            entity_label_types: A label type or sequence of label types of the required entities.
-                                You can also specify a label filter in a dictionary with the label type as key and the valid entity labels as values in a set.
-                                E.g. to use only 'disease' and 'chemical' labels from a NER-tagger: `{'ner': {'disease', 'chemical'}}`.
-                                To use all labels from 'ner', pass 'ner'
-            pred_label_type: The label under which the predictions of the linker should be stored
-            batch_size: Batch size to encode mentions/dictionary names
-        """
-        # make sure sentences is a list of sentences
-        if not isinstance(sentences, list):
-            sentences = [sentences]
-        if batch_size is None:
-            batch_size = self.batch_size
-
-        # Make sure entity label types are represented as dict
-        entity_label_types = (
-            self.get_entity_label_types(entity_label_types)
-            if entity_label_types is not None
-            else self.entity_label_types
-        )
-
-        pred_label_type = pred_label_type if pred_label_type is not None else self.label_type
-
-        if self.preprocessor is not None:
-            self.preprocessor.initialize(sentences)
-
-        data_points = []
-        mentions = []
-
-        for sentence in sentences:
-            # Collect all entities based on entity type labels configuration
-            entities_mentions = self.extract_entities_mentions(sentence, entity_label_types)
-
-            # Preprocess entity mentions
-            for entity in entities_mentions:
-                data_points.append(entity.data_point)
-                mentions.append(
-                    (
-                        self.preprocessor.process_mention(entity.data_point.text, sentence)
-                        if self.preprocessor is not None
-                        else entity.data_point.text
-                    ),
-                )
-
-        # Retrieve top-k concept / entity candidates
-        for i in range(0, len(mentions), batch_size):
-            candidates = self.candidate_generator.search(entity_mentions=mentions[i : i + batch_size], top_k=top_k)
-
-            # Add a label annotation for each candidate
-            for data_point, mention_candidates in zip(data_points[i : i + batch_size], candidates):
-                for candidate_id, confidence in mention_candidates:
-                    data_point.add_label(
-                        pred_label_type, candidate_id, confidence, name=self.dictionary[candidate_id].concept_name
-                    )
-
     @staticmethod
     def _fetch_model(model_identifier: str) -> str:
         if Path(model_identifier).exists():
@@ -868,18 +769,6 @@ class EntityMentionLinker(flair.nn.Model[Sentence]):
         dictionary = InMemoryEntityLinkingDictionary.from_state(state["dictionary"])
         batch_size = state.get("batch_size", 128)
         return cls(candidate_generator, preprocessor, entity_label_types, label_type, dictionary, batch_size=batch_size)
-
-    def _get_state_dict(self):
-        """Returns the state dictionary for this model."""
-        return {
-            **super()._get_state_dict(),
-            "label_type": self.label_type,
-            "entity_label_types": self.entity_label_types,
-            "entity_preprocessor": self.preprocessor._get_state(),
-            "candidate_search_index": self.candidate_generator._get_state(),
-            "dictionary": self.dictionary.to_in_memory_dictionary().to_state(),
-            "batch_size": self.batch_size,
-        }
 
     @classmethod
     def build(
@@ -1040,14 +929,125 @@ class EntityMentionLinker(flair.nn.Model[Sentence]):
 
         return dictionary_name_or_path
 
-    def forward_loss(self, data_points: list[DT]) -> tuple[torch.Tensor, int]:
-        raise NotImplementedError("The EntityLinker cannot be trained")
-
     @classmethod
     def load(cls, model_path: Union[str, Path, dict[str, Any]]) -> "EntityMentionLinker":
         from typing import cast
 
         return cast("EntityMentionLinker", super().load(model_path=model_path))
+
+    def extract_entities_mentions(self, sentence: Sentence, entity_label_types: dict[str, set[str]]) -> list[Label]:
+        """Extract tagged mentions from sentences."""
+        entities_mentions: list[Label] = []
+
+        # NOTE: This is a hacky workaround for the fact that
+        # the `label_type`s in `Classifier.load('hunflair)` are
+        # 'diseases', 'genes', 'species', 'chemical' instead of 'ner'.
+        # We warn users once they need to update SequenceTagger model
+        # See: https://github.com/flairNLP/flair/pull/3387
+        if any(label in ["diseases", "genes", "species", "chemical"] for label in sentence.annotation_layers):
+            if not self._warned_legacy_sequence_tagger:
+                logger.warning(
+                    "It appears that the sentences have been annotated with HunFlair (version 1). "
+                    "Consider using HunFlair2 for improved extraction performance: Classifier.load('hunflair2')."
+                    "See https://github.com/flairNLP/flair/blob/master/resources/docs/HUNFLAIR2.md for further "
+                    "information."
+                )
+                self._warned_legacy_sequence_tagger = True
+
+            entity_types = {e for sublist in entity_label_types.values() for e in sublist}
+            entities_mentions = [
+                label for label in sentence.get_labels() if normalize_entity_type(label.value) in entity_types
+            ]
+        else:
+            for label_type, entity_types in entity_label_types.items():
+                labels = sentence.get_labels(label_type)
+                if len(entity_types) > 0:
+                    labels = [label for label in labels if normalize_entity_type(label.value) in entity_types]
+                entities_mentions.extend(labels)
+
+        return entities_mentions
+
+    def predict(
+        self,
+        sentences: Union[list[Sentence], Sentence],
+        top_k: int = 1,
+        pred_label_type: Optional[str] = None,
+        entity_label_types: Optional[Union[str, Sequence[str], dict[str, set[str]]]] = None,
+        batch_size: Optional[int] = None,
+    ) -> None:
+        """Predicts the best matching top-k entity / concept identifiers of all named entities annotated with tag input_entity_annotation_layer.
+
+        Args:
+            sentences: One or more sentences to run the prediction on
+            top_k: Number of best-matching entity / concept identifiers
+            entity_label_types: A label type or sequence of label types of the required entities.
+                                You can also specify a label filter in a dictionary with the label type as key and the valid entity labels as values in a set.
+                                E.g. to use only 'disease' and 'chemical' labels from a NER-tagger: `{'ner': {'disease', 'chemical'}}`.
+                                To use all labels from 'ner', pass 'ner'
+            pred_label_type: The label under which the predictions of the linker should be stored
+            batch_size: Batch size to encode mentions/dictionary names
+        """
+        # make sure sentences is a list of sentences
+        if not isinstance(sentences, list):
+            sentences = [sentences]
+        if batch_size is None:
+            batch_size = self.batch_size
+
+        # Make sure entity label types are represented as dict
+        entity_label_types = (
+            self.get_entity_label_types(entity_label_types)
+            if entity_label_types is not None
+            else self.entity_label_types
+        )
+
+        pred_label_type = pred_label_type if pred_label_type is not None else self.label_type
+
+        if self.preprocessor is not None:
+            self.preprocessor.initialize(sentences)
+
+        data_points = []
+        mentions = []
+
+        for sentence in sentences:
+            # Collect all entities based on entity type labels configuration
+            entities_mentions = self.extract_entities_mentions(sentence, entity_label_types)
+
+            # Preprocess entity mentions
+            for entity in entities_mentions:
+                data_points.append(entity.data_point)
+                mentions.append(
+                    (
+                        self.preprocessor.process_mention(entity.data_point.text, sentence)
+                        if self.preprocessor is not None
+                        else entity.data_point.text
+                    ),
+                )
+
+        # Retrieve top-k concept / entity candidates
+        for i in range(0, len(mentions), batch_size):
+            candidates = self.candidate_generator.search(entity_mentions=mentions[i : i + batch_size], top_k=top_k)
+
+            # Add a label annotation for each candidate
+            for data_point, mention_candidates in zip(data_points[i : i + batch_size], candidates):
+                for candidate_id, confidence in mention_candidates:
+                    data_point.add_label(
+                        pred_label_type, candidate_id, confidence, name=self.dictionary[candidate_id].concept_name
+                    )
+
+    def _get_state_dict(self):
+        """Returns the state dictionary for this model."""
+        return {
+            **super()._get_state_dict(),
+            "label_type": self.label_type,
+            "entity_label_types": self.entity_label_types,
+            "entity_preprocessor": self.preprocessor._get_state(),
+            "candidate_search_index": self.candidate_generator._get_state(),
+            "dictionary": self.dictionary.to_in_memory_dictionary().to_state(),
+            "batch_size": self.batch_size,
+        }
+
+    def forward_loss(self, data_points: list[DT]) -> tuple[torch.Tensor, int]:
+        raise NotImplementedError("The EntityLinker cannot be trained")
 
     def evaluate(
         self,
