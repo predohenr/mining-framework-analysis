@@ -6,8 +6,8 @@ import weakref
 import threading
 import contextlib
 import operator
-
 from numba.core import types, errors, config
+import numba
 from numba.core.typeconv import Conversion, rules
 from numba.core.typing import templates
 from numba.core.utils import order_by_target_specificity
