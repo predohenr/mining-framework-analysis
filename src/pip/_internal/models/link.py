@@ -16,8 +16,8 @@ from typing import (
     NamedTuple,
 )
 
-from pip._internal.exceptions import InvalidEggFragment
 from pip._internal.utils.datetime import parse_iso_datetime
+from pip._internal.exceptions import InvalidEggFragment
 from pip._internal.utils.filetypes import WHEEL_EXTENSION
 from pip._internal.utils.hashes import Hashes
 from pip._internal.utils.misc import (
