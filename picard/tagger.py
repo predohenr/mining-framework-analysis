@@ -102,10 +102,8 @@ from picard.const import (
     BROWSER_INTEGRATION_LOCALHOST,
     USER_DIR,
 )
-from picard.const.appdirs import (
-    plugin_folder,
-    sessions_folder,
-)
+from picard.const.appdirs import plugin_folder
+from picard.const.appdirs import sessions_folder
 from picard.const.sys import (
     FROZEN_TEMP_PATH,
     IS_FROZEN,
