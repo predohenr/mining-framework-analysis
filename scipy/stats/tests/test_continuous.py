@@ -1113,7 +1113,7 @@ class TestMakeDistribution:
                 'johnsonsb', 'kappa4', 'ksone', 'kstwo', 'kstwobign', 'norminvgauss',
                 'powerlognorm', 'powernorm', 'recipinvgauss', 'studentized_range',
                 'vonmises_line', # continuous
-                'logser', 'skellam', 'zipf'}  # discrete
+                'skellam'}  # discrete
         if not int(os.environ.get('SCIPY_XSLOW', '0')) and distname in slow:
             pytest.skip('Skipping as XSLOW')
 
@@ -1122,8 +1122,6 @@ class TestMakeDistribution:
             'vonmises',               # circular distribution; shouldn't work
             'poisson_binom',          # vector shape parameter
             'hypergeom',              # distribution functions need interpolation
-            'nchypergeom_fisher',     # distribution functions need interpolation
-            'nchypergeom_wallenius',  # distribution functions need interpolation
         }:
             return
 
@@ -1138,7 +1136,9 @@ class TestMakeDistribution:
         skip_raw = {2: {'alpha', 'foldcauchy', 'halfcauchy', 'levy', 'levy_l'},
                     3: {'pareto'},  # stats.pareto is just wrong
                     4: {'invgamma'}}  # tolerance issue
-        skip_standardized = {'exponpow', 'ksone'}  # tolerances
+        skip_standardized = {'exponpow', 'ksone', 'nchypergeom_wallenius'}  # tolerances
+        skip_median = {'nhypergeom', 'yulesimon',  # nan mismatch
+                       'betanbinom', 'zipf', 'logser'}  # median 0th element
 
         dist = getattr(stats, distname)
         params = dict(zip(dist.shapes.split(', '), distdata[1])) if dist.shapes else {}
