@@ -7,7 +7,7 @@ from weakref import WeakKeyDictionary
 
 from PyQt6.QtCore import QRect, pyqtSignal, Qt, QPoint
 from PyQt6.QtGui import QImage, QUndoStack, QPainter, QColor, QPainterPath, QBrush, QPen
-from typing import Optional, Tuple, Dict, List
+from typing import Optional, Tuple, Dict
 
 from UM.Logger import Logger
 from UM.Scene.SceneNode import SceneNode
