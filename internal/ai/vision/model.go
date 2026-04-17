@@ -20,7 +20,7 @@ type Model struct {
 	Type          ModelType             `yaml:"Type,omitempty" json:"type,omitempty"`
 	Name          string                `yaml:"Name,omitempty" json:"name,omitempty"`
 	Version       string                `yaml:"Version,omitempty" json:"version,omitempty"`
-	Prompt        string                `yaml:"Prompt,omitempty" json:"prompt,omitempty"`
+	Prompt        string    `yaml:"Prompt,omitempty" json:"prompt,omitempty"`
 	Resolution    int                   `yaml:"Resolution,omitempty" json:"resolution,omitempty"`
 	Meta          *tensorflow.ModelInfo `yaml:"Meta,omitempty" json:"meta,omitempty"`
 	Service       Service               `yaml:"Service,omitempty" json:"Service,omitempty"`
