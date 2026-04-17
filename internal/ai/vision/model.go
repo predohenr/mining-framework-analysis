@@ -17,15 +17,15 @@ var modelMutex = sync.Mutex{}
 
 // Model represents a computer vision model configuration.
 type Model struct {
+	Prompt        string    `yaml:"Prompt,omitempty" json:"prompt,omitempty"`
+	Path          string                `yaml:"Path,omitempty" json:"-"`
+	Disabled      bool                  `yaml:"Disabled,omitempty" json:"disabled,omitempty"`
+	Resolution    int                   `yaml:"Resolution,omitempty" json:"resolution,omitempty"`
 	Type          ModelType             `yaml:"Type,omitempty" json:"type,omitempty"`
 	Name          string                `yaml:"Name,omitempty" json:"name,omitempty"`
 	Version       string                `yaml:"Version,omitempty" json:"version,omitempty"`
-	Prompt        string                `yaml:"Prompt,omitempty" json:"prompt,omitempty"`
-	Resolution    int                   `yaml:"Resolution,omitempty" json:"resolution,omitempty"`
 	Meta          *tensorflow.ModelInfo `yaml:"Meta,omitempty" json:"meta,omitempty"`
 	Service       Service               `yaml:"Service,omitempty" json:"Service,omitempty"`
-	Path          string                `yaml:"Path,omitempty" json:"-"`
-	Disabled      bool                  `yaml:"Disabled,omitempty" json:"disabled,omitempty"`
 	classifyModel *classify.Model
 	faceModel     *face.Model
 	nsfwModel     *nsfw.Model
