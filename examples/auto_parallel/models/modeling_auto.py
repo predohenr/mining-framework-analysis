@@ -68,7 +68,6 @@ class CausalLMOutputWithCrossAttentionsAuto(CausalLMOutputWithCrossAttentions):
 
 logger = logging.getLogger(__name__)
 
-
 __all__ = [
     "ErnieForCausalLMAuto",
 ]
