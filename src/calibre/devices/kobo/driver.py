@@ -806,6 +806,37 @@ class KOBO(USBMS):
 
         return book
 
+    @property
+    def collections_columns(self):
+        opts = self.settings()
+        return opts.extra_customization[self.OPT_COLLECTIONS]
+
+    @property
+    def read_metadata(self):
+        return self.settings().read_metadata
+
+    @property
+    def show_previews(self):
+        opts = self.settings()
+        return opts.extra_customization[self.OPT_SHOW_PREVIEWS] is False
+
+    @property
+    def display_fwversion(self):
+        if self.fwversion is None:
+            return ''
+        return '.'.join([str(v) for v in list(self.fwversion)])
+
+    @classmethod
+    def config_widget(self):
+        # TODO: Cleanup the following
+        self.current_friendly_name = self.gui_name
+
+        from calibre.gui2.device_drivers.tabbed_device_config import TabbedDeviceConfig
+        return TabbedDeviceConfig(self.settings(), self.FORMATS, self.SUPPORTS_SUB_DIRS,
+                    self.MUST_READ_METADATA, self.SUPPORTS_USE_AUTHOR_SORT,
+                    self.EXTRA_CUSTOMIZATION_MESSAGE, self,
+                    extra_customization_choices=self.EXTRA_CUSTOMIZATION_CHOICES)
+
     def get_device_paths(self):
         paths = {}
         for prefix, path, source_id in [
@@ -982,26 +1013,6 @@ class KOBO(USBMS):
         collections = [x.lower().strip() for x in self.collections_columns.split(',')]
         return collections
 
-    @property
-    def collections_columns(self):
-        opts = self.settings()
-        return opts.extra_customization[self.OPT_COLLECTIONS]
-
-    @property
-    def read_metadata(self):
-        return self.settings().read_metadata
-
-    @property
-    def show_previews(self):
-        opts = self.settings()
-        return opts.extra_customization[self.OPT_SHOW_PREVIEWS] is False
-
-    @property
-    def display_fwversion(self):
-        if self.fwversion is None:
-            return ''
-        return '.'.join([str(v) for v in list(self.fwversion)])
-
     def sync_booklists(self, booklists, end_session=True):
         debug_print('KOBO:sync_booklists - start')
         paths = self.get_device_paths()
@@ -1144,17 +1155,6 @@ class KOBO(USBMS):
                 else:
                     paths[idx] = dest.name
         return paths
-
-    @classmethod
-    def config_widget(self):
-        # TODO: Cleanup the following
-        self.current_friendly_name = self.gui_name
-
-        from calibre.gui2.device_drivers.tabbed_device_config import TabbedDeviceConfig
-        return TabbedDeviceConfig(self.settings(), self.FORMATS, self.SUPPORTS_SUB_DIRS,
-                    self.MUST_READ_METADATA, self.SUPPORTS_USE_AUTHOR_SORT,
-                    self.EXTRA_CUSTOMIZATION_MESSAGE, self,
-                    extra_customization_choices=self.EXTRA_CUSTOMIZATION_CHOICES)
 
     def migrate_old_settings(self, old_settings):
 
