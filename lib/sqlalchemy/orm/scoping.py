@@ -1632,11 +1632,6 @@ class scoped_session(Generic[_S]):
         self, _colexpr: TypedColumnsClauseRole[_T]
     ) -> RowReturningQuery[_T]: ...
 
-    # START OVERLOADED FUNCTIONS self.query RowReturningQuery 2-8
-
-    # code within this block is **programmatically,
-    # statically generated** by tools/generate_tuple_map_overloads.py
-
     @overload
     def query(
         self, __ent0: _TCCA[_T0], __ent1: _TCCA[_T1], /
@@ -1710,8 +1705,6 @@ class scoped_session(Generic[_S]):
         _T0, _T1, _T2, _T3, _T4, _T5, _T6, _T7, Unpack[TupleAny]
     ]: ...
 
-    # END OVERLOADED FUNCTIONS self.query
-
     @overload
     def query(
         self, *entities: _ColumnsClauseArgument[Any], **kwargs: Any
@@ -1744,6 +1737,13 @@ class scoped_session(Generic[_S]):
         """  # noqa: E501
 
         return self._proxied.query(*entities, **kwargs)
+
+    # START OVERLOADED FUNCTIONS self.query RowReturningQuery 2-8
+
+    # code within this block is **programmatically,
+    # statically generated** by tools/generate_tuple_map_overloads.py
+
+    # END OVERLOADED FUNCTIONS self.query
 
     def refresh(
         self,
