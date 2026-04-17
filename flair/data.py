@@ -275,7 +275,6 @@ class Label:
     @property
     def unlabeled_identifier(self):
         return f"{self.data_point.unlabeled_identifier}"
-
     @property
     def typename(self) -> Optional[str]:
         """
@@ -623,17 +622,6 @@ class Token(_PartOfSentence):
     def unlabeled_identifier(self) -> str:
         return f'Token[{self.idx - 1}]: "{self.text}"'
 
-    def add_tags_proba_dist(self, tag_type: str, tags: list[Label]) -> None:
-        self.tags_proba_dist[tag_type] = tags
-
-    def get_tags_proba_dist(self, tag_type: str) -> list[Label]:
-        if tag_type in self.tags_proba_dist:
-            return self.tags_proba_dist[tag_type]
-        return []
-
-    def get_head(self):
-        return self.sentence.get_token(self.head_id)
-
     @property
     def start_position(self) -> int:
         return self._start_position
@@ -649,6 +637,17 @@ class Token(_PartOfSentence):
     @property
     def embedding(self):
         return self.get_embedding()
+
+    def add_tags_proba_dist(self, tag_type: str, tags: list[Label]) -> None:
+        self.tags_proba_dist[tag_type] = tags
+
+    def get_tags_proba_dist(self, tag_type: str) -> list[Label]:
+        if tag_type in self.tags_proba_dist:
+            return self.tags_proba_dist[tag_type]
+        return []
+
+    def get_head(self):
+        return self.sentence.get_token(self.head_id)
 
     def __len__(self) -> int:
         return 1
@@ -725,6 +724,10 @@ class Span(_PartOfSentence):
     def unlabeled_identifier(self) -> str:
         return self._make_unlabeled_identifier(self.tokens)
 
+    @property
+    def embedding(self):
+        return self.get_embedding()
+
     def __repr__(self) -> str:
         return self.__str__()
 
@@ -736,10 +739,6 @@ class Span(_PartOfSentence):
 
     def __len__(self) -> int:
         return len(self.tokens)
-
-    @property
-    def embedding(self):
-        return self.get_embedding()
 
     def to_dict(self, tag_type: Optional[str] = None):
         return {
@@ -936,6 +935,81 @@ class Sentence(DataPoint):
             raise ValueError("Tokens are None after tokenization - this indicates a bug in the tokenization process")
         return self._tokens
 
+    @property
+    def unlabeled_identifier(self):
+        return f'Sentence[{len(self)}]: "{self.text}"'
+
+    @property
+    def text(self) -> str:
+        """Returns the original text of this sentence. Does not trigger tokenization."""
+        return self._text
+
+    @property
+    def embedding(self):
+        return self.get_embedding()
+
+    @typing.overload
+    def __getitem__(self, idx: int) -> Token: ...
+
+    @typing.overload
+    def __getitem__(self, s: slice) -> Span: ...
+
+    @property
+    def start_position(self) -> int:
+        return self._start_position
+
+    @start_position.setter
+    def start_position(self, value: int) -> None:
+        self._start_position = value
+
+    @property
+    def end_position(self) -> int:
+        # The sentence's start position is not propagated to its tokens.
+        # Therefore, we need to add the sentence's start position to its last token's end position, including whitespaces.
+        return self.start_position + self[-1].end_position + self[-1].whitespace_after
+
+    @staticmethod
+    def _handle_problem_characters(text: str) -> str:
+        text = Sentence.__restore_windows_1252_characters(text)
+        return text
+
+    @staticmethod
+    def __remove_zero_width_characters(text: str) -> str:
+        text = text.replace("\u200c", "")
+        text = text.replace("\u200b", "")
+        text = text.replace("\ufe0f", "")
+        text = text.replace("\ufeff", "")
+
+        text = text.replace(
+            "\u2028", ""
+        )  # LINE SEPARATOR & PARAGRAPH SEPARATOR are usually used for wrapping & displaying texts,
+        text = text.replace("\u2029", "")  # but not for semantic meaning -> ignore them.
+        return text
+
+    @staticmethod
+    def __restore_windows_1252_characters(text: str) -> str:
+        def to_windows_1252(match):
+            try:
+                return bytes([ord(match.group(0))]).decode("windows-1252")
+            except UnicodeDecodeError:
+                # No character at the corresponding code point: remove it
+                return ""
+
+        return re.sub(r"[\u0080-\u0099]", to_windows_1252, text)
+
+    @classmethod
+    def set_context_for_sentences(cls, sentences: list["Sentence"]) -> None:
+        previous_sentence = None
+        for sentence in sentences:
+            if sentence.is_context_set():
+                continue
+            sentence._previous_sentence = previous_sentence
+            sentence._next_sentence = None
+            sentence._has_context = True
+            if previous_sentence is not None:
+                previous_sentence._next_sentence = sentence
+            previous_sentence = sentence
+
     def _tokenize(self) -> None:
         """Internal method that performs tokenization."""
 
@@ -971,15 +1045,6 @@ class Sentence(DataPoint):
     def __len__(self) -> int:
         """Returns the number of tokens in this sentence. Triggers tokenization if not yet tokenized."""
         return len(self.tokens)
-
-    @property
-    def unlabeled_identifier(self):
-        return f'Sentence[{len(self)}]: "{self.text}"'
-
-    @property
-    def text(self) -> str:
-        """Returns the original text of this sentence. Does not trigger tokenization."""
-        return self._text
 
     def to_original_text(self) -> str:
         """Returns the original text of this sentence."""
@@ -1059,10 +1124,6 @@ class Sentence(DataPoint):
                     token.sentence.annotation_layers[typename] = [Label(token, label.value, label.score)]
                 else:
                     token.sentence.annotation_layers[typename].append(Label(token, label.value, label.score))
-
-    @property
-    def embedding(self):
-        return self.get_embedding()
 
     def to(self, device: str, pin_memory: bool = False):
         # move sentence embeddings to device
@@ -1170,12 +1231,6 @@ class Sentence(DataPoint):
         span_slice = slice(start, stop)
         return self[span_slice]
 
-    @typing.overload
-    def __getitem__(self, idx: int) -> Token: ...
-
-    @typing.overload
-    def __getitem__(self, s: slice) -> Span: ...
-
     def __getitem__(self, subscript):
         if isinstance(subscript, slice):
             return Span(self.tokens[subscript])
@@ -1184,20 +1239,6 @@ class Sentence(DataPoint):
 
     def __repr__(self) -> str:
         return self.__str__()
-
-    @property
-    def start_position(self) -> int:
-        return self._start_position
-
-    @start_position.setter
-    def start_position(self, value: int) -> None:
-        self._start_position = value
-
-    @property
-    def end_position(self) -> int:
-        # The sentence's start position is not propagated to its tokens.
-        # Therefore, we need to add the sentence's start position to its last token's end position, including whitespaces.
-        return self.start_position + self[-1].end_position + self[-1].whitespace_after
 
     def get_language_code(self) -> str:
         if self.language_code is None:
@@ -1210,35 +1251,6 @@ class Sentence(DataPoint):
                 self.language_code = "en"
 
         return self.language_code
-
-    @staticmethod
-    def _handle_problem_characters(text: str) -> str:
-        text = Sentence.__restore_windows_1252_characters(text)
-        return text
-
-    @staticmethod
-    def __remove_zero_width_characters(text: str) -> str:
-        text = text.replace("\u200c", "")
-        text = text.replace("\u200b", "")
-        text = text.replace("\ufe0f", "")
-        text = text.replace("\ufeff", "")
-
-        text = text.replace(
-            "\u2028", ""
-        )  # LINE SEPARATOR & PARAGRAPH SEPARATOR are usually used for wrapping & displaying texts,
-        text = text.replace("\u2029", "")  # but not for semantic meaning -> ignore them.
-        return text
-
-    @staticmethod
-    def __restore_windows_1252_characters(text: str) -> str:
-        def to_windows_1252(match):
-            try:
-                return bytes([ord(match.group(0))]).decode("windows-1252")
-            except UnicodeDecodeError:
-                # No character at the corresponding code point: remove it
-                return ""
-
-        return re.sub(r"[\u0080-\u0099]", to_windows_1252, text)
 
     def next_sentence(self):
         """Get the next sentence in the document.
@@ -1291,19 +1303,6 @@ class Sentence(DataPoint):
         self._previous_sentence = sentence._previous_sentence
         self._next_sentence = sentence._next_sentence
         self._position_in_dataset = sentence._position_in_dataset
-
-    @classmethod
-    def set_context_for_sentences(cls, sentences: list["Sentence"]) -> None:
-        previous_sentence = None
-        for sentence in sentences:
-            if sentence.is_context_set():
-                continue
-            sentence._previous_sentence = previous_sentence
-            sentence._next_sentence = None
-            sentence._has_context = True
-            if previous_sentence is not None:
-                previous_sentence._next_sentence = sentence
-            previous_sentence = sentence
 
     def get_labels(self, label_type: Optional[str] = None):
         # if no label if specified, return all labels
@@ -1480,9 +1479,6 @@ class DataPair(DataPoint, typing.Generic[DT, DT2]):
     def embedding(self):
         return torch.cat([self.first.embedding, self.second.embedding])
 
-    def __len__(self) -> int:
-        return len(self.first) + len(self.second)
-
     @property
     def unlabeled_identifier(self):
         return f"DataPair: '{self.first.unlabeled_identifier}' + '{self.second.unlabeled_identifier}'"
@@ -1498,6 +1494,9 @@ class DataPair(DataPoint, typing.Generic[DT, DT2]):
     @property
     def text(self):
         return self.first.text + " || " + self.second.text
+
+    def __len__(self) -> int:
+        return len(self.first) + len(self.second)
 
 
 TextPair = DataPair[Sentence, Sentence]
@@ -1524,9 +1523,6 @@ class DataTriple(DataPoint, typing.Generic[DT, DT2, DT3]):
     def embedding(self):
         return torch.cat([self.first.embedding, self.second.embedding, self.third.embedding])
 
-    def __len__(self):
-        return len(self.first) + len(self.second) + len(self.third)
-
     @property
     def unlabeled_identifier(self):
         return f"DataTriple: '{self.first.unlabeled_identifier}' + '{self.second.unlabeled_identifier}' + '{self.third.unlabeled_identifier}'"
@@ -1542,6 +1538,9 @@ class DataTriple(DataPoint, typing.Generic[DT, DT2, DT3]):
     @property
     def text(self):
         return self.first.text + " || " + self.second.text + "||" + self.third.text
+
+    def __len__(self):
+        return len(self.first) + len(self.second) + len(self.third)
 
 
 TextTriple = DataTriple[Sentence, Sentence, Sentence]
@@ -1559,12 +1558,6 @@ class Image(DataPoint):
     def embedding(self):
         return self.get_embedding()
 
-    def __str__(self) -> str:
-        image_repr = self.data.size() if self.data else ""
-        image_url = self.imageURL if self.imageURL else ""
-
-        return f"Image: {image_repr} {image_url}"
-
     @property
     def start_position(self) -> int:
         raise NotImplementedError
@@ -1580,6 +1573,12 @@ class Image(DataPoint):
     @property
     def unlabeled_identifier(self) -> str:
         raise NotImplementedError
+
+    def __str__(self) -> str:
+        image_repr = self.data.size() if self.data else ""
+        image_url = self.imageURL if self.imageURL else ""
+
+        return f"Image: {image_repr} {image_url}"
 
 
 class Corpus(typing.Generic[T_co]):
@@ -1671,6 +1670,113 @@ class Corpus(typing.Generic[T_co]):
         """The test split as a :class:`torch.utils.data.Dataset` object."""
         return self._test
 
+    @staticmethod
+    def _filter_long_sentences(dataset, max_charlength: int) -> Dataset:
+        # find out empty sentence indices
+        empty_sentence_indices = []
+        non_empty_sentence_indices = []
+
+        for index, sentence in Tqdm.tqdm(enumerate(_iter_dataset(dataset))):
+            if len(sentence.to_plain_string()) > max_charlength:
+                empty_sentence_indices.append(index)
+            else:
+                non_empty_sentence_indices.append(index)
+
+        # create subset of non-empty sentence indices
+        subset = Subset(dataset, non_empty_sentence_indices)
+
+        return subset
+
+    @staticmethod
+    def _filter_empty_sentences(dataset) -> Dataset:
+        # find out empty sentence indices
+        empty_sentence_indices = []
+        non_empty_sentence_indices = []
+
+        for index, sentence in enumerate(_iter_dataset(dataset)):
+            if len(sentence) == 0:
+                empty_sentence_indices.append(index)
+            else:
+                non_empty_sentence_indices.append(index)
+
+        # create subset of non-empty sentence indices
+        subset = Subset(dataset, non_empty_sentence_indices)
+
+        return subset
+
+    @staticmethod
+    def _downsample_to_proportion(dataset: Dataset, proportion: float, random_seed: Optional[int] = None) -> Subset:
+        sampled_size: int = round(_len_dataset(dataset) * proportion)
+        splits = randomly_split_into_two_datasets(dataset, sampled_size, random_seed=random_seed)
+        return splits[0]
+
+    @staticmethod
+    def _obtain_statistics_for(sentences, name, tag_type) -> dict:
+        if len(sentences) == 0:
+            return {}
+
+        classes_to_count = Corpus._count_sentence_labels(sentences)
+        tags_to_count = Corpus._count_token_labels(sentences, tag_type)
+        tokens_per_sentence = Corpus._get_tokens_per_sentence(sentences)
+
+        label_size_dict = dict(classes_to_count)
+        tag_size_dict = dict(tags_to_count)
+
+        return {
+            "dataset": name,
+            "total_number_of_documents": len(sentences),
+            "number_of_documents_per_class": label_size_dict,
+            "number_of_tokens_per_tag": tag_size_dict,
+            "number_of_tokens": {
+                "total": sum(tokens_per_sentence),
+                "min": min(tokens_per_sentence),
+                "max": max(tokens_per_sentence),
+                "avg": sum(tokens_per_sentence) / len(sentences),
+            },
+        }
+
+    @staticmethod
+    def _get_tokens_per_sentence(sentences: Iterable[Sentence]) -> list[int]:
+        return [len(x.tokens) for x in sentences]
+
+    @staticmethod
+    def _count_sentence_labels(sentences: Iterable[Sentence]) -> defaultdict[str, int]:
+        label_count: defaultdict[str, int] = defaultdict(lambda: 0)
+        for sent in sentences:
+            for label in sent.labels:
+                label_count[label.value] += 1
+        return label_count
+
+    @staticmethod
+    def _count_token_labels(sentences: Iterable[Sentence], label_type: str) -> defaultdict[str, int]:
+        label_count: defaultdict[str, int] = defaultdict(lambda: 0)
+        for sent in sentences:
+            for token in sent.tokens:
+                if label_type in token.annotation_layers:
+                    label = token.get_label(label_type)
+                    label_count[label.value] += 1
+        return label_count
+
+    @deprecated(version="0.8", reason="Use 'make_label_dictionary' instead.")
+    def make_tag_dictionary(self, tag_type: str) -> Dictionary:
+        """Create a tag dictionary of a given label type.
+
+        Args:
+            tag_type: the label type to gather the tag labels
+
+        Returns:
+            A Dictionary containing the labeled tags, including "O" and "<START>" and "<STOP>"
+
+        """
+        tag_dictionary: Dictionary = Dictionary(add_unk=False)
+        tag_dictionary.add_item("O")
+        for sentence in _iter_dataset(self.get_all_sentences()):
+            for token in sentence.tokens:
+                tag_dictionary.add_item(token.get_label(tag_type).value)
+        tag_dictionary.add_item("<START>")
+        tag_dictionary.add_item("<STOP>")
+        return tag_dictionary
+
     def downsample(
         self,
         percentage: float = 0.1,
@@ -1738,40 +1844,6 @@ class Corpus(typing.Generic[T_co]):
             self._dev = Corpus._filter_long_sentences(self._dev, max_charlength)
         log.info(self)
 
-    @staticmethod
-    def _filter_long_sentences(dataset, max_charlength: int) -> Dataset:
-        # find out empty sentence indices
-        empty_sentence_indices = []
-        non_empty_sentence_indices = []
-
-        for index, sentence in Tqdm.tqdm(enumerate(_iter_dataset(dataset))):
-            if len(sentence.to_plain_string()) > max_charlength:
-                empty_sentence_indices.append(index)
-            else:
-                non_empty_sentence_indices.append(index)
-
-        # create subset of non-empty sentence indices
-        subset = Subset(dataset, non_empty_sentence_indices)
-
-        return subset
-
-    @staticmethod
-    def _filter_empty_sentences(dataset) -> Dataset:
-        # find out empty sentence indices
-        empty_sentence_indices = []
-        non_empty_sentence_indices = []
-
-        for index, sentence in enumerate(_iter_dataset(dataset)):
-            if len(sentence) == 0:
-                empty_sentence_indices.append(index)
-            else:
-                non_empty_sentence_indices.append(index)
-
-        # create subset of non-empty sentence indices
-        subset = Subset(dataset, non_empty_sentence_indices)
-
-        return subset
-
     def make_vocab_dictionary(self, max_tokens: int = -1, min_freq: int = 1) -> Dictionary:
         """Creates a :class:`Dictionary` of all tokens contained in the corpus.
 
@@ -1813,12 +1885,6 @@ class Corpus(typing.Generic[T_co]):
         tokens = [token for sublist in tokens for token in sublist]
         return [t.text for t in tokens]
 
-    @staticmethod
-    def _downsample_to_proportion(dataset: Dataset, proportion: float, random_seed: Optional[int] = None) -> Subset:
-        sampled_size: int = round(_len_dataset(dataset) * proportion)
-        splits = randomly_split_into_two_datasets(dataset, sampled_size, random_seed=random_seed)
-        return splits[0]
-
     def obtain_statistics(self, label_type: Optional[str] = None, pretty_print: bool = True) -> Union[dict, str]:
         """Print statistics about the corpus, including the length of the sentences and the labels in the corpus.
 
@@ -1842,53 +1908,6 @@ class Corpus(typing.Generic[T_co]):
 
             return json.dumps(json_data, indent=4)
         return json_data
-
-    @staticmethod
-    def _obtain_statistics_for(sentences, name, tag_type) -> dict:
-        if len(sentences) == 0:
-            return {}
-
-        classes_to_count = Corpus._count_sentence_labels(sentences)
-        tags_to_count = Corpus._count_token_labels(sentences, tag_type)
-        tokens_per_sentence = Corpus._get_tokens_per_sentence(sentences)
-
-        label_size_dict = dict(classes_to_count)
-        tag_size_dict = dict(tags_to_count)
-
-        return {
-            "dataset": name,
-            "total_number_of_documents": len(sentences),
-            "number_of_documents_per_class": label_size_dict,
-            "number_of_tokens_per_tag": tag_size_dict,
-            "number_of_tokens": {
-                "total": sum(tokens_per_sentence),
-                "min": min(tokens_per_sentence),
-                "max": max(tokens_per_sentence),
-                "avg": sum(tokens_per_sentence) / len(sentences),
-            },
-        }
-
-    @staticmethod
-    def _get_tokens_per_sentence(sentences: Iterable[Sentence]) -> list[int]:
-        return [len(x.tokens) for x in sentences]
-
-    @staticmethod
-    def _count_sentence_labels(sentences: Iterable[Sentence]) -> defaultdict[str, int]:
-        label_count: defaultdict[str, int] = defaultdict(lambda: 0)
-        for sent in sentences:
-            for label in sent.labels:
-                label_count[label.value] += 1
-        return label_count
-
-    @staticmethod
-    def _count_token_labels(sentences: Iterable[Sentence], label_type: str) -> defaultdict[str, int]:
-        label_count: defaultdict[str, int] = defaultdict(lambda: 0)
-        for sent in sentences:
-            for token in sent.tokens:
-                if label_type in token.annotation_layers:
-                    label = token.get_label(label_type)
-                    label_count[label.value] += 1
-        return label_count
 
     def __str__(self) -> str:
         return f"Corpus: {_len_dataset(self.train) if self.train else 0} train + {_len_dataset(self.dev) if self.dev else 0} dev + {_len_dataset(self.test) if self.test else 0} test sentences"
@@ -2119,26 +2138,6 @@ class Corpus(typing.Generic[T_co]):
             parts.append(self.test)
         return ConcatDataset(parts)
 
-    @deprecated(version="0.8", reason="Use 'make_label_dictionary' instead.")
-    def make_tag_dictionary(self, tag_type: str) -> Dictionary:
-        """Create a tag dictionary of a given label type.
-
-        Args:
-            tag_type: the label type to gather the tag labels
-
-        Returns:
-            A Dictionary containing the labeled tags, including "O" and "<START>" and "<STOP>"
-
-        """
-        tag_dictionary: Dictionary = Dictionary(add_unk=False)
-        tag_dictionary.add_item("O")
-        for sentence in _iter_dataset(self.get_all_sentences()):
-            for token in sentence.tokens:
-                tag_dictionary.add_item(token.get_label(tag_type).value)
-        tag_dictionary.add_item("<START>")
-        tag_dictionary.add_item("<STOP>")
-        return tag_dictionary
-
 
 class MultiCorpus(Corpus):
     def __init__(
@@ -2209,6 +2208,10 @@ class ConcatFlairDataset(Dataset):
             s += length_of_e
         return r
 
+    @property
+    def cummulative_sizes(self) -> list[int]:
+        return self.cumulative_sizes
+
     def __init__(self, datasets: Iterable[Dataset], ids: Iterable[str]) -> None:
         super().__init__()
         self.datasets = list(datasets)
@@ -2231,10 +2234,6 @@ class ConcatFlairDataset(Dataset):
         sentence = self.datasets[dataset_idx][sample_idx]
         sentence.set_label("multitask_id", self.ids[dataset_idx])
         return sentence
-
-    @property
-    def cummulative_sizes(self) -> list[int]:
-        return self.cumulative_sizes
 
 
 def randomly_split_into_two_datasets(
