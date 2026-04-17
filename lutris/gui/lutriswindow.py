@@ -6,19 +6,18 @@ import os
 from collections import namedtuple
 from datetime import datetime
 from gettext import gettext as _
-from gettext import ngettext
-from typing import Dict, Iterable, List, Set, cast
-from urllib.parse import unquote, urlparse
 
 from gi.repository import Gdk, Gio, GLib, Gtk
-
-from lutris import services, settings
 from lutris.api import (
     LUTRIS_ACCOUNT_CONNECTED,
     LUTRIS_ACCOUNT_DISCONNECTED,
     get_runtime_versions,
 )
+from lutris import services, settings
+from urllib.parse import unquote, urlparse
 from lutris.database import categories
+from gettext import ngettext
+from typing import Dict, Iterable, List, Set, cast
 from lutris.database import categories as categories_db
 from lutris.database import games as games_db
 from lutris.database import saved_searches as saved_searches_db
