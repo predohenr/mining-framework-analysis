@@ -139,8 +139,8 @@ public class JoinDialog extends BaseDialog{
         refreshLocal();
         refreshRemote();
         if(Core.settings.getBool("communityservers", true)){
-            refreshCommunity();
-        }
+        refreshCommunity();
+    }
     }
 
     void setupRemote(){
@@ -320,7 +320,7 @@ public class JoinDialog extends BaseDialog{
         section(steam ? "@servers.local.steam" : "@servers.local", local, false);
         section("@servers.remote", remote, false);
         if(Core.settings.getBool("communityservers", true)){
-            section("@servers.global", global, true);
+        section("@servers.global", global, true);
         }
 
         ScrollPane pane = new ScrollPane(hosts);
@@ -616,7 +616,7 @@ public class JoinDialog extends BaseDialog{
                 connect(lastIp, lastPort);
             }, exception -> {});
         }, 1, 1);
-
+        
         ui.loadfrag.setButton(() -> {
             ui.loadfrag.hide();
             if(ping == null) return;
