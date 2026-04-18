@@ -67,6 +67,8 @@ public class BigQuerySinkMetrics {
   }
 
   // Status of a BigQuery row from the AppendRows RPC call.
+
+  // Status of a BigQuery row from the AppendRows RPC call.
   enum RowStatus {
     SUCCESSFUL,
     RETRIED,
