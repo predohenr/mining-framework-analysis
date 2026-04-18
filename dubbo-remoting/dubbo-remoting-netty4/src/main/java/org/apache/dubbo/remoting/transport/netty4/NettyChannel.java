@@ -75,9 +75,9 @@ final class NettyChannel extends AbstractChannel {
 
     private final Netty4BatchWriteQueue writeQueue;
 
-    private final boolean encodeInIOThread;
-
     private Codec2 codec;
+
+    private final boolean encodeInIOThread;
 
     /**
      * The constructor of NettyChannel.
@@ -205,20 +205,20 @@ final class NettyChannel extends AbstractChannel {
                 outputMessage = buf;
             }
             ChannelFuture future = writeQueue.enqueue(outputMessage).addListener((ChannelFutureListener) f -> {
-                if (!(message instanceof Request)) {
-                    return;
-                }
-                ChannelHandler handler = getChannelHandler();
-                if (f.isSuccess()) {
-                    handler.sent(NettyChannel.this, message);
-                } else {
-                    Throwable t = f.cause();
-                    if (t == null) {
+                    if (!(message instanceof Request)) {
                         return;
                     }
-                    Response response = buildErrorResponse((Request) message, t);
-                    handler.received(NettyChannel.this, response);
-                }
+                    ChannelHandler handler = getChannelHandler();
+                if (f.isSuccess()) {
+                        handler.sent(NettyChannel.this, message);
+                    } else {
+                    Throwable t = f.cause();
+                        if (t == null) {
+                            return;
+                        }
+                        Response response = buildErrorResponse((Request) message, t);
+                        handler.received(NettyChannel.this, response);
+                    }
             });
 
             if (sent) {
@@ -361,7 +361,7 @@ final class NettyChannel extends AbstractChannel {
     }
 
     @SuppressWarnings("deprecation")
-    private static Codec2 getChannelCodec(URL url) {
+private static Codec2 getChannelCodec(URL url) {
         String codecName = url.getParameter(Constants.CODEC_KEY);
         if (StringUtils.isEmpty(codecName)) {
             // codec extension name must stay the same with protocol name
