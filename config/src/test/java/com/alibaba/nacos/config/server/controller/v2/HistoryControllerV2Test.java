@@ -152,8 +152,7 @@ class HistoryControllerV2Test {
         configHistoryInfo.setCreatedTime(new Timestamp(new Date().getTime()));
         configHistoryInfo.setLastModifiedTime(new Timestamp(new Date().getTime()));
         
-        when(historyService.getConfigHistoryInfo(TEST_DATA_ID, TEST_GROUP, TEST_NAMESPACE_ID_PUBLIC, 1L)).thenReturn(
-                configHistoryInfo);
+        when(historyService.getConfigHistoryInfo(TEST_DATA_ID, TEST_GROUP, TEST_NAMESPACE_ID_PUBLIC, 1L)).thenReturn(configHistoryInfo);
         
         Result<ConfigHistoryInfo> result = historyControllerV2.getConfigHistoryInfo(TEST_DATA_ID, TEST_GROUP,
                 TEST_NAMESPACE_ID_PUBLIC, 1L);
@@ -180,8 +179,7 @@ class HistoryControllerV2Test {
         configHistoryInfo.setCreatedTime(new Timestamp(new Date().getTime()));
         configHistoryInfo.setLastModifiedTime(new Timestamp(new Date().getTime()));
         
-        when(historyService.getConfigHistoryInfo(TEST_DATA_ID, TEST_GROUP, TEST_NAMESPACE_ID_PUBLIC, 1L)).thenReturn(
-                configHistoryInfo);
+        when(historyService.getConfigHistoryInfo(TEST_DATA_ID, TEST_GROUP, TEST_NAMESPACE_ID_PUBLIC, 1L)).thenReturn(configHistoryInfo);
         
         Result<ConfigHistoryInfo> result = historyControllerV2.getConfigHistoryInfo(TEST_DATA_ID, TEST_GROUP,
                 TEST_NAMESPACE_ID, 1L);
@@ -208,8 +206,7 @@ class HistoryControllerV2Test {
         configHistoryInfo.setCreatedTime(new Timestamp(new Date().getTime()));
         configHistoryInfo.setLastModifiedTime(new Timestamp(new Date().getTime()));
         
-        when(historyService.getPreviousConfigHistoryInfo(TEST_DATA_ID, TEST_GROUP, TEST_NAMESPACE_ID_PUBLIC, 1L)).thenReturn(
-                configHistoryInfo);
+        when(historyService.getPreviousConfigHistoryInfo(TEST_DATA_ID, TEST_GROUP, TEST_NAMESPACE_ID_PUBLIC, 1L)).thenReturn(configHistoryInfo);
         
         Result<ConfigHistoryInfo> result = historyControllerV2.getPreviousConfigHistoryInfo(TEST_DATA_ID, TEST_GROUP,
                 TEST_NAMESPACE_ID, 1L);
@@ -236,8 +233,7 @@ class HistoryControllerV2Test {
         configHistoryInfo.setCreatedTime(new Timestamp(new Date().getTime()));
         configHistoryInfo.setLastModifiedTime(new Timestamp(new Date().getTime()));
         
-        when(historyService.getPreviousConfigHistoryInfo(TEST_DATA_ID, TEST_GROUP, TEST_NAMESPACE_ID_PUBLIC, 1L)).thenReturn(
-                configHistoryInfo);
+        when(historyService.getPreviousConfigHistoryInfo(TEST_DATA_ID, TEST_GROUP, TEST_NAMESPACE_ID_PUBLIC, 1L)).thenReturn(configHistoryInfo);
         
         Result<ConfigHistoryInfo> result = historyControllerV2.getPreviousConfigHistoryInfo(TEST_DATA_ID, TEST_GROUP,
                 TEST_NAMESPACE_ID_PUBLIC, 1L);
