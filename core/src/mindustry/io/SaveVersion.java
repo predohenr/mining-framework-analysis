@@ -480,7 +480,7 @@ public abstract class SaveVersion extends SaveFileReader{
                 entity.id(id);
                 entity.read(in);
                 if(used.add(id)){
-                    entity.add();
+                entity.add();
                 }else{
                     Log.warn("Duplicate entity ID in save: @ (@)", id, entity);
                     reassign.add(entity);

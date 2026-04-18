@@ -3836,7 +3836,7 @@ public class Blocks{
                     damage = 0.2f;
                     layer = Layer.bullet - 2f;
                 }},
-                Liquids.slag, new LiquidBulletType(Liquids.slag){{
+                Liquids.slag,  new LiquidBulletType(Liquids.slag){{
                     lifetime = 49f;
                     speed = 4f;
                     knockback = 1.3f;
@@ -4001,7 +4001,7 @@ public class Blocks{
                     lifeScaleRandMax = 1.08f;
                     lifeScaleRandMin = 0.95f;
 
-                    despawnEffect = Fx.hitBulletColor;
+                despawnEffect = Fx.hitBulletColor;
                     backColor = hitColor = trailColor = Pal.blastAmmoBack;
                     frontColor = Pal.blastAmmoFront;
                 }},
