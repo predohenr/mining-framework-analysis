@@ -140,11 +140,6 @@ public class ClockSleepTimer implements SleepTimer {
     }
 
     @Override
-    public boolean isEndingThisEpisode(long episodeRemainingMillis) {
-        return episodeRemainingMillis >= getTimeLeft().getMillisValue();
-    }
-
-    @Override
     public boolean shouldContinueToNextEpisode() {
         return getTimeLeft().getMillisValue() > 0;
     }
@@ -152,5 +147,16 @@ public class ClockSleepTimer implements SleepTimer {
     @Override
     public void episodeFinishedPlayback() {
         //no-op
+    }
+
+    @Override
+    public boolean isEndingThisEpisode(long episodeRemainingMillis) {
+        return episodeRemainingMillis >= getTimeLeft().getMillisValue();
+    }
+
+    @Override
+    public void reset() {
+        EventBus.getDefault().post(SleepTimerUpdatedEvent.cancelled());
+        updateRemainingTime(initialWaitingTime);
     }
 }
