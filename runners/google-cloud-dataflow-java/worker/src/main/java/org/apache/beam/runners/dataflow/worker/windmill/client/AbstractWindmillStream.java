@@ -270,22 +270,22 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
           currentPhysicalStream = streamHandler;
           boolean resetCurrentPhysicalStream = true;
           try {
-            currentPhysicalStreamForDebug.set(currentPhysicalStream);
-            requestObserver.reset(physicalStreamFactory.apply(new ResponseObserver(streamHandler)));
-            onFlushPending(true);
-            if (clientClosed) {
+          currentPhysicalStreamForDebug.set(currentPhysicalStream);
+          requestObserver.reset(physicalStreamFactory.apply(new ResponseObserver(streamHandler)));
+          onFlushPending(true);
+          if (clientClosed) {
               // The logical stream is half-closed so after flushing the remaining requests close
               // the
-              // physical stream.
-              streamHandler.streamDebugMetrics.recordHalfClose();
-              requestObserver.onCompleted();
-            } else if (!halfClosePhysicalStreamAfter.isZero()) {
-              halfCloseFuture =
-                  executor.schedule(
-                      () -> onHalfClosePhysicalStreamTimeout(streamHandler),
-                      halfClosePhysicalStreamAfter.getSeconds(),
-                      TimeUnit.SECONDS);
-            }
+            // physical stream.
+            streamHandler.streamDebugMetrics.recordHalfClose();
+            requestObserver.onCompleted();
+          } else if (!halfClosePhysicalStreamAfter.isZero()) {
+            halfCloseFuture =
+                executor.schedule(
+                    () -> onHalfClosePhysicalStreamTimeout(streamHandler),
+                    halfClosePhysicalStreamAfter.getSeconds(),
+                    TimeUnit.SECONDS);
+          }
             resetCurrentPhysicalStream = false;
           } finally {
             if (resetCurrentPhysicalStream) {
