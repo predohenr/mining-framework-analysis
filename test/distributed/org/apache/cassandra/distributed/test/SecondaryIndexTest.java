@@ -35,7 +35,6 @@ import java.util.stream.Collectors;
 
 import com.google.common.collect.Sets;
 
-import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -49,7 +48,7 @@ import org.apache.cassandra.db.marshal.ValueGenerator;
 import org.apache.cassandra.distributed.Cluster;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.utils.TimeUUID;
-
+import org.awaitility.Awaitility;
 import static org.apache.cassandra.distributed.impl.IsolatedExecutor.waitOn;
 
 public class SecondaryIndexTest extends TestBaseImpl
