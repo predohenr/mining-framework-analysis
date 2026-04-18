@@ -81,12 +81,12 @@ public class ConsumeLiquidFilter extends ConsumeLiquidBase{
         stats.add(booster ? Stat.booster : Stat.input, StatValues.liquids(filter, amount * 60f, true));
     }
 
+    public float liquidEfficiencyMultiplier(Liquid liquid){
+        return 1f;
+    }
+
     @Override
     public boolean consumes(Liquid liquid){
         return filter.get(liquid);
-    }
-
-    public float liquidEfficiencyMultiplier(Liquid liquid){
-        return 1f;
     }
 }

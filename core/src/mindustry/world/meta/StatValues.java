@@ -112,7 +112,7 @@ public class StatValues{
     }
 
     public static StatValue liquid(Liquid liquid, float amount, boolean perSecond){
-        return table -> table.add(displayLiquid(liquid, amount, perSecond)).left();
+        return table ->  table.add(displayLiquid(liquid, amount, perSecond)).left();
     }
 
     public static StatValue liquids(Boolf<Liquid> filter, float amount, boolean perSecond){
@@ -482,7 +482,7 @@ public class StatValues{
             table.table(c -> {
                 for(Liquid liquid : content.liquids().select(l -> filter.get(l) && l.unlockedNow() && !l.isHidden())){
                     c.table(Styles.grayPanel, b -> {
-                        b.add(displayLiquid(liquid, amount, true)).pad(10f).left().grow();
+                        b.add(new LiquidDisplay(liquid, 40f, amount, true)).pad(10f).left().grow();
                         b.add(Core.bundle.format("stat.efficiency", fixValue(efficiency.get(liquid) * 100f))).right().pad(10f).padRight(15f);
                     }).growX().pad(5).row();
                 }
