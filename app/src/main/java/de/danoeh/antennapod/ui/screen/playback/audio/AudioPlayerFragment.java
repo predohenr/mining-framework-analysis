@@ -415,7 +415,7 @@ public class AudioPlayerFragment extends Fragment implements
 
     @Override
     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-        if (currentMedia == null || txtvLength == null) {
+        if (currentMedia == null || txtvLength == null || controller.getMedia() == null) {
             return;
         }
 
