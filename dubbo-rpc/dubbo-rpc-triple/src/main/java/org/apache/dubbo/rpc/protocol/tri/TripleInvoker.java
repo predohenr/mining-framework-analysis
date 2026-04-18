@@ -129,7 +129,7 @@ public class TripleInvoker<T> extends AbstractInvoker<T> {
         if (compressor == null) {
             ApplicationModel model = ApplicationModel.defaultModel();
             Configuration configuration = ConfigurationUtils.getEnvConfiguration(model);
-            String compressorKey = configuration.getString(COMPRESSOR_KEY, Identity.MESSAGE_ENCODING);
+        String compressorKey = configuration.getString(COMPRESSOR_KEY, Identity.MESSAGE_ENCODING);
             compressor = Compressor.getCompressor(ScopeModelUtil.getFrameworkModel(model), compressorKey);
             TripleInvoker.compressor = compressor;
         }
@@ -154,10 +154,10 @@ public class TripleInvoker<T> extends AbstractInvoker<T> {
                 serviceDescriptor.getMethod(invocation.getMethodName(), invocation.getParameterTypes());
         if (methodDescriptor == null) {
             if (RpcUtils.isGenericCall(
-                    ((RpcInvocation) invocation).getParameterTypesDesc(), invocation.getMethodName())) {
-                // Only reach when server generic
-                methodDescriptor = ServiceDescriptorInternalCache.genericService()
-                        .getMethod(invocation.getMethodName(), invocation.getParameterTypes());
+                        ((RpcInvocation) invocation).getParameterTypesDesc(), invocation.getMethodName())) {
+            // Only reach when server generic
+            methodDescriptor = ServiceDescriptorInternalCache.genericService()
+                    .getMethod(invocation.getMethodName(), invocation.getParameterTypes());
             } else if (RpcUtils.isEcho(
                     ((RpcInvocation) invocation).getParameterTypesDesc(), invocation.getMethodName())) {
                 methodDescriptor = ServiceDescriptorInternalCache.echoService()
@@ -217,7 +217,7 @@ public class TripleInvoker<T> extends AbstractInvoker<T> {
         if (arguments.length == 2) {
             StreamObserver<Object> responseObserver = (StreamObserver<Object>) arguments[1];
             requestObserver = streamCall(call, request, responseObserver);
-            requestObserver.onNext(invocation.getArguments()[0]);
+        requestObserver.onNext(invocation.getArguments()[0]);
         } else if (arguments.length == 1) {
             StreamObserver<Object> responseObserver = (StreamObserver<Object>) arguments[0];
             requestObserver = streamCall(call, request, responseObserver);
