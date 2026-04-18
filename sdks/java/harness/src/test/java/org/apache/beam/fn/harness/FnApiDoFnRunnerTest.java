@@ -2890,6 +2890,40 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
+    public void testComputeSplitForProcessWithNullTrackerAndSplitDelegate() throws Exception {
+      expected.expect(IllegalArgumentException.class);
+      FnApiDoFnRunner.computeSplitForProcess(
+          currentElement,
+          currentRestriction,
+          window1,
+          ImmutableList.copyOf(currentElement.getWindows()),
+          currentWatermarkEstimatorState,
+          0.0,
+          null,
+          null,
+          null,
+          0,
+          3);
+    }
+
+    @Test
+    public void testComputeSplitForProcessWithNullTrackerAndSplitDelegate() throws Exception {
+      expected.expect(IllegalArgumentException.class);
+      FnApiDoFnRunner.computeSplitForProcess(
+          currentElement,
+          currentRestriction,
+          window1,
+          ImmutableList.copyOf(currentElement.getWindows()),
+          currentWatermarkEstimatorState,
+          0.0,
+          null,
+          null,
+          null,
+          0,
+          3);
+    }
+
+    @Test
     public void testComputeSplitForProcessWithNotNullTrackerAndDelegate() throws Exception {
       expected.expect(IllegalArgumentException.class);
       FnApiDoFnRunner.computeSplitForProcess(
@@ -3091,38 +3125,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
-    public void testTrySplitForProcessSplitOnFirstWindowFallback() throws Exception {
-      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
-      OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
-      tracker.tryClaim(100L);
-      assertNull(tracker.trySplit(0.0));
-      SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcess(
-              currentElement,
-              currentRestriction,
-              window3,
-              windows,
-              currentWatermarkEstimatorState,
-              0,
-              tracker,
-              null,
-              watermarkAndState,
-              0,
-              3);
-      assertEquals(1, result.getNewWindowStopIndex());
-      KV<WindowedValue, WindowedValue> expectedWindowSplit =
-          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window2, window3));
-      assertNull(result.getWindowSplit().getPrimarySplitRoot());
-      assertNull(result.getWindowSplit().getResidualSplitRoot());
-      assertEquals(
-          expectedWindowSplit.getKey(),
-          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
-      assertEquals(
-          expectedWindowSplit.getValue(),
-          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
-    }
-
-    @Test
     public void testTrySplitForProcessSplitOnLastWindowWhenNoElementSplit() throws Exception {
       List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
       OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
@@ -3254,6 +3256,294 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
+    public void testTrySplitForProcessSplitOnFirstWindowFallback() throws Exception {
+      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
+      OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
+      tracker.tryClaim(100L);
+      assertNull(tracker.trySplit(0.0));
+      SplitResultsWithStopIndex result =
+          FnApiDoFnRunner.computeSplitForProcess(
+              currentElement,
+              currentRestriction,
+              window3,
+              windows,
+              currentWatermarkEstimatorState,
+              0,
+              tracker,
+              null,
+              watermarkAndState,
+              0,
+              3);
+      assertEquals(1, result.getNewWindowStopIndex());
+      KV<WindowedValue, WindowedValue> expectedWindowSplit =
+          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window2, window3));
+      assertNull(result.getWindowSplit().getPrimarySplitRoot());
+      assertNull(result.getWindowSplit().getResidualSplitRoot());
+      assertEquals(
+          expectedWindowSplit.getKey(),
+          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
+      assertEquals(
+          expectedWindowSplit.getValue(),
+          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
+    }
+
+    @Test
+    public void testTrySplitForProcessSplitOnFirstWindowFallback() throws Exception {
+      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
+      OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
+      tracker.tryClaim(100L);
+      assertNull(tracker.trySplit(0.0));
+      SplitResultsWithStopIndex result =
+          FnApiDoFnRunner.computeSplitForProcess(
+              currentElement,
+              currentRestriction,
+              window3,
+              windows,
+              currentWatermarkEstimatorState,
+              0,
+              tracker,
+              null,
+              watermarkAndState,
+              0,
+              3);
+      assertEquals(1, result.getNewWindowStopIndex());
+      KV<WindowedValue, WindowedValue> expectedWindowSplit =
+          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window2, window3));
+      assertNull(result.getWindowSplit().getPrimarySplitRoot());
+      assertNull(result.getWindowSplit().getResidualSplitRoot());
+      assertEquals(
+          expectedWindowSplit.getKey(),
+          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
+      assertEquals(
+          expectedWindowSplit.getValue(),
+          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
+    }
+
+    @Test
+    public void testTrySplitForProcessSplitOnFirstWindowFallback() throws Exception {
+      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
+      OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
+      tracker.tryClaim(100L);
+      assertNull(tracker.trySplit(0.0));
+      SplitResultsWithStopIndex result =
+          FnApiDoFnRunner.computeSplitForProcess(
+              currentElement,
+              currentRestriction,
+              window3,
+              windows,
+              currentWatermarkEstimatorState,
+              0,
+              tracker,
+              null,
+              watermarkAndState,
+              0,
+              3);
+      assertEquals(1, result.getNewWindowStopIndex());
+      KV<WindowedValue, WindowedValue> expectedWindowSplit =
+          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window2, window3));
+      assertNull(result.getWindowSplit().getPrimarySplitRoot());
+      assertNull(result.getWindowSplit().getResidualSplitRoot());
+      assertEquals(
+          expectedWindowSplit.getKey(),
+          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
+      assertEquals(
+          expectedWindowSplit.getValue(),
+          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
+    }
+
+    @Test
+    public void testTrySplitForProcessSplitOnFirstWindowFallback() throws Exception {
+      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
+      OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
+      tracker.tryClaim(100L);
+      assertNull(tracker.trySplit(0.0));
+      SplitResultsWithStopIndex result =
+          FnApiDoFnRunner.computeSplitForProcess(
+              currentElement,
+              currentRestriction,
+              window3,
+              windows,
+              currentWatermarkEstimatorState,
+              0,
+              tracker,
+              null,
+              watermarkAndState,
+              0,
+              3);
+      assertEquals(1, result.getNewWindowStopIndex());
+      KV<WindowedValue, WindowedValue> expectedWindowSplit =
+          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window2, window3));
+      assertNull(result.getWindowSplit().getPrimarySplitRoot());
+      assertNull(result.getWindowSplit().getResidualSplitRoot());
+      assertEquals(
+          expectedWindowSplit.getKey(),
+          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
+      assertEquals(
+          expectedWindowSplit.getValue(),
+          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
+    }
+
+    @Test
+    public void testTrySplitForProcessSplitOnFirstWindowFallback() throws Exception {
+      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
+      OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
+      tracker.tryClaim(100L);
+      assertNull(tracker.trySplit(0.0));
+      SplitResultsWithStopIndex result =
+          FnApiDoFnRunner.computeSplitForProcess(
+              currentElement,
+              currentRestriction,
+              window3,
+              windows,
+              currentWatermarkEstimatorState,
+              0,
+              tracker,
+              null,
+              watermarkAndState,
+              0,
+              3);
+      assertEquals(1, result.getNewWindowStopIndex());
+      KV<WindowedValue, WindowedValue> expectedWindowSplit =
+          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window2, window3));
+      assertNull(result.getWindowSplit().getPrimarySplitRoot());
+      assertNull(result.getWindowSplit().getResidualSplitRoot());
+      assertEquals(
+          expectedWindowSplit.getKey(),
+          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
+      assertEquals(
+          expectedWindowSplit.getValue(),
+          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
+    }
+
+    @Test
+    public void testTrySplitForProcessSplitOnFirstWindowFallback() throws Exception {
+      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
+      OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
+      tracker.tryClaim(100L);
+      assertNull(tracker.trySplit(0.0));
+      SplitResultsWithStopIndex result =
+          FnApiDoFnRunner.computeSplitForProcess(
+              currentElement,
+              currentRestriction,
+              window3,
+              windows,
+              currentWatermarkEstimatorState,
+              0,
+              tracker,
+              null,
+              watermarkAndState,
+              0,
+              3);
+      assertEquals(1, result.getNewWindowStopIndex());
+      KV<WindowedValue, WindowedValue> expectedWindowSplit =
+          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window2, window3));
+      assertNull(result.getWindowSplit().getPrimarySplitRoot());
+      assertNull(result.getWindowSplit().getResidualSplitRoot());
+      assertEquals(
+          expectedWindowSplit.getKey(),
+          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
+      assertEquals(
+          expectedWindowSplit.getValue(),
+          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
+    }
+
+    @Test
+    public void testTrySplitForProcessSplitOnFirstWindowFallback() throws Exception {
+      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
+      OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
+      tracker.tryClaim(100L);
+      assertNull(tracker.trySplit(0.0));
+      SplitResultsWithStopIndex result =
+          FnApiDoFnRunner.computeSplitForProcess(
+              currentElement,
+              currentRestriction,
+              window3,
+              windows,
+              currentWatermarkEstimatorState,
+              0,
+              tracker,
+              null,
+              watermarkAndState,
+              0,
+              3);
+      assertEquals(1, result.getNewWindowStopIndex());
+      KV<WindowedValue, WindowedValue> expectedWindowSplit =
+          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window2, window3));
+      assertNull(result.getWindowSplit().getPrimarySplitRoot());
+      assertNull(result.getWindowSplit().getResidualSplitRoot());
+      assertEquals(
+          expectedWindowSplit.getKey(),
+          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
+      assertEquals(
+          expectedWindowSplit.getValue(),
+          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
+    }
+
+    @Test
+    public void testTrySplitForProcessSplitOnFirstWindowFallback() throws Exception {
+      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
+      OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
+      tracker.tryClaim(100L);
+      assertNull(tracker.trySplit(0.0));
+      SplitResultsWithStopIndex result =
+          FnApiDoFnRunner.computeSplitForProcess(
+              currentElement,
+              currentRestriction,
+              window3,
+              windows,
+              currentWatermarkEstimatorState,
+              0,
+              tracker,
+              null,
+              watermarkAndState,
+              0,
+              3);
+      assertEquals(1, result.getNewWindowStopIndex());
+      KV<WindowedValue, WindowedValue> expectedWindowSplit =
+          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window2, window3));
+      assertNull(result.getWindowSplit().getPrimarySplitRoot());
+      assertNull(result.getWindowSplit().getResidualSplitRoot());
+      assertEquals(
+          expectedWindowSplit.getKey(),
+          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
+      assertEquals(
+          expectedWindowSplit.getValue(),
+          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
+    }
+
+    @Test
+    public void testTrySplitForProcessSplitOnFirstWindowFallback() throws Exception {
+      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
+      OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
+      tracker.tryClaim(100L);
+      assertNull(tracker.trySplit(0.0));
+      SplitResultsWithStopIndex result =
+          FnApiDoFnRunner.computeSplitForProcess(
+              currentElement,
+              currentRestriction,
+              window3,
+              windows,
+              currentWatermarkEstimatorState,
+              0,
+              tracker,
+              null,
+              watermarkAndState,
+              0,
+              3);
+      assertEquals(1, result.getNewWindowStopIndex());
+      KV<WindowedValue, WindowedValue> expectedWindowSplit =
+          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window2, window3));
+      assertNull(result.getWindowSplit().getPrimarySplitRoot());
+      assertNull(result.getWindowSplit().getResidualSplitRoot());
+      assertEquals(
+          expectedWindowSplit.getKey(),
+          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
+      assertEquals(
+          expectedWindowSplit.getValue(),
+          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
+    }
+
+    @Test
     public void testConstructSplitResultWithInvalidElementSplits() throws Exception {
       expected.expect(IllegalArgumentException.class);
       FnApiDoFnRunner.constructSplitResult(
@@ -3334,51 +3624,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
-    public void testConstructSplitResultWithOnlyWindowSplits() throws Exception {
-      Coder fullInputCoder =
-          getFullInputCoder(
-              StringUtf8Coder.of(),
-              OffsetRange.Coder.of(),
-              InstantCoder.of(),
-              IntervalWindow.getCoder());
-      KV<WindowedValue, WindowedValue> windowSplit =
-          createSplitWithSizeAcrossWindows(
-              ImmutableList.of(window1), ImmutableList.of(window2, window3));
-      HandlesSplits.SplitResult result =
-          FnApiDoFnRunner.constructSplitResult(
-              WindowedSplitResult.forRoots(
-                  windowSplit.getKey(), null, null, windowSplit.getValue()),
-              null,
-              fullInputCoder,
-              initialWatermark,
-              watermarkAndState,
-              PROCESS_TRANSFORM_ID,
-              PROCESS_INPUT_ID,
-              ImmutableList.of(PROCESS_OUTPUT_ID),
-              Duration.millis(100L));
-      assertEquals(1, result.getPrimaryRoots().size());
-      BundleApplication primaryRoot = result.getPrimaryRoots().get(0);
-      assertEquals(PROCESS_TRANSFORM_ID, primaryRoot.getTransformId());
-      assertEquals(PROCESS_INPUT_ID, primaryRoot.getInputId());
-      assertEquals(
-          windowSplit.getKey(), fullInputCoder.decode(primaryRoot.getElement().newInput()));
-
-      assertEquals(1, result.getResidualRoots().size());
-      DelayedBundleApplication residualRoot = result.getResidualRoots().get(0);
-      assertEquals(
-          org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Duration.getDefaultInstance(),
-          residualRoot.getRequestedTimeDelay());
-      assertEquals(PROCESS_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
-      assertEquals(PROCESS_INPUT_ID, residualRoot.getApplication().getInputId());
-      assertEquals(
-          toTimestamp(initialWatermark),
-          residualRoot.getApplication().getOutputWatermarksMap().get(PROCESS_OUTPUT_ID));
-      assertEquals(
-          windowSplit.getValue(),
-          fullInputCoder.decode(residualRoot.getApplication().getElement().newInput()));
-    }
-
-    @Test
     public void testConstructSplitResultWithElementAndWindowSplitFromProcess() throws Exception {
       Coder fullInputCoder =
           getFullInputCoder(
@@ -3440,6 +3685,51 @@ public class FnApiDoFnRunnerTest implements Serializable {
       assertEquals(
           elementSplit.getValue(),
           fullInputCoder.decode(elementResidual.getApplication().getElement().newInput()));
+    }
+
+    @Test
+    public void testConstructSplitResultWithOnlyWindowSplits() throws Exception {
+      Coder fullInputCoder =
+          getFullInputCoder(
+              StringUtf8Coder.of(),
+              OffsetRange.Coder.of(),
+              InstantCoder.of(),
+              IntervalWindow.getCoder());
+      KV<WindowedValue, WindowedValue> windowSplit =
+          createSplitWithSizeAcrossWindows(
+              ImmutableList.of(window1), ImmutableList.of(window2, window3));
+      HandlesSplits.SplitResult result =
+          FnApiDoFnRunner.constructSplitResult(
+              WindowedSplitResult.forRoots(
+                  windowSplit.getKey(), null, null, windowSplit.getValue()),
+              null,
+              fullInputCoder,
+              initialWatermark,
+              watermarkAndState,
+              PROCESS_TRANSFORM_ID,
+              PROCESS_INPUT_ID,
+              ImmutableList.of(PROCESS_OUTPUT_ID),
+              Duration.millis(100L));
+      assertEquals(1, result.getPrimaryRoots().size());
+      BundleApplication primaryRoot = result.getPrimaryRoots().get(0);
+      assertEquals(PROCESS_TRANSFORM_ID, primaryRoot.getTransformId());
+      assertEquals(PROCESS_INPUT_ID, primaryRoot.getInputId());
+      assertEquals(
+          windowSplit.getKey(), fullInputCoder.decode(primaryRoot.getElement().newInput()));
+
+      assertEquals(1, result.getResidualRoots().size());
+      DelayedBundleApplication residualRoot = result.getResidualRoots().get(0);
+      assertEquals(
+          org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Duration.getDefaultInstance(),
+          residualRoot.getRequestedTimeDelay());
+      assertEquals(PROCESS_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
+      assertEquals(PROCESS_INPUT_ID, residualRoot.getApplication().getInputId());
+      assertEquals(
+          toTimestamp(initialWatermark),
+          residualRoot.getApplication().getOutputWatermarksMap().get(PROCESS_OUTPUT_ID));
+      assertEquals(
+          windowSplit.getValue(),
+          fullInputCoder.decode(residualRoot.getApplication().getElement().newInput()));
     }
   }
 }
