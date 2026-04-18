@@ -2915,7 +2915,7 @@ public class Blocks{
 
             drillMultipliers.put(Items.beryllium, 1.35f);
             liquidBoostIntensity = 2f;
-            
+
             //TODO different requirements
             consumePower(6f);
             consumeLiquid(Liquids.hydrogen, 4f / 60f);
