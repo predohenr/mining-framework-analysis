@@ -160,8 +160,8 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     }
 
     String project =
-        bqOptions.getBigQueryProject() == null
-            ? bqOptions.getProject()
+                    bqOptions.getBigQueryProject() == null
+                        ? bqOptions.getProject()
             : bqOptions.getBigQueryProject();
     if (project == null) {
       if (targetTable != null
