@@ -497,7 +497,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // Adding the Java version to the SDK name for user's and support convenience.
     String agentJavaVer =
-        String.format("(JRE %s environment)", Environments.getJavaVersion().specification());
+          String.format("(JRE %s environment)", Environments.getJavaVersion().specification());
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     String userAgentName = dataflowRunnerInfo.getName();
@@ -1790,7 +1790,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         return true;
       }
     }
-  };
+  };;
 
   /** Returns the DataflowPipelineTranslator associated with this object. */
   public DataflowPipelineTranslator getTranslator() {
@@ -2249,10 +2249,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  static {
-    DataflowPipelineTranslator.registerTransformTranslator(Impulse.class, new ImpulseTranslator());
-  }
-
   private static class StreamingUnboundedReadOverrideFactory<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Unbounded<T>> {
 
@@ -2332,6 +2328,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public String getKindString() {
       return String.format("Read(%s)", NameUtils.approximateSimpleName(source));
+    }
+
+    static {
+    DataflowPipelineTranslator.registerTransformTranslator(Impulse.class, new ImpulseTranslator());
     }
 
     static {
