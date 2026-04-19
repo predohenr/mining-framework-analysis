@@ -71,6 +71,12 @@ import static org.mockito.Mockito.*;
  *
  * @author Steven van Beelen
  */
+
+/**
+ * Test class validating the {@link MessagingConfigurer}.
+ *
+ * @author Steven van Beelen
+ */
 class MessagingConfigurerTest extends ApplicationConfigurerTestSuite<MessagingConfigurer> {
 
     @Override
