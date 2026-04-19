@@ -115,7 +115,7 @@ public final class Guardrails implements GuardrailsMBean
     new EnableFlag("secondary_indexes",
                    null,
                    state -> CONFIG_PROVIDER.getOrCreate(state).getSecondaryIndexesEnabled(),
-                   "User creation of secondary indexes");
+                    "User creation of secondary indexes");
 
     /**
      * Guardrail on the number of materialized views per table.
@@ -149,13 +149,13 @@ public final class Guardrails implements GuardrailsMBean
     new EnableFlag("user_timestamps",
                    null,
                    state -> CONFIG_PROVIDER.getOrCreate(state).getUserTimestampsEnabled(),
-                   "User provided timestamps (USING TIMESTAMP)");
+                    "User provided timestamps (USING TIMESTAMP)");
 
     public static final EnableFlag groupByEnabled =
     new EnableFlag("group_by",
                    null,
                    state -> CONFIG_PROVIDER.getOrCreate(state).getGroupByEnabled(),
-                   "GROUP BY functionality");
+                    "GROUP BY functionality");
 
     /**
      * Guardrail disabling ALTER TABLE column mutation access.
@@ -173,7 +173,7 @@ public final class Guardrails implements GuardrailsMBean
     new EnableFlag("drop_truncate_table_enabled",
                    null,
                    state -> CONFIG_PROVIDER.getOrCreate(state).getDropTruncateTableEnabled(),
-                   "DROP and TRUNCATE TABLE functionality");
+                    "DROP and TRUNCATE TABLE functionality");
 
     /**
      * Guardrail disabling DROP KEYSPACE behavior
@@ -191,7 +191,7 @@ public final class Guardrails implements GuardrailsMBean
     new EnableFlag("uncompressed_tables_enabled",
                    null,
                    state -> CONFIG_PROVIDER.getOrCreate(state).getUncompressedTablesEnabled(),
-                   "Uncompressed table");
+                    "Uncompressed table");
 
     /**
      * Guardrail disabling the creation of new COMPACT STORAGE tables
@@ -200,7 +200,7 @@ public final class Guardrails implements GuardrailsMBean
     new EnableFlag("compact_tables",
                    null,
                    state -> CONFIG_PROVIDER.getOrCreate(state).getCompactTablesEnabled(),
-                   "Creation of new COMPACT STORAGE tables");
+                    "Creation of new COMPACT STORAGE tables");
 
     /**
      * Guardrail to warn or fail a CREATE or ALTER TABLE statement when default_time_to_live is set to 0 and
@@ -268,7 +268,7 @@ public final class Guardrails implements GuardrailsMBean
     new EnableFlag("read_before_write_list_operations",
                    null,
                    state -> CONFIG_PROVIDER.getOrCreate(state).getReadBeforeWriteListOperationsEnabled(),
-                   "List operation requiring read before write");
+                    "List operation requiring read before write");
 
     /**
      * Guardrail disabling ALLOW FILTERING statement within a query
@@ -277,7 +277,7 @@ public final class Guardrails implements GuardrailsMBean
     new EnableFlag("allow_filtering",
                    "ALLOW FILTERING can potentially visit all the data in the table and have unpredictable performance.",
                    state -> CONFIG_PROVIDER.getOrCreate(state).getAllowFilteringEnabled(),
-                   "Querying with ALLOW FILTERING");
+                    "Querying with ALLOW FILTERING");
 
     /**
      * Guardrail disabling setting SimpleStrategy via keyspace creation or alteration
