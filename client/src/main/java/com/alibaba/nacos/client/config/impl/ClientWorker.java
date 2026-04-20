@@ -1040,7 +1040,7 @@ public class ClientWorker implements Closeable {
         }
         
         @SuppressWarnings("PMD.MethodTooLongRule")
-        private boolean checkListenCache(Map<String, List<CacheData>> listenCachesMap) throws NacosException {
+private boolean checkListenCache(Map<String, List<CacheData>> listenCachesMap) throws NacosException {
             
             final AtomicBoolean hasChangedKeys = new AtomicBoolean(false);
             if (!listenCachesMap.isEmpty()) {
@@ -1144,7 +1144,7 @@ public class ClientWorker implements Closeable {
                     rpcClient.setTenant(getTenant());
                     rpcClient.start();
                 }
-                
+    
                 return rpcClient;
             }
             
