@@ -15,18 +15,20 @@
  */
 
 package org.axonframework.eventhandling.scheduling.jobrunr;
-
-import jakarta.annotation.Nonnull;
-import org.axonframework.common.Registration;
-import org.axonframework.common.infra.ComponentDescriptor;
-import org.axonframework.eventhandling.EventBus;
 import org.axonframework.eventhandling.EventMessage;
-import org.axonframework.eventhandling.GenericEventMessage;
-import org.axonframework.eventhandling.annotations.Event;
-import org.axonframework.eventhandling.scheduling.ScheduleToken;
-import org.axonframework.eventhandling.scheduling.java.SimpleScheduleToken;
-import org.axonframework.messaging.MessageDispatchInterceptor;
 import org.axonframework.messaging.MessageType;
+import org.axonframework.eventhandling.annotations.Event;
+import org.axonframework.messaging.MessageDispatchInterceptor;
+import org.axonframework.messaging.unitofwork.ProcessingContext;
+import org.axonframework.common.FutureUtils;
+import org.axonframework.common.Registration;
+import jakarta.annotation.Nullable;
+import org.axonframework.eventhandling.scheduling.ScheduleToken;
+import jakarta.annotation.Nonnull;
+import org.axonframework.eventhandling.EventBus;
+import org.axonframework.common.infra.ComponentDescriptor;
+import org.axonframework.eventhandling.GenericEventMessage;
+import org.axonframework.eventhandling.scheduling.java.SimpleScheduleToken;
 import org.axonframework.serialization.TestConverter;
 import org.axonframework.serialization.json.JacksonSerializer;
 import org.jobrunr.configuration.JobRunr;
