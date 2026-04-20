@@ -83,13 +83,13 @@ public class GuardrailDiskUsageTest extends GuardrailTester
                                                                                            .withCredentials("cassandra", "cassandra");
         while (true)
         {
-            // create a regular user, since the default superuser is excluded from guardrails
+        // create a regular user, since the default superuser is excluded from guardrails
             try (com.datastax.driver.core.Cluster c = builder.build();
-                 Session session = c.connect())
-            {
-                session.execute("CREATE USER test WITH PASSWORD 'test'");
+             Session session = c.connect())
+        {
+            session.execute("CREATE USER test WITH PASSWORD 'test'");
                 break;
-            }
+        }
             catch (AuthenticationException e)
             {
                 Thread.sleep(1000L);
@@ -237,7 +237,7 @@ public class GuardrailDiskUsageTest extends GuardrailTester
         // After disabling the guardrail, we should be able to write again.
         cluster.get(2).runOnInstance(() -> Guardrails.instance.setDataDiskUsagePercentageThreshold(-1, -1));
         int stateDissemenationTimeoutSec = 2 * 60; // 2 minutes.
-        Util.spinUntilTrue(
+        Util.spinAssertEquals(true,
             () -> cluster.get(1).callOnInstance(() -> !DiskUsageBroadcaster.instance.hasStuffedOrFullNode()),
             stateDissemenationTimeoutSec
         );
@@ -250,7 +250,7 @@ public class GuardrailDiskUsageTest extends GuardrailTester
 
         // Re-enabling the guardrail should again cause writes to fail
         cluster.get(2).runOnInstance(() -> Guardrails.instance.setDataDiskUsagePercentageThreshold(98, 99));
-        Util.spinUntilTrue(
+        Util.spinAssertEquals(true,
             () -> cluster.get(1).callOnInstance(() -> DiskUsageBroadcaster.instance.hasStuffedOrFullNode()),
             stateDissemenationTimeoutSec
         );
