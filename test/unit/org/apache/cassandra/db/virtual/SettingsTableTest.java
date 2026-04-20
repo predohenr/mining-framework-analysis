@@ -391,12 +391,12 @@ public class SettingsTableTest extends CQLTester
 
         // we are not setting property here to true, we expect it to be true by default
 
-        table = new SettingsTable("json_true", config);
-        VirtualKeyspaceRegistry.instance.register(new VirtualKeyspace("json_true", ImmutableList.of(table)));
+            table = new SettingsTable("json_true", config);
+            VirtualKeyspaceRegistry.instance.register(new VirtualKeyspace("json_true", ImmutableList.of(table)));
 
-        check("json_true.settings", "data_file_directories", "[\"/my/data/directory\",\"/another/data/directory\"]");
-        check("json_true.settings", "seed_provider.parameters", "{\"seeds\":\"127.0.0.1:7000\"}");
-    }
+            check("json_true.settings", "data_file_directories", "[\"/my/data/directory\",\"/another/data/directory\"]");
+            check("json_true.settings", "seed_provider.parameters", "{\"seeds\":\"127.0.0.1:7000\"}");
+        }
 
     @Test
     public void testOldBehaviourForComplexSettingsFormatProperty()
@@ -408,11 +408,11 @@ public class SettingsTableTest extends CQLTester
         // Test set property to false (collection not as JSON)
         try (WithProperties properties = new WithProperties().set(CassandraRelevantProperties.VIRTUAL_TABLE_COMPLEX_SETTINGS_FORMAT_JSON, "false"))
         {
-            table = new SettingsTable("json_false", config);
-            VirtualKeyspaceRegistry.instance.register(new VirtualKeyspace("json_false", ImmutableList.of(table)));
+        table = new SettingsTable("json_false", config);
+        VirtualKeyspaceRegistry.instance.register(new VirtualKeyspace("json_false", ImmutableList.of(table)));
 
-            check("json_false.settings", "data_file_directories", "[/my/data/directory, /another/data/directory]");
-            check("json_false.settings", "seed_provider.parameters", "{seeds=127.0.0.1:7000}");
-        }
+        check("json_false.settings", "data_file_directories", "[/my/data/directory, /another/data/directory]");
+        check("json_false.settings", "seed_provider.parameters", "{seeds=127.0.0.1:7000}");
+    }
     }
 }

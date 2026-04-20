@@ -348,6 +348,7 @@ public class ConfigCompatibilityTest
             return List.class;
         return type;
     }
+
     @JsonSerialize(using = NodeSerializer.class)
     @JsonDeserialize(using = NodeDeserializer.class)
     private interface Node
