@@ -348,27 +348,6 @@ public class ConfigCacheService {
     }
     
     /**
-     * Update md5 value.
-     *
-     * @param groupKey         the group key
-     * @param md5              the md 5
-     * @param content          the content
-     * @param lastModifiedTs   the last modified ts
-     * @param encryptedDataKey the encrypted data key
-     */
-    public static void updateMd5(String groupKey, String md5, String content, long lastModifiedTs, String encryptedDataKey) {
-        CacheItem cache = makeSure(groupKey, encryptedDataKey);
-        ConfigCache configCache = cache.getConfigCache();
-        if (configCache.getMd5() == null || !configCache.getMd5().equals(md5)) {
-            configCache.setMd5(md5);
-            configCache.setLastModifiedTs(lastModifiedTs);
-            configCache.setEncryptedDataKey(encryptedDataKey);
-            ConfigCachePostProcessorDelegate.getInstance().postProcess(configCache, content);
-            NotifyCenter.publishEvent(new LocalDataChangeEvent(groupKey));
-        }
-    }
-    
-    /**
      * Update gray md5 value.
      *
      * @param groupKey         the group key
@@ -391,6 +370,27 @@ public class ConfigCacheService {
         cache.sortConfigGray();
         ConfigCachePostProcessorDelegate.getInstance().postProcess(configCache, content);
         NotifyCenter.publishEvent(new LocalDataChangeEvent(groupKey));
+    }
+    
+    /**
+     * Update md5 value.
+     *
+     * @param groupKey         the group key
+     * @param md5              the md 5
+     * @param content          the content
+     * @param lastModifiedTs   the last modified ts
+     * @param encryptedDataKey the encrypted data key
+     */
+    public static void updateMd5(String groupKey, String md5, String content, long lastModifiedTs, String encryptedDataKey) {
+        CacheItem cache = makeSure(groupKey, encryptedDataKey);
+        ConfigCache configCache = cache.getConfigCache();
+        if (configCache.getMd5() == null || !configCache.getMd5().equals(md5)) {
+            configCache.setMd5(md5);
+            configCache.setLastModifiedTs(lastModifiedTs);
+            configCache.setEncryptedDataKey(encryptedDataKey);
+            ConfigCachePostProcessorDelegate.getInstance().postProcess(configCache, content);
+            NotifyCenter.publishEvent(new LocalDataChangeEvent(groupKey));
+        }
     }
     
     /**
@@ -633,4 +633,3 @@ public class ConfigCacheService {
         return lockResult;
     }
 }
-
