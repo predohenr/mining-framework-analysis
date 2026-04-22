@@ -159,10 +159,6 @@ public final class GrpcClient {
         return walletsServiceRequest.getTransaction(txId);
     }
 
-    public OfferCategory getAvailableOfferCategory(String offerId) {
-        return offersServiceRequest.getAvailableOfferCategory(offerId);
-    }
-
     public OfferCategory getMyOfferCategory(String offerId) {
         return offersServiceRequest.getMyOfferCategory(offerId);
     }
@@ -289,6 +285,10 @@ public final class GrpcClient {
 
     public OfferInfo getOffer(String offerId) {
         return offersServiceRequest.getOffer(offerId);
+    }
+
+    public OfferCategory getAvailableOfferCategory(String offerId) {
+        return offersServiceRequest.getAvailableOfferCategory(offerId);
     }
 
     public List<OfferInfo> getBsqSwapOffers(String direction) {
