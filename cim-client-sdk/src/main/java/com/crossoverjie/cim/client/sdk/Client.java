@@ -16,15 +16,11 @@ public interface Client extends Closeable {
         return new ClientBuilderImpl();
     }
 
-    default void sendP2P(P2PReqVO p2PReqVO) throws Exception {
-        sendP2PAsync(p2PReqVO).get();
-    }
+     void sendP2P(P2PReqVO p2PReqVO) throws Exception;
 
     CompletableFuture<Void> sendP2PAsync(P2PReqVO p2PReqVO);
 
-    default void sendGroup(String msg) throws Exception {
-        sendGroupAsync(msg).get();
-    }
+     void sendGroup(String msg) throws Exception;
 
     CompletableFuture<Void> sendGroupAsync(String msg);
 
