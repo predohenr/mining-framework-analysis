@@ -7,41 +7,38 @@
  *     Sebastian Stenzel - initial API and implementation
  *******************************************************************************/
 package org.cryptomator.common.vaults;
-
-import javax.inject.Inject;
-import javax.inject.Singleton;
-import javafx.collections.ObservableList;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Path;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.ResourceBundle;
-
-import static org.cryptomator.common.Constants.MASTERKEY_FILENAME;
-import static org.cryptomator.common.Constants.VAULTCONFIG_FILENAME;
-import static org.cryptomator.common.vaults.VaultState.Value.ERROR;
-import static org.cryptomator.common.vaults.VaultState.Value.LOCKED;
-import static org.cryptomator.common.vaults.VaultState.Value.MASTERKEY_MISSING;
-import static org.cryptomator.common.vaults.VaultState.Value.NEEDS_MIGRATION;
-import static org.cryptomator.common.vaults.VaultState.Value.PROCESSING;
-import static org.cryptomator.common.vaults.VaultState.Value.UNLOCKED;
-
-import org.apache.commons.lang3.SystemUtils;
-import org.cryptomator.common.Constants;
-import org.cryptomator.common.recovery.BackupRestorer;
-import org.cryptomator.common.settings.Settings;
 import org.cryptomator.common.settings.VaultSettings;
-import org.cryptomator.cryptofs.CryptoFileSystemProvider;
-import org.cryptomator.cryptofs.DirStructure;
-import org.cryptomator.cryptofs.migration.Migrators;
-import org.cryptomator.integrations.mount.MountService;
-import org.cryptomator.ui.keyloading.KeyLoadingStrategy;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import javax.inject.Singleton;
+import org.apache.commons.lang3.SystemUtils;
+import static org.cryptomator.common.vaults.VaultState.Value.LOCKED;
+import static org.cryptomator.common.vaults.VaultState.Value.PROCESSING;
+import org.slf4j.Logger;
+import java.nio.file.Path;
+import org.cryptomator.ui.keyloading.KeyLoadingStrategy;
+import org.cryptomator.integrations.mount.MountService;
+import org.cryptomator.common.Constants;
+import static org.cryptomator.common.vaults.VaultState.Value.NEEDS_MIGRATION;
+import javafx.collections.ObservableList;
+import static org.cryptomator.common.vaults.VaultState.Value.ERROR;
+import java.util.Objects;
+import static org.cryptomator.common.vaults.VaultState.Value.UNLOCKED;
+import java.util.List;
+import static org.cryptomator.common.Constants.VAULTCONFIG_FILENAME;
+import org.cryptomator.cryptofs.migration.Migrators;
+import java.util.ResourceBundle;
+import org.cryptomator.common.recovery.BackupRestorer;
+import org.cryptomator.cryptofs.DirStructure;
+import javax.inject.Inject;
+import java.util.Optional;
+import java.nio.file.NoSuchFileException;
+import org.cryptomator.common.settings.Settings;
+import java.nio.file.Files;
+import java.io.IOException;
+import static org.cryptomator.common.Constants.MASTERKEY_FILENAME;
+import org.cryptomator.cryptofs.CryptoFileSystemProvider;
+import static org.cryptomator.common.vaults.VaultState.Value.MASTERKEY_MISSING;
+import java.util.Collection;
 
 @Singleton
 public class VaultListManager {
@@ -225,7 +222,7 @@ public class VaultListManager {
 			case VAULT -> VaultState.Value.LOCKED;
 			case UNRELATED -> VaultState.Value.MISSING;
 			case MAYBE_LEGACY -> Migrators.get().needsMigration(pathToVault, VAULTCONFIG_FILENAME, MASTERKEY_FILENAME) ? //
-					NEEDS_MIGRATION //
+					VaultState.Value.NEEDS_MIGRATION //
 					: VaultState.Value.MISSING;
 		};
 	}
