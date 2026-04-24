@@ -1000,14 +1000,12 @@ public class DistributionTests extends AbstractJettyHomeTest
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ee9", "ee10", "ee11"})
+    @ValueSource(strings = {"ee9", "ee10"})
     public void testEEProxyModule(String env) throws Exception
     {
-        Path jettyBase = newTestJettyBaseDirectory();
         String jettyVersion = System.getProperty("jettyVersion");
         JettyHomeTester distribution = JettyHomeTester.Builder.newInstance()
             .jettyVersion(jettyVersion)
-            .jettyBase(jettyBase)
             .build();
 
         List<String> modules = List.of("http", toEnvironment("proxy", env), toEnvironment("deploy", env));
@@ -1017,7 +1015,7 @@ public class DistributionTests extends AbstractJettyHomeTest
             assertEquals(0, run1.getExitValue());
 
             // Create a custom module for the ServerConnector that represents the backend server.
-            Path jettyBaseModules = jettyBase.resolve("modules");
+            Path jettyBaseModules = distribution.getJettyBase().resolve("modules");
             Files.createDirectories(jettyBaseModules);
             Path httpBackendModule = jettyBaseModules.resolve("http-backend.mod");
             Files.writeString(httpBackendModule, """
@@ -1028,7 +1026,7 @@ public class DistributionTests extends AbstractJettyHomeTest
                 [ini-template]
                 # jetty.http.backend.port=9090
                 """, StandardOpenOption.CREATE);
-            Path jettyBaseEtc = jettyBase.resolve("etc");
+            Path jettyBaseEtc = distribution.getJettyBase().resolve("etc");
             Files.createDirectories(jettyBaseEtc);
             Path httpBackendXML = jettyBaseEtc.resolve("jetty-http-backend.xml");
             Files.writeString(httpBackendXML, """
@@ -1059,9 +1057,9 @@ public class DistributionTests extends AbstractJettyHomeTest
                 """, StandardOpenOption.CREATE);
 
             // Set up the backend application.
-            Path war = distribution.resolveArtifact("org.eclipse.jetty.demos:jetty-servlet5-demo-simple-webapp:war:" + jettyVersion);
+            Path war = distribution.resolveArtifact("org.eclipse.jetty." + env + ".demos:jetty-" + env + "-demo-simple-webapp:war:" + jettyVersion);
             distribution.installWar(war, "backend");
-            Path jettyBaseWebapps = jettyBase.resolve("webapps");
+            Path jettyBaseWebapps = distribution.getJettyBase().resolve("webapps");
             Files.writeString(jettyBaseWebapps.resolve("backend.properties"), "environment=" + env, StandardOpenOption.CREATE);
 
             int proxyPort = Tester.freePort();
