@@ -24,24 +24,33 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import ch.qos.logback.core.Appender;
 
-import com.google.common.collect.Maps;
-
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.LoggerFactory;
+import ch.qos.logback.classic.turbo.TurboFilter;
 
 import org.apache.cassandra.security.ThreadAwareSecurityManager;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
+
 import ch.qos.logback.classic.spi.ILoggingEvent;
+
+import com.google.common.collect.Maps;
+
 import ch.qos.logback.classic.spi.TurboFilterList;
+
 import ch.qos.logback.classic.turbo.ReconfigureOnChangeFilter;
-import ch.qos.logback.classic.turbo.TurboFilter;
+
+import org.apache.commons.lang3.StringUtils;
+
 import ch.qos.logback.classic.util.ContextInitializer;
-import ch.qos.logback.core.Appender;
+
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+
 import ch.qos.logback.core.hook.DefaultShutdownHook;
+
+import ch.qos.logback.classic.Logger;
 
 /**
  * Encapsulates all logback-specific implementations in a central place.
