@@ -61,13 +61,43 @@ public class ReceiveKeyController implements FxController {
 	private final HttpClient httpClient;
 
 	@Inject
+	public ReceiveKeyController(@KeyLoading Vault vault, //
+								ExecutorService executor, //
+								@KeyLoading Stage window, //
+								HubConfig hubConfig, //
+								@Named("deviceId") String deviceId, //
+								@Named("bearerToken") AtomicReference<String> tokenRef, //
+								@Named("filesystemOwnerId") AtomicReference<String> fsOwnerId, //
+								CompletableFuture<ReceivedKey> result, //
+								@FxmlScene(FxmlFile.HUB_REGISTER_DEVICE) Lazy<Scene> registerDeviceScene, //
+								@FxmlScene(FxmlFile.HUB_LEGACY_REGISTER_DEVICE) Lazy<Scene> legacyRegisterDeviceScene, //
+								@FxmlScene(FxmlFile.HUB_UNAUTHORIZED_DEVICE) Lazy<Scene> unauthorizedScene, //
+								@FxmlScene(FxmlFile.HUB_REQUIRE_ACCOUNT_INIT) Lazy<Scene> accountInitializationScene, //
+								@FxmlScene(FxmlFile.HUB_INVALID_LICENSE) Lazy<Scene> invalidLicenseScene) {
+		this.window = window;
+		this.hubConfig = hubConfig;
+		this.vaultId = extractVaultId(vault.getVaultConfigCache().getUnchecked().getKeyId()); // TODO: access vault config's JTI directly (requires changes in cryptofs)
+		this.deviceId = deviceId;
+		this.bearerToken = Objects.requireNonNull(tokenRef.get());
+		this.fsOwnerId = fsOwnerId;
+		this.result = result;
+		this.registerDeviceScene = registerDeviceScene;
+		this.legacyRegisterDeviceScene = legacyRegisterDeviceScene;
+		this.unauthorizedScene = unauthorizedScene;
+		this.archivedVaultScene = archivedVaultScene;
+		this.accountInitializationScene = accountInitializationScene;
+		this.invalidLicenseScene = invalidLicenseScene;
+		this.window.addEventHandler(WindowEvent.WINDOW_HIDING, this::windowClosed);
+		this.httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).executor(executor).build();
+	}
+
+	@Inject
 	public ReceiveKeyController(@KeyLoading Vault vault,
 								ExecutorService executor,
 								@KeyLoading Stage window,
 								HubConfig hubConfig,
 								@Named("deviceId") String deviceId,
 								@Named("bearerToken") AtomicReference<String> tokenRef,
-								@Named("filesystemOwnerId") AtomicReference<String> fsOwnerId, //
 								CompletableFuture<ReceivedKey> result,
 								@FxmlScene(FxmlFile.HUB_REGISTER_DEVICE) Lazy<Scene> registerDeviceScene,
 								@FxmlScene(FxmlFile.HUB_LEGACY_REGISTER_DEVICE) Lazy<Scene> legacyRegisterDeviceScene,
