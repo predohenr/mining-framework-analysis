@@ -1028,6 +1028,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
      * @param pageSize the number of {@link Unfiltered} objects to process in a single page
      * @param columns the columns indexed by at least one of the supplied indexes
      */
+    @SuppressWarnings("resource") // for `UnfilteredRowIterator partition` as it is closed later in finally block
     public void indexPartition(DecoratedKey key, Set<Index> indexes, int pageSize, RegularAndStaticColumns columns)
     {
         if (logger.isTraceEnabled())
