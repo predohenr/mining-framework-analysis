@@ -19,6 +19,7 @@ import org.cryptomator.ui.fxapp.FxApplicationTerminator;
 import org.cryptomator.ui.fxapp.PrimaryStage;
 import org.cryptomator.ui.migration.MigrationComponent;
 import org.cryptomator.ui.recoverykey.RecoveryKeyComponent;
+import org.cryptomator.ui.removevault.RemoveVaultComponent;
 import org.cryptomator.ui.stats.VaultStatisticsComponent;
 import org.cryptomator.ui.traymenu.TrayMenuComponent;
 import org.cryptomator.ui.wrongfilealert.WrongFileAlertComponent;

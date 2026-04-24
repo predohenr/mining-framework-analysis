@@ -5,6 +5,7 @@ import org.cryptomator.common.vaults.VaultListManager;
 import org.cryptomator.ui.common.FxController;
 import org.cryptomator.ui.dialogs.Dialogs;
 import org.cryptomator.ui.recoverykey.RecoveryKeyComponent;
+import org.cryptomator.ui.removevault.RemoveVaultComponent;
 
 import javax.inject.Inject;
 import javafx.beans.property.ObjectProperty;
@@ -24,42 +25,71 @@ public class VaultDetailMissingVaultController implements FxController {
 	private final ObservableList<Vault> vaults;
 	private final ResourceBundle resourceBundle;
 	private final Stage window;
-	private final RecoveryKeyComponent.Factory recoveryKeyWindow;
 	private final Dialogs dialogs;
+
+
 
 	@Inject
 	public VaultDetailMissingVaultController(ObjectProperty<Vault> vault, //
 											 ObservableList<Vault> vaults, //
 											 ResourceBundle resourceBundle, //
 											 @MainWindow Stage window, //
-											 Dialogs dialogs, //
-											 RecoveryKeyComponent.Factory recoveryKeyWindow) {
+											 Dialogs dialogs) {
 		this.vault = vault;
 		this.vaults = vaults;
 		this.resourceBundle = resourceBundle;
 		this.window = window;
-		this.recoveryKeyWindow = recoveryKeyWindow;
 		this.dialogs = dialogs;
 	}
+
+
 
 	@FXML
 	public void recheck() {
 		VaultListManager.redetermineVaultState(vault.get());
 	}
 
+
+
 	@FXML
 	void didClickRemoveVault() {
 		dialogs.prepareRemoveVaultDialog(window, vault.get(), vaults).build().showAndWait();
 	}
 
+
+
+	private final RecoveryKeyComponent.Factory recoveryKeyWindow;
+
+
+
+	@Inject
+	public VaultDetailMissingVaultController(ObjectProperty<Vault> vault, RemoveVaultComponent.Builder removeVault, ResourceBundle resourceBundle, @MainWindow Stage window, RecoveryKeyComponent.Factory recoveryKeyWindow) {
+		this.vault = vault;
+		this.vaults = vaults;
+		this.resourceBundle = resourceBundle;
+		this.window = window;
+		this.recoveryKeyWindow = recoveryKeyWindow;
+	}
+
+
+
 	@FXML
-	void restoreVaultConfig() {
+	void restoreMasterkey(){
+		recoveryKeyWindow.create(vault.get(), window).showRecoveryKeyRecoverWindow("Recover Masterkey");
+	}
+
+
+
+	@FXML
+	void restoreVaultConfig(){
 		recoveryKeyWindow.create(vault.get(), window).showIsHubVaultDialogWindow();
 	}
 
+
+
 	@FXML
-	void restoreMasterkey() {
-		recoveryKeyWindow.create(vault.get(), window).showRecoveryKeyRecoverWindow("Recover Masterkey");
+	void didClickRemoveVault() {
+		removeVault.vault(vault.get()).build().showRemoveVault();
 	}
 
 	@FXML
