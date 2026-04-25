@@ -263,7 +263,7 @@ public class LocalSessions
                 return false;
 
             Collection<Range<Token>> actualRanges = rangesPerKeyspaceCache.computeIfAbsent(tableMetadata.keyspace, (keyspace) -> {
-                Collection<Range<Token>> localRanges = getLocalRanges(tableMetadata.keyspace);
+                List<Range<Token>> localRanges = getLocalRanges(tableMetadata.keyspace);
                 if (localRanges.isEmpty()) // to handle the case when we run before the information about owned ranges is properly populated
                     return session.ranges;
 
@@ -285,7 +285,7 @@ public class LocalSessions
     }
 
     @VisibleForTesting
-    protected Collection<Range<Token>> getLocalRanges(String keyspace)
+    protected List<Range<Token>> getLocalRanges(String keyspace)
     {
         return StorageService.instance.getLocalAndPendingRanges(keyspace);
     }
