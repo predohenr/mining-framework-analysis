@@ -234,6 +234,12 @@ public abstract class AbstractCluster<I extends IInstance> implements ICluster<I
             return self();
         }
 
+        @SuppressWarnings("unchecked")
+        private B self()
+        {
+            return (B) this;
+        }
+
         public B withShutdownExecutor(ShutdownExecutor shutdownExecutor)
         {
             this.shutdownExecutor = shutdownExecutor;
