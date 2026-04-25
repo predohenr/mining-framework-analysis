@@ -228,6 +228,12 @@ public abstract class AbstractCluster<I extends IInstance> implements ICluster<I
             withSharedClasses(SHARED_PREDICATE);
         }
 
+        @SuppressWarnings("unchecked")
+        private B self()
+        {
+            return (B) this;
+        }
+
         public B withNodeProvisionStrategy(INodeProvisionStrategy.Factory nodeProvisionStrategy)
         {
             this.nodeProvisionStrategy = nodeProvisionStrategy;
