@@ -147,4 +147,10 @@ public class CreateTableValidationTest extends CQLTester
         assertThatExceptionOfType(exceptionType)
         .isThrownBy(() -> createTableMayThrow(statement)) .withMessageContaining(errorMsg);
     }
+
+    private void expectedFailure(String statement, String errorMsg)
+    {
+        assertThatExceptionOfType(InvalidRequestException.class)
+        .isThrownBy(() -> createTableMayThrow(statement)) .withMessageContaining(errorMsg);
+    }
 }
