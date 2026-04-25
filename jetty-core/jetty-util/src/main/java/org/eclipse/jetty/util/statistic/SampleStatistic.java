@@ -18,6 +18,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.atomic.LongAdder;
 
+import org.eclipse.jetty.util.TypeUtil;
+
 /**
  * <p>Statistics on a sampled value.</p>
  * <p>Provides max, total, mean, count, variance, and standard deviation of continuous sequence of samples.</p>
@@ -126,6 +128,6 @@ public class SampleStatistic
     @Override
     public String toString()
     {
-        return String.format(Locale.ROOT, "%s@%x{count=%d,max=%d,mean=%f,total=%d,variance=%f,stddev=%f}", getClass().getSimpleName(), hashCode(), getCount(), getMax(), getMean(), getTotal(), getVariance(), getStdDev());
+        return String.format(Locale.ROOT, "%s@%x{count=%d,max=%d,mean=%f,total=%d,variance=%f,stddev=%f}", TypeUtil.toShortName(getClass()), hashCode(), getCount(), getMax(), getMean(), getTotal(), getVariance(), getStdDev());
     }
 }
