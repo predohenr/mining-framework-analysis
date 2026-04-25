@@ -105,7 +105,7 @@ public class WriteAfterRedirectTest
         // The server will close the connection without any indication to the client,
         // so when the client follows the redirect it may send it on a closed connection,
         // which will fail the test. ValidatingConnectionPool is designed for these cases.
-        _client.getHttpClientTransport().setConnectionPoolFactory(destination ->
+        _client.getTransport().setConnectionPoolFactory(destination ->
             new ValidatingConnectionPool(destination, _client.getMaxConnectionsPerDestination(), _client.getScheduler(), 1000)
         );
 
