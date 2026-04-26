@@ -502,7 +502,6 @@ public class ServletContextResponse extends ContextResponse implements ServletCo
         {
             if (isCommitted())
                 return false;
-
             if (field.getHeader() == HttpHeader.CONTENT_TYPE)
             {
                 _contentType = null;
