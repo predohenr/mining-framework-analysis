@@ -262,6 +262,32 @@ public class ArrayByteBufferPool implements ByteBufferPool, Dumpable
         }
     }
 
+    @Override
+    public boolean removeAndRelease(RetainableByteBuffer buffer)
+    {
+        RetainableByteBuffer actual = buffer;
+        while (actual instanceof RetainableByteBuffer.Wrapper wrapper)
+        {
+            actual = wrapper.getWrapped();
+        }
+
+        if (actual instanceof ReservedBuffer reservedBuffer)
+        {
+            // remove the actual reserved buffer, but release the wrapped buffer
+            reservedBuffer.remove();
+            return buffer.release();
+        }
+
+        if (actual instanceof Buffer poolBuffer)
+        {
+            // remove the actual pool buffer, but release the wrapped buffer
+            poolBuffer.remove();
+            return buffer.release();
+        }
+
+        return ByteBufferPool.super.removeAndRelease(buffer);
+    }
+
     private void reserve(RetainedBucket bucket, ByteBuffer byteBuffer)
     {
         _reserved.addAndGet(-byteBuffer.capacity());
