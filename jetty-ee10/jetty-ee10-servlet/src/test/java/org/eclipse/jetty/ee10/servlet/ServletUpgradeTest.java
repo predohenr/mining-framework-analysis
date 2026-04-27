@@ -252,6 +252,44 @@ public class ServletUpgradeTest
         }
     }
 
+    private static boolean compareString(String expected, String actual)
+    {
+        String[] listExpected = expected.split("[|]");
+        boolean found = true;
+        for (int i = 0, n = listExpected.length, startIdx = 0, bodyLength = actual.length(); i < n; i++)
+        {
+            String search = listExpected[i];
+            if (startIdx >= bodyLength)
+            {
+                startIdx = bodyLength;
+            }
+
+            int searchIdx = actual.toLowerCase().indexOf(search.toLowerCase(), startIdx);
+
+            LOG.debug("[ServletTestUtil] Scanning response for " + "search string: '" + search + "' starting at index " + "location: " + startIdx);
+            if (searchIdx < 0)
+            {
+                found = false;
+                String s = "[ServletTestUtil] Unable to find the following " +
+                    "search string in the server's " +
+                    "response: '" + search + "' at index: " +
+                    startIdx +
+                    "\n[ServletTestUtil] Server's response:\n" +
+                    "-------------------------------------------\n" +
+                    actual +
+                    "\n-------------------------------------------\n";
+                LOG.debug(s);
+                break;
+            }
+
+            LOG.debug("[ServletTestUtil] Found search string: '" + search + "' at index '" + searchIdx + "' in the server's " + "response");
+            // the new searchIdx is the old index plus the length of the
+            // search string.
+            startIdx = searchIdx + search.length();
+        }
+        return found;
+    }
+
     private static void writeChunk(OutputStream out, String data) throws IOException
     {
         if (data != null)
