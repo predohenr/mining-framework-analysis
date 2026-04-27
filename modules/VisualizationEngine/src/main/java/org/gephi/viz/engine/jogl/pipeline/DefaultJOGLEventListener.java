@@ -45,10 +45,8 @@ public class DefaultJOGLEventListener implements InputListener<JOGLRenderingTarg
     public void frameEnd() {
         if (lastMovedPosition != null) {
             //TODO: move to independent selection input listener
-            if (graphSelection.getMode() == GraphSelection.GraphSelectionMode.SIMPLE_MOUSE_SELECTION ||
-                graphSelection.getMode() == GraphSelection.GraphSelectionMode.SINGLE_NODE_SELECTION) {
-                final Vector2f worldCoords =
-                    engine.screenCoordinatesToWorldCoordinates(lastMovedPosition.getX(), lastMovedPosition.getY());
+            if (graphSelection.getMode() == GraphSelection.GraphSelectionMode.SIMPLE_MOUSE_SELECTION || graphSelection.getMode() == GraphSelection.GraphSelectionMode.SINGLE_NODE_SELECTION) {
+                final Vector2f worldCoords = engine.screenCoordinatesToWorldCoordinates(lastMovedPosition.getX(), lastMovedPosition.getY());
                 float radius = graphSelection.getMouseSelectionEffectiveDiameter();
 
                 if(radius<=1) {
@@ -57,6 +55,7 @@ public class DefaultJOGLEventListener implements InputListener<JOGLRenderingTarg
                 }
 
                 inputActionsProcessor.selectNodesWithinRadius(worldCoords.x, worldCoords.y, radius);
+
             }
         }
     }
