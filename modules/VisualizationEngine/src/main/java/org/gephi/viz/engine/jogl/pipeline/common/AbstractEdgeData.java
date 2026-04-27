@@ -90,8 +90,13 @@ public abstract class AbstractEdgeData {
     protected GraphRenderingOptions.EdgeColorMode edgeColorMode;
 
     public AbstractEdgeData(final EdgesCallback edgesCallback, boolean instanced, boolean usesSecondaryBuffer) {
-        this.startedTime = System.currentTimeMillis();
         this.edgesCallback = edgesCallback;
+        this.instanced = instanced;
+        this.usesSecondaryBuffer = usesSecondaryBuffer;
+    }
+
+    public AbstractEdgeData(boolean instanced, boolean usesSecondaryBuffer) {
+        this.startedTime = System.currentTimeMillis();
         this.instanced = instanced;
         this.usesSecondaryBuffer = usesSecondaryBuffer;
     }
