@@ -26,8 +26,8 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Session;
-import org.eclipse.jetty.server.handler.GracefulHandler;
 import org.eclipse.jetty.session.AbstractSessionManager.RequestedSession;
+import org.eclipse.jetty.server.handler.GracefulHandler;
 import org.eclipse.jetty.toolchain.test.MavenTestingUtils;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.IO;
@@ -786,7 +786,7 @@ public class SessionHandlerTest
             endPoint.addInput("""
                 GET /create HTTP/1.1
                 Host: localhost
-
+                
                 """);
 
             HttpTester.Response response = HttpTester.parseResponse(endPoint.getResponse());
@@ -800,7 +800,7 @@ public class SessionHandlerTest
                 GET /set/attribute/value HTTP/1.1
                 Host: localhost
                 Cookie: SESSION_ID=%s
-
+                
                 """.formatted(id));
 
             response = HttpTester.parseResponse(endPoint.getResponse());
@@ -821,7 +821,7 @@ public class SessionHandlerTest
                 GET /set/attribute/value HTTP/1.1
                 Host: localhost
                 Cookie: SESSION_ID=%s
-
+                
                 """.formatted(id));
 
             HttpTester.Response  response = HttpTester.parseResponse(endPoint.getResponse());
