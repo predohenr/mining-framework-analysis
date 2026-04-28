@@ -416,47 +416,6 @@ public class ExecutableNormalizedOperationToAstCompiler {
         return newSelectionSet().selections(fields).build();
     }
 
-    private static List<Argument> createArguments(ExecutableNormalizedField executableNormalizedField,
-                                                  VariableAccumulator variableAccumulator) {
-        ImmutableList.Builder<Argument> result = ImmutableList.builder();
-        ImmutableMap<String, NormalizedInputValue> normalizedArguments = executableNormalizedField.getNormalizedArguments();
-        for (String argName : normalizedArguments.keySet()) {
-            NormalizedInputValue normalizedInputValue = normalizedArguments.get(argName);
-            Value<?> value = argValue(executableNormalizedField, argName, normalizedInputValue, variableAccumulator);
-            Argument argument = newArgument()
-                    .name(argName)
-                    .value(value)
-                    .build();
-            result.add(argument);
-        }
-        return result.build();
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Value<?> argValue(ExecutableNormalizedField executableNormalizedField,
-                                     String argName,
-                                     @Nullable Object value,
-                                     VariableAccumulator variableAccumulator) {
-        if (value instanceof List) {
-            ArrayValue.Builder arrayValue = ArrayValue.newArrayValue();
-            arrayValue.values(map((List<Object>) value, val -> argValue(executableNormalizedField, argName, val, variableAccumulator)));
-            return arrayValue.build();
-        }
-        if (value instanceof Map) {
-            ObjectValue.Builder objectValue = ObjectValue.newObjectValue();
-            Map<String, Object> map = (Map<String, Object>) value;
-            for (String fieldName : map.keySet()) {
-                Value<?> fieldValue = argValue(executableNormalizedField, argName, (NormalizedInputValue) map.get(fieldName), variableAccumulator);
-                objectValue.objectField(ObjectField.newObjectField().name(fieldName).value(fieldValue).build());
-            }
-            return objectValue.build();
-        }
-        if (value == null) {
-            return NullValue.newNullValue().build();
-        }
-        return (Value<?>) value;
-    }
-
     @NonNull
     private static Value<?> argValue(ExecutableNormalizedField executableNormalizedField,
                                      String argName,

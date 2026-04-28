@@ -30,8 +30,8 @@ import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLSchema;
 import graphql.schema.impl.SchemaUtil;
 import org.jspecify.annotations.NonNull;
-import graphql.util.FpKit;
 import org.jetbrains.annotations.NotNull;
+import graphql.util.FpKit;
 import org.reactivestreams.Publisher;
 
 import java.util.Collections;
