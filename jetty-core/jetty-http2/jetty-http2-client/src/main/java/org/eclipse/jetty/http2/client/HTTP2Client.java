@@ -102,11 +102,11 @@ import org.eclipse.jetty.util.thread.Scheduler;
 @ManagedObject
 public class HTTP2Client extends ContainerLifeCycle implements AutoCloseable
 {
+    private final SessionContainer container = new SessionContainer();
+    public static final String SESSION_LISTENER_CONTEXT_KEY = Session.Listener.class.getName();
     public static final String CONTEXT_KEY = HTTP2Client.class.getName();
     public static final String SESSION_PROMISE_CONTEXT_KEY = Session.class.getName() + ".promise";
-    public static final String SESSION_LISTENER_CONTEXT_KEY = Session.Listener.class.getName();
 
-    private final SessionContainer container = new SessionContainer();
     private final ClientConnector connector;
     private int inputBufferSize = IO.DEFAULT_BUFFER_SIZE;
     private List<String> protocols = List.of("h2");

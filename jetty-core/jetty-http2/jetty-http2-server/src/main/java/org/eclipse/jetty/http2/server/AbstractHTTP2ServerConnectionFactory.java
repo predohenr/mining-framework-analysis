@@ -53,7 +53,7 @@ public abstract class AbstractHTTP2ServerConnectionFactory extends AbstractConne
         };
     }
 
-    private final SessionContainer sessionContainer = new SessionContainer();
+    private final SessionContainer sessionContainer = new HTTP2SessionContainer();
     private final HttpConfiguration httpConfiguration;
     private int maxDecoderTableCapacity = HpackContext.DEFAULT_MAX_TABLE_CAPACITY;
     private int maxEncoderTableCapacity = HpackContext.DEFAULT_MAX_TABLE_CAPACITY;
@@ -353,5 +353,86 @@ public abstract class AbstractHTTP2ServerConnectionFactory extends AbstractConne
     private ServerParser newServerParser(Connector connector, RateControl rateControl)
     {
         return new ServerParser(connector.getByteBufferPool(), getHttpConfiguration().getRequestHeaderSize(), rateControl);
+    }
+
+    /**
+     * @deprecated use SessionContainer instead
+     */
+    @Deprecated(since = "12.0.21", forRemoval = true)
+    public static class HTTP2SessionContainer extends SessionContainer
+    {
+
+        @Override
+        public String dump()
+        {
+            return Dumpable.dump(this);
+        }
+        private CompletableFuture<Void> shutdown(HTTP2Session session)
+        {
+            return session.shutdown();
+        }
+        public Set<Session> getSessions()
+        {
+            return new HashSet<>(sessions);
+        }
+        @ManagedAttribute(value = "The number of HTTP/2 sessions", readonly = true)
+        public int getSize()
+        {
+            return sessions.size();
+        }
+        private final AtomicReference<CompletableFuture<Void>> shutdown = new AtomicReference<>();
+        private final Set<HTTP2Session> sessions = ConcurrentHashMap.newKeySet();
+        @Override
+        public CompletableFuture<Void> shutdown()
+        {
+            CompletableFuture<Void> result = new CompletableFuture<>();
+            if (shutdown.compareAndSet(null, result))
+            {
+                CompletableFuture.allOf(sessions.stream().map(this::shutdown).toArray(CompletableFuture[]::new))
+                    .whenComplete((v, x) ->
+                    {
+                        if (x == null)
+                            result.complete(v);
+                        else
+                            result.completeExceptionally(x);
+                    });
+                return result;
+            }
+            else
+            {
+                return shutdown.get();
+            }
+        }
+        @Override
+        public void onOpened(Connection connection)
+        {
+            HTTP2Session session = ((HTTP2Connection)connection).getSession();
+            sessions.add(session);
+            LifeCycle.start(session);
+            if (isShutdown())
+                shutdown(session);
+        }
+        @Override
+        public String toString()
+        {
+            return String.format("%s@%x[size=%d]", TypeUtil.toShortName(getClass()), hashCode(), getSize());
+        }
+        @Override
+        public void dump(Appendable out, String indent) throws IOException
+        {
+            Dumpable.dumpObjects(out, indent, this, sessions);
+        }
+        @Override
+        public void onClosed(Connection connection)
+        {
+            HTTP2Session session = ((HTTP2Connection)connection).getSession();
+            if (sessions.remove(session))
+                LifeCycle.stop(session);
+        }
+        @Override
+        public boolean isShutdown()
+        {
+            return shutdown.get() != null;
+        }
     }
 }
