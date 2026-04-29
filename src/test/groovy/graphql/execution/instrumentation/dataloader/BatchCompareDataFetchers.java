@@ -99,7 +99,7 @@ public class BatchCompareDataFetchers {
 
     public DataLoader<String, List<Department>> departmentsForShopDataLoader = DataLoaderFactory.newDataLoader(departmentsForShopsBatchLoader);
 
-    public DataFetcher<CompletableFuture<List<Department>>> departmentsForShopDataLoaderDataFetcher = environment -> {
+    public DataFetcher<?> departmentsForShopDataLoaderDataFetcher = environment -> {
         Shop shop = environment.getSource();
         return (CompletableFuture) environment.getDataLoader("departments").load(shop.getId());
     };
@@ -135,7 +135,7 @@ public class BatchCompareDataFetchers {
 
     public DataLoader<String, List<Product>> productsForDepartmentDataLoader = DataLoaderFactory.newDataLoader(productsForDepartmentsBatchLoader);
 
-    public DataFetcher<CompletableFuture<List<Product>>> productsForDepartmentDataLoaderDataFetcher = environment -> {
+    public DataFetcher<?> productsForDepartmentDataLoaderDataFetcher = environment -> {
         Department department = environment.getSource();
         return (CompletableFuture) environment.getDataLoader("products").load(department.getId());
     };
