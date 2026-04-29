@@ -34,7 +34,7 @@ public enum FrameType
     PREFACE(-1),
     DISCONNECT(-2),
     FAILURE(-3),
-    FLUSH(-4);
+    FLUSH(13);
 
     public static FrameType from(int type)
     {
