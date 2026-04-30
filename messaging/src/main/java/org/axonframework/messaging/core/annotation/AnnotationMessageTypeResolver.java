@@ -113,7 +113,7 @@ public class AnnotationMessageTypeResolver implements MessageTypeResolver {
 
     @Nonnull
     private Map<String, Object> attributesFor(@Nonnull AnnotatedElement annotatedElement,
-                                              @Nonnull Class<? extends Annotation> annotation) {
+                                              Class<? extends Annotation> annotation) {
         return AnnotationUtils.findAnnotationAttributes(annotatedElement, annotation)
                               .orElse(Collections.emptyMap());
     }
@@ -145,11 +145,11 @@ public class AnnotationMessageTypeResolver implements MessageTypeResolver {
      *                            the {@link #nameAttribute()} is used on its own
      */
     public record AnnotationSpecification(
-            Class<? extends Annotation> nameAnnotation,
+            @Nonnull Class<? extends Annotation> nameAnnotation,
             String nameAttribute,
-            Class<? extends Annotation> versionAnnotation,
+            @Nonnull Class<? extends Annotation> versionAnnotation,
             String versionAttribute,
-            Class<? extends Annotation> namespaceAnnotation,
+            @Nonnull Class<? extends Annotation> namespaceAnnotation,
             @Nullable String namespaceAttribute
     ) {
 
@@ -177,9 +177,9 @@ public class AnnotationMessageTypeResolver implements MessageTypeResolver {
          * constructor that allows annotation configuration per resolvable attribute
          */
         @Deprecated(since = "5.1.0")
-        public AnnotationSpecification(Class<? extends Annotation> annotation,
-                                       String nameAttribute,
-                                       String versionAttribute,
+        public AnnotationSpecification(@Nonnull Class<? extends Annotation> annotation,
+                                       @Nonnull String nameAttribute,
+                                       @Nonnull String versionAttribute,
                                        @Nullable String namespaceAttribute) {
             this(annotation, nameAttribute, annotation, versionAttribute, annotation, namespaceAttribute);
         }
