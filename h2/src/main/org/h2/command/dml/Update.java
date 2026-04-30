@@ -118,8 +118,7 @@ public final class Update extends FilteredDataChangeStatement {
         }
         setClauseList.mapAndOptimize(session, targetTableFilter, null);
         TableFilter[] filters = new TableFilter[] { targetTableFilter };
-        PlanItem item = targetTableFilter.getBestPlanItem(session, filters, 0, new AllColumnsForPlan(filters),
-                /* isSelectCommand */false);
+        PlanItem item = targetTableFilter.getBestPlanItem(session, filters, 0, new AllColumnsForPlan(filters), /*isSelectCommand*/false);
         targetTableFilter.setPlanItem(item);
         targetTableFilter.prepare();
     }
