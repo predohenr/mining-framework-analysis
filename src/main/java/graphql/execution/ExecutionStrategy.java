@@ -202,6 +202,8 @@ public abstract class ExecutionStrategy {
     @DuckTyped(shape = "CompletableFuture<Map<String, Object>> | Map<String, Object>")
     protected Object executeObject(ExecutionContext executionContext, ExecutionStrategyParameters parameters) throws NonNullableFieldWasNullException {
         return executionContext.call(() -> {
+
+            executionContext.checkIsCancelled();
             DataLoaderDispatchStrategy dataLoaderDispatcherStrategy = executionContext.getDataLoaderDispatcherStrategy();
             dataLoaderDispatcherStrategy.executeObject(executionContext, parameters);
             Instrumentation instrumentation = executionContext.getInstrumentation();
@@ -231,6 +233,7 @@ public abstract class ExecutionStrategy {
                             handleResultsConsumer.accept(null, throwable);
                             return;
                         }
+                        executionContext.checkIsCancelled();
 
                         Async.CombinedBuilder<Object> resultFutures = fieldValuesCombinedBuilder(completeValueInfos);
                         dataLoaderDispatcherStrategy.executeObjectOnFieldValuesInfo(completeValueInfos, parameters);
@@ -262,7 +265,7 @@ public abstract class ExecutionStrategy {
                     overallResult.whenComplete(resolveObjectCtx::onCompleted);
                     return overallResult;
                 } else {
-                    Map<String, Object> fieldValueMap = buildFieldValueMap(fieldsExecutedOnInitialResult, (List<Object>) completedValuesObject);
+                    Map<String, Object> fieldValueMap = buildFieldValueMap(executionContext, fieldsExecutedOnInitialResult, (List<Object>) completedValuesObject);
                     resolveObjectCtx.onCompleted(fieldValueMap, null);
                     return fieldValueMap;
                 }
@@ -285,14 +288,17 @@ public abstract class ExecutionStrategy {
                     handleValueException(overallResult, exception, executionContext);
                     return;
                 }
-                Map<String, Object> resolvedValuesByField = buildFieldValueMap(fieldNames, results);
+                executionContext.checkIsCancelled();
+                Map<String, Object> resolvedValuesByField = buildFieldValueMap(executionContext, fieldNames, results);
                 overallResult.complete(resolvedValuesByField);
             });
         };
     }
 
     @NonNull
-    private static Map<String, Object> buildFieldValueMap(List<String> fieldNames, List<Object> results) {
+    private static Map<String, Object> buildFieldValueMap(ExecutionContext executionContext, List<String> fieldNames, List<Object> results) {
+        executionContext.checkIsCancelled();
+
         Map<String, Object> resolvedValuesByField = Maps.newLinkedHashMapWithExpectedSize(fieldNames.size());
         int ix = 0;
         for (Object fieldValue : results) {
@@ -346,33 +352,6 @@ public abstract class ExecutionStrategy {
     }
 
     /**
-     * Called to fetch a value for a field and resolve it further in terms of the graphql query.  This will call
-     * #fetchField followed by #completeField and the completed Object is returned.
-     * <p>
-     * An execution strategy can iterate the fields to be executed and call this method for each one
-     * <p>
-     * Graphql fragments mean that for any give logical field can have one or more {@link Field} values associated with it
-     * in the query, hence the fieldList.  However, the first entry is representative of the field for most purposes.
-     *
-     * @param executionContext contains the top level execution parameters
-     * @param parameters       contains the parameters holding the fields to be executed and source object
-     *
-     * @return a {@link CompletableFuture} promise to an {@link Object} or the materialized {@link Object}
-     *
-     * @throws NonNullableFieldWasNullException in the future if a non-null field resolved to a null value
-     */
-    @SuppressWarnings("unchecked")
-    @DuckTyped(shape = " CompletableFuture<Object> | Object")
-    protected Object resolveField(ExecutionContext executionContext, ExecutionStrategyParameters parameters) {
-        Object fieldWithInfo = resolveFieldWithInfo(executionContext, parameters);
-        if (fieldWithInfo instanceof CompletableFuture) {
-            return ((CompletableFuture<FieldValueInfo>) fieldWithInfo).thenCompose(FieldValueInfo::getFieldValueFuture);
-        } else {
-            return ((FieldValueInfo) fieldWithInfo).getFieldValueObject();
-        }
-    }
-
-    /**
      * Called to fetch a value for a field and its extra runtime info and resolve it further in terms of the graphql query.  This will call
      * #fetchField followed by #completeField and the completed {@link graphql.execution.FieldValueInfo} is returned.
      * <p>
@@ -392,6 +371,8 @@ public abstract class ExecutionStrategy {
     @SuppressWarnings("unchecked")
     @DuckTyped(shape = "CompletableFuture<FieldValueInfo> | FieldValueInfo")
     protected Object resolveFieldWithInfo(ExecutionContext executionContext, ExecutionStrategyParameters parameters) {
+        executionContext.checkIsCancelled();
+
         GraphQLFieldDefinition fieldDef = getFieldDef(executionContext, parameters, parameters.getField().getSingleField());
         Supplier<ExecutionStepInfo> executionStepInfo = FpKit.intraThreadMemoize(() -> createExecutionStepInfo(executionContext, parameters, fieldDef, null));
 
@@ -647,6 +628,8 @@ public abstract class ExecutionStrategy {
 
     private FieldValueInfo completeField(GraphQLFieldDefinition fieldDef, ExecutionContext executionContext, ExecutionStrategyParameters parameters, FetchedValue fetchedValue) {
         return executionContext.call(() -> {
+            executionContext.checkIsCancelled();
+
             GraphQLObjectType parentType = (GraphQLObjectType) parameters.getExecutionStepInfo().getUnwrappedNonNullType();
             ExecutionStepInfo executionStepInfo = createExecutionStepInfo(executionContext, parameters, fieldDef, parentType);
 
@@ -691,6 +674,8 @@ public abstract class ExecutionStrategy {
      * @throws NonNullableFieldWasNullException if a non null field resolves to a null value
      */
     protected FieldValueInfo completeValue(ExecutionContext executionContext, ExecutionStrategyParameters parameters) throws NonNullableFieldWasNullException {
+        executionContext.checkIsCancelled();
+
         ExecutionStepInfo executionStepInfo = parameters.getExecutionStepInfo();
         Object result = executionContext.getValueUnboxer().unbox(parameters.getSource());
         GraphQLType fieldType = executionStepInfo.getUnwrappedNonNullType();

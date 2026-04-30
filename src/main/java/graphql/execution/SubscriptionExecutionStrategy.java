@@ -57,6 +57,8 @@ public class SubscriptionExecutionStrategy extends ExecutionStrategy {
     @Override
     public CompletableFuture<ExecutionResult> execute(ExecutionContext executionContext, ExecutionStrategyParameters parameters) throws NonNullableFieldWasNullException {
         return executionContext.call(() -> {
+            executionContext.checkIsCancelled();
+
             Instrumentation instrumentation = executionContext.getInstrumentation();
             InstrumentationExecutionStrategyParameters instrumentationParameters = new InstrumentationExecutionStrategyParameters(executionContext, parameters);
             ExecutionStrategyInstrumentationContext executionStrategyCtx = ExecutionStrategyInstrumentationContext.nonNullCtx(instrumentation.beginExecutionStrategy(
@@ -70,6 +72,8 @@ public class SubscriptionExecutionStrategy extends ExecutionStrategy {
             // when the upstream source event stream completes, subscribe to it and wire in our adapter
             CompletableFuture<ExecutionResult> overallResult = sourceEventStream.thenApply((publisher) -> {
                 return executionContext.call(() -> {
+                    executionContext.checkIsCancelled();
+
                     if (publisher == null) {
                         ExecutionResultImpl executionResult = new ExecutionResultImpl(null, executionContext.getErrors());
                         return executionResult;
@@ -137,6 +141,10 @@ public class SubscriptionExecutionStrategy extends ExecutionStrategy {
 
     private CompletableFuture<ExecutionResult> executeSubscriptionEvent(ExecutionContext executionContext, ExecutionStrategyParameters parameters, Object eventPayload) {
         return executionContext.call(() -> {
+            // this possible exception wil be caught by the reactive Publishers and the
+            // reactive stream will be made into an error state
+            executionContext.checkIsCancelled();
+
             Instrumentation instrumentation = executionContext.getInstrumentation();
 
             ExecutionContext newExecutionContext = executionContext.transform(builder -> builder
