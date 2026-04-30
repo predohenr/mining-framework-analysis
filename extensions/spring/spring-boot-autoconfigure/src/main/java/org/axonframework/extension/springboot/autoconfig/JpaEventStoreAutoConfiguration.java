@@ -42,6 +42,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.transaction.PlatformTransactionManager;
 
+
 import java.time.Duration;
 import java.util.function.UnaryOperator;
 
@@ -118,19 +119,16 @@ public class JpaEventStoreAutoConfiguration {
                             );
 
             ComponentDefinition<EventStorageEngine> componentDefinition = ComponentDefinition.ofType(EventStorageEngine.class)
-                                                                                             .withBuilder(configuration -> new AggregateBasedJpaEventStorageEngine(
-                                                                                                     new JpaTransactionalExecutorProvider(
-                                                                                                             factory),
-                                                                                                     configuration.getComponent(
-                                                                                                             EventConverter.class),
-                                                                                                     configurer
-                                                                                             ))
-                                                                                             .onShutdown(Phase.INBOUND_EVENT_CONNECTORS,
-                                                                                                         ese -> {
-                                                                                                             if (ese instanceof AggregateBasedJpaEventStorageEngine engine) {
-                                                                                                                 engine.close();
-                                                                                                             }
-                                                                                                         });
+                .withBuilder(configuration -> new AggregateBasedJpaEventStorageEngine(
+                    new JpaTransactionalExecutorProvider(factory),
+                    configuration.getComponent(EventConverter.class),
+                    configurer
+                ))
+                .onShutdown(Phase.INBOUND_EVENT_CONNECTORS, ese -> {
+                    if (ese instanceof AggregateBasedJpaEventStorageEngine engine) {
+                        engine.close();
+                    }
+                });
 
             registry.registerIfNotPresent(componentDefinition, SearchScope.ALL);
         }
