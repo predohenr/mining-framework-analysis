@@ -26,20 +26,19 @@ import org.knowm.xchange.service.BaseParamsDigest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.concurrent.TimeUnit;
-
 import static info.bitrich.xchangestream.okex.OkexStreamingService.SUBSCRIBE;
 import static info.bitrich.xchangestream.okex.OkexStreamingService.UNSUBSCRIBE;
+import java.nio.charset.StandardCharsets;
+import javax.crypto.Mac;
+import java.security.NoSuchAlgorithmException;
+import java.security.InvalidKeyException;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Base64;
+import java.util.concurrent.TimeUnit;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.time.Duration;
 
 public class OkexPrivateStreamingService extends JsonNettyStreamingService {
 
