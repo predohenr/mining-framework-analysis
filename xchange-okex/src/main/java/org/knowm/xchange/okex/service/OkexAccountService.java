@@ -1,15 +1,14 @@
 package org.knowm.xchange.okex.service;
 
-import static org.knowm.xchange.okex.OkexAdapters.adaptInstrument;
-import static org.knowm.xchange.okex.OkexAdapters.adaptTradeMode;
-import static org.knowm.xchange.okex.OkexAdapters.adaptTradingFee;
-import static org.knowm.xchange.okex.dto.OkexInstType.SPOT;
-import static org.knowm.xchange.okex.dto.OkexInstType.SWAP;
-
 import java.io.IOException;
-import java.util.HashMap;
+import static org.knowm.xchange.okex.OkexAdapters.adaptTradingFee;
 import java.util.List;
+import static org.knowm.xchange.okex.dto.OkexInstType.SWAP;
+import static org.knowm.xchange.okex.OkexAdapters.adaptInstrument;
+import java.util.HashMap;
+import static org.knowm.xchange.okex.dto.OkexInstType.SPOT;
 import java.util.Map;
+import static org.knowm.xchange.okex.OkexAdapters.adaptTradeMode;
 import org.knowm.xchange.client.ResilienceRegistries;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.derivative.FuturesContract;

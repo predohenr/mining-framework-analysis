@@ -1,15 +1,13 @@
 package org.knowm.xchange.okex;
-
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.knowm.xchange.okex.dto.trade.OkexOrderFlags.POST_ONLY;
-
+import java.util.Properties;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.RandomStringUtils;
+import java.util.concurrent.TimeUnit;
+import java.util.Map;
+import java.util.List;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.knowm.xchange.okex.dto.trade.OkexOrderFlags.POST_ONLY;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -59,7 +57,6 @@ public class OkexPrivateDataIntegration {
     spec.setExchangeSpecificParametersItem(
         OkexExchange.PARAM_PASSPHRASE, properties.getProperty("passphrase"));
     spec.setExchangeSpecificParametersItem(OkexExchange.PARAM_SIMULATED, "1");
-
     exchange = ExchangeFactory.INSTANCE.createExchange(spec);
   }
 
