@@ -53,6 +53,7 @@ public interface Observation extends ObservationView {
      * {@code observation.isNoop()} instead.
      */
     // intentionally anonymous to avoid introducing circular initialization issues
+    @SuppressWarnings("ClassInitializationDeadlock")
     Observation NOOP = new Observation() {
 
         @Override
@@ -904,6 +905,7 @@ public interface Observation extends ObservationView {
          * No-op scope.
          */
         // intentionally anonymous to avoid introducing circular initialization issues
+        @SuppressWarnings("ClassInitializationDeadlock")
         Scope NOOP = new Scope() {
             @Override
             public Observation getCurrentObservation() {
