@@ -951,46 +951,6 @@ abstract class OtlpMeterRegistryTest {
     }
 
     @Test
-    void testZeroCountForExponentialHistogram() {
-        Timer timerWithZero1ms = Timer.builder("zero_count_1ms")
-            .publishPercentileHistogram()
-            .register(registryWithExponentialHistogram);
-        Timer timerWithZero1ns = Timer.builder("zero_count_1ns")
-            .publishPercentileHistogram()
-            .minimumExpectedValue(Duration.ofNanos(1))
-            .register(registryWithExponentialHistogram);
-
-        timerWithZero1ms.record(Duration.ofNanos(1));
-        timerWithZero1ms.record(Duration.ofMillis(1));
-        timerWithZero1ns.record(Duration.ofNanos(1));
-        timerWithZero1ns.record(Duration.ofMillis(1));
-
-        clock.add(exponentialHistogramOtlpConfig().step());
-
-        assertThat(writeToMetrics(timerWithZero1ms)).filteredOn(Metric::hasExponentialHistogram)
-            .singleElement()
-            .satisfies(exponentialHistogram -> {
-                ExponentialHistogramDataPoint dataPoint = exponentialHistogram.getExponentialHistogram()
-                    .getDataPoints(0);
-                assertThat(dataPoint.getZeroCount()).isEqualTo(1);
-                assertThat(dataPoint.getCount()).isEqualTo(2);
-                assertThat(dataPoint.getPositive().getBucketCountsCount()).isEqualTo(1);
-                assertThat(exponentialHistogram.getDataCase().getNumber())
-                    .isEqualTo(Metric.DataCase.EXPONENTIAL_HISTOGRAM.getNumber());
-            });
-
-        assertThat(writeToMetrics(timerWithZero1ns)).filteredOn(Metric::hasExponentialHistogram)
-            .singleElement()
-            .satisfies(exponentialHistogram -> {
-                ExponentialHistogramDataPoint dataPoint = exponentialHistogram.getExponentialHistogram()
-                    .getDataPoints(0);
-                assertThat(dataPoint.getZeroCount()).isZero();
-                assertThat(dataPoint.getCount()).isEqualTo(2);
-                assertThat(dataPoint.getPositive().getBucketCountsCount()).isGreaterThan(1);
-            });
-    }
-
-    @Test
     void testZeroThresholdForExponentialHistogram() {
         Timer timerWithDefaultZeroThreshold = Timer.builder("zero_threshold_default")
             .publishPercentileHistogram()
@@ -1047,6 +1007,46 @@ abstract class OtlpMeterRegistryTest {
             ExponentialHistogramDataPoint dataPoint = exponentialHistogram.getExponentialHistogram().getDataPoints(0);
             assertThat(dataPoint.getZeroThreshold()).isEqualTo(Math.nextDown(10.0));
         });
+    }
+
+    @Test
+    void testZeroCountForExponentialHistogram() {
+        Timer timerWithZero1ms = Timer.builder("zero_count_1ms")
+            .publishPercentileHistogram()
+            .register(registryWithExponentialHistogram);
+        Timer timerWithZero1ns = Timer.builder("zero_count_1ns")
+            .publishPercentileHistogram()
+            .minimumExpectedValue(Duration.ofNanos(1))
+            .register(registryWithExponentialHistogram);
+
+        timerWithZero1ms.record(Duration.ofNanos(1));
+        timerWithZero1ms.record(Duration.ofMillis(1));
+        timerWithZero1ns.record(Duration.ofNanos(1));
+        timerWithZero1ns.record(Duration.ofMillis(1));
+
+        clock.add(exponentialHistogramOtlpConfig().step());
+
+        assertThat(writeToMetrics(timerWithZero1ms)).filteredOn(Metric::hasExponentialHistogram)
+            .singleElement()
+            .satisfies(exponentialHistogram -> {
+                ExponentialHistogramDataPoint dataPoint = exponentialHistogram.getExponentialHistogram()
+                    .getDataPoints(0);
+                assertThat(dataPoint.getZeroCount()).isEqualTo(1);
+                assertThat(dataPoint.getCount()).isEqualTo(2);
+                assertThat(dataPoint.getPositive().getBucketCountsCount()).isEqualTo(1);
+                assertThat(exponentialHistogram.getDataCase().getNumber())
+                    .isEqualTo(Metric.DataCase.EXPONENTIAL_HISTOGRAM.getNumber());
+            });
+
+        assertThat(writeToMetrics(timerWithZero1ns)).filteredOn(Metric::hasExponentialHistogram)
+            .singleElement()
+            .satisfies(exponentialHistogram -> {
+                ExponentialHistogramDataPoint dataPoint = exponentialHistogram.getExponentialHistogram()
+                    .getDataPoints(0);
+                assertThat(dataPoint.getZeroCount()).isZero();
+                assertThat(dataPoint.getCount()).isEqualTo(2);
+                assertThat(dataPoint.getPositive().getBucketCountsCount()).isGreaterThan(1);
+            });
     }
 
     @Test
