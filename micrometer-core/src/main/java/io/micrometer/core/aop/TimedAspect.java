@@ -280,9 +280,30 @@ public class TimedAspect {
         }
     }
 
+    private Timer.Builder recordBuilder(ProceedingJoinPoint pjp, Timed timed, String metricName,
+            String exceptionClass) {
+        @SuppressWarnings("NullTernary")
+        Timer.Builder builder = Timer.builder(metricName)
+            .description(timed.description().isEmpty() ? null : timed.description())
+            .tags(timed.extraTags())
+            .tags(EXCEPTION_TAG, exceptionClass)
+            .tags(tagsBasedOnJoinPoint.apply(pjp))
+            .publishPercentileHistogram(timed.histogram())
+            .publishPercentiles(timed.percentiles().length == 0 ? null : timed.percentiles())
+            .serviceLevelObjectives(
+                    timed.serviceLevelObjectives().length > 0 ? Arrays.stream(timed.serviceLevelObjectives())
+                        .mapToObj(s -> Duration.ofNanos((long) TimeUtils.secondsToUnit(s, TimeUnit.NANOSECONDS)))
+                        .toArray(Duration[]::new) : null);
+
+        if (meterTagAnnotationHandler != null) {
+            meterTagAnnotationHandler.addAnnotatedParameters(builder, pjp);
+            meterTagAnnotationHandler.addAnnotatedMethodResult(builder, pjp, methodResult);
+        }
+        return builder;
+    }
+
     private Timer.Builder recordBuilder(ProceedingJoinPoint pjp, @Nullable Object methodResult, Timed timed,
             String metricName, String exceptionClass) {
-        @SuppressWarnings("NullTernary")
         Timer.Builder builder = Timer.builder(metricName)
             .description(timed.description().isEmpty() ? null : timed.description())
             .tags(timed.extraTags())
