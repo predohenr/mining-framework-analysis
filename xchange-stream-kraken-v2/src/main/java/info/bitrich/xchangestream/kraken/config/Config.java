@@ -15,6 +15,7 @@ import java.util.Set;
 public final class Config {
 
   public static final Set<String> PRIVATE_CHANNELS = Set.of(ChannelType.BALANCES.getValue(), ChannelType.USER_TRADES.getValue());
+
   private ObjectMapper objectMapper;
   private Clock clock;
 
