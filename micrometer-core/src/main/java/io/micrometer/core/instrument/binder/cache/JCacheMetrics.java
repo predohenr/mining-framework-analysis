@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 package io.micrometer.core.instrument.binder.cache;
-
 import io.micrometer.core.instrument.*;
 import io.micrometer.core.instrument.config.InvalidConfigurationException;
 import org.jspecify.annotations.NullMarked;
