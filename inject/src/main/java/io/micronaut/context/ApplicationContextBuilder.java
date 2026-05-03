@@ -145,7 +145,7 @@ public interface ApplicationContextBuilder {
     default @NonNull ApplicationContextBuilder beanDefinitions(@NonNull RuntimeBeanDefinition<?>... definitions) {
         return this;
     }
-    
+
     /**
      * Register additional bean configurations.
      * @param configurations The configurations.
