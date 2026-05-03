@@ -53,6 +53,7 @@ abstract sealed class ConsoleBeanResolutionTracer
         "java.util"
     );
 
+
     @Override
     public void traceInitialConfiguration(Environment environment, Collection<BeanDefinitionReference<Object>> beanReferences, Collection<DisabledBean<?>> disabledBeans) {
         if (environment == null) {
