@@ -6,10 +6,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.knowm.xchange.currency.CurrencyPair;
 
-@Data
+
 @Builder
+@NoArgsConstructor
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Data
+@AllArgsConstructor
+@Builder
 public class DefaultTradeHistoryParamCurrencyPair implements TradeHistoryParamCurrencyPair {
 
   private CurrencyPair currencyPair;
