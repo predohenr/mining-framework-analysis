@@ -21,6 +21,7 @@ import io.micrometer.core.instrument.config.validate.Validated;
 import io.micrometer.core.instrument.push.PushRegistryConfig;
 
 import java.net.URLDecoder;
+import java.util.Locale;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
