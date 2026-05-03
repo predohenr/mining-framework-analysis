@@ -145,7 +145,7 @@ public interface ApplicationContextBuilder {
     default @NonNull ApplicationContextBuilder beanDefinitions(@NonNull RuntimeBeanDefinition<?>... definitions) {
         return this;
     }
-    
+
     /**
      * Register additional bean configurations.
      * @param configurations The configurations.
@@ -155,7 +155,7 @@ public interface ApplicationContextBuilder {
     default @NonNull ApplicationContextBuilder beanConfigurations(@NonNull BeanConfiguration... configurations) {
         return this;
     }
-
+    
     /**
      * If set to {@code true} (the default is {@code true}) Micronaut will attempt to automatically deduce the environment
      * it is running in using environment variables and/or stack trace inspection.
