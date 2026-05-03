@@ -884,6 +884,32 @@ public class DefaultEnvironment extends PropertySourcePropertyResolver implement
         return changes;
     }
 
+    private void diffMap(Map<String, Object> map, Map<String, Object> newMap, Map<String, Object> changes) {
+        Map<String, Object> remainingMap = new LinkedHashMap<>(map);
+        for (Map.Entry<String, Object> entry : newMap.entrySet()) {
+            String key = entry.getKey();
+            Object newValue = entry.getValue().value();
+            if (!map.containsKey(key)) {
+                changes.put(key, newValue);
+            } else {
+                Object oldValue = map.getOrDefault(key, PropertySourcePropertyResolver.NULL_ENTRY).value();
+                boolean hasNew = newValue != null;
+                boolean hasOld = oldValue != null;
+                if (hasNew && !hasOld) {
+                    changes.put(key, null);
+                } else if (hasOld && !hasNew) {
+                    changes.put(key, oldValue);
+                } else if (hasNew && hasOld && hasChanged(newValue, oldValue)) {
+                    changes.put(key, oldValue);
+                }
+                remainingMap.remove(key);
+            }
+        }
+        remainingMap.forEach((key, value) -> {
+            changes.put(key, value);
+        });
+    }
+
     private void diffMap(
         Map<String, DefaultPropertyEntry> map,
         Map<String, DefaultPropertyEntry> newMap,
