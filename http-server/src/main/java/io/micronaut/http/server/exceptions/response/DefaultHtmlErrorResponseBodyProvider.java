@@ -225,4 +225,8 @@ final class DefaultHtmlErrorResponseBodyProvider implements HtmlErrorResponseBod
                                  @Nullable String errorBold,
                                  List<String> messages) {
     }
+
+    Map<HtmlErrorPage, String> getCache() {
+        return cache;
+    }
 }

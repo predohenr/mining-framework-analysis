@@ -1487,16 +1487,16 @@ public class MediaType implements CharSequence {
                                 parameterValueEnd--;
                                 break;
                             } else if (quoted && c == '\\' && parameterValueEnd < headerValue.length()) {
-                                if (needParameterValue && valueBuilder != null) {
+                                if (needParameterValue) {
                                     valueBuilder.append(headerValue.charAt(parameterValueEnd));
                                 }
                                 parameterValueEnd++;
-                            } else if (needParameterValue && valueBuilder != null) {
+                            } else if (needParameterValue) {
                                 valueBuilder.append(c);
                             }
                         }
                     }
-                    if (needParameterValue && valueBuilder != null) {
+                    if (needParameterValue) {
                         parameterValue = valueBuilder.toString();
                     }
                 } else {
@@ -1514,7 +1514,5 @@ public class MediaType implements CharSequence {
                 parameterStart = parameterValueEnd + 1;
             }
         }
-
-
     }
 }
