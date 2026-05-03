@@ -16,6 +16,7 @@
 package io.micronaut.http.server.netty;
 
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.context.DefaultApplicationContext;
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.env.CachedEnvironment;
 import io.micronaut.context.env.Environment;
