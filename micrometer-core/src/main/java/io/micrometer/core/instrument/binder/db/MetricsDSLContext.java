@@ -15,16 +15,15 @@
  */
 package io.micrometer.core.instrument.binder.db;
 
-import io.micrometer.core.annotation.Incubating;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tag;
-import io.micrometer.core.instrument.Tags;
-import org.jooq.*;
-import org.jooq.Record;
-import org.jooq.impl.DefaultDSLContext;
-
 import java.util.Arrays;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.annotation.Incubating;
+import org.jooq.impl.DefaultDSLContext;
+import io.micrometer.core.instrument.Tags;
+import org.jooq.Record;
 import java.util.Collection;
+import org.jooq.*;
 import java.util.Objects;
 
 /**
