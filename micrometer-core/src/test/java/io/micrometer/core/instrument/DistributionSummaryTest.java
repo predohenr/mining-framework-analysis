@@ -20,8 +20,8 @@ import io.micrometer.core.instrument.simple.CountingMode;
 import io.micrometer.core.instrument.simple.SimpleConfig;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micrometer.core.testsupport.system.CapturedOutput;
-import io.micrometer.core.testsupport.system.OutputCaptureExtension;
 import org.jspecify.annotations.Nullable;
+import io.micrometer.core.testsupport.system.OutputCaptureExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
