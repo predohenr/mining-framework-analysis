@@ -589,6 +589,11 @@ public class MetricsDSLContext extends DefaultDSLContext {
     }
 
     @Override
+    public <R extends Record> InsertValuesStepN<R> insertInto(Table<R> into, Field<?>... fields) {
+        return time(super.insertInto(into, fields));
+    }
+
+    @Override
     public <R extends Record, T1> InsertValuesStep1<R, T1> insertInto(Table<R> into, Field<T1> field1) {
         return time(super.insertInto(into, field1));
     }
@@ -770,11 +775,6 @@ public class MetricsDSLContext extends DefaultDSLContext {
         return time(super.insertInto(into, field1, field2, field3, field4, field5, field6, field7, field8, field9,
                 field10, field11, field12, field13, field14, field15, field16, field17, field18, field19, field20,
                 field21, field22));
-    }
-
-    @Override
-    public <R extends Record> InsertValuesStepN<R> insertInto(Table<R> into, Field<?>... fields) {
-        return time(super.insertInto(into, fields));
     }
 
     @Override
