@@ -14,25 +14,23 @@
  * limitations under the License.
  */
 package io.micrometer.benchmark.core;
-
-import io.micrometer.common.KeyValue;
-import io.micrometer.common.KeyValues;
-import io.micrometer.core.instrument.LongTaskTimer;
-import io.micrometer.core.instrument.Tags;
-import io.micrometer.core.instrument.Timer;
-import io.micrometer.core.instrument.observation.DefaultMeterObservationHandler;
-import io.micrometer.core.instrument.observation.ObservationOrTimerCompatibleInstrumentation;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationConvention;
-import io.micrometer.observation.ObservationRegistry;
 import org.openjdk.jmh.annotations.*;
-import org.openjdk.jmh.profile.GCProfiler;
-import org.openjdk.jmh.runner.Runner;
+import io.micrometer.core.instrument.LongTaskTimer;
+import io.micrometer.observation.ObservationRegistry;
 import org.openjdk.jmh.runner.RunnerException;
-import org.openjdk.jmh.runner.options.OptionsBuilder;
-
+import io.micrometer.common.KeyValue;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.observation.DefaultMeterObservationHandler;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.core.instrument.observation.ObservationOrTimerCompatibleInstrumentation;
+import io.micrometer.observation.Observation;
+import org.openjdk.jmh.runner.Runner;
 import java.util.concurrent.TimeUnit;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
+import io.micrometer.core.instrument.Timer;
+import org.openjdk.jmh.profile.GCProfiler;
+import io.micrometer.common.KeyValues;
 
 @Fork(1)
 @Warmup(iterations = 2)
