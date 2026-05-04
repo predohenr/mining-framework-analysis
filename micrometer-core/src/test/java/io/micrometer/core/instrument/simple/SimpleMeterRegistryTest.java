@@ -173,6 +173,76 @@ class SimpleMeterRegistryTest {
         sample2.stop();
     }
 
+    private static Stream<Supplier<? extends Number>> getSuppliers() {
+        return Stream.of((Supplier<Integer>) () -> 70, (Supplier<Double>) () -> 70.0, (Supplier<Long>) () -> 70L,
+                (Supplier<AtomicInteger>) () -> new AtomicInteger(70),
+                (Supplier<BigInteger>) () -> new BigInteger("70"));
+    }
+
+    @Test
+    void stringRepresentationOfMetersShouldBeOk() {
+        MockClock clock = new MockClock();
+        SimpleMeterRegistry registry = new SimpleMeterRegistry(SimpleConfig.DEFAULT, clock);
+
+        AtomicInteger temperature = new AtomicInteger(24);
+        Gauge.builder("temperature", () -> temperature).baseUnit("celsius").register(registry);
+
+        Counter correctAnswers = Counter.builder("answers").tag("correct", "true").register(registry);
+        correctAnswers.increment();
+        correctAnswers.increment();
+
+        Counter incorrectAnswers = Counter.builder("answers").tag("correct", "false").register(registry);
+        incorrectAnswers.increment();
+
+        Timer latency = Timer.builder("latency")
+            .tag("service", "test")
+            .tag("method", "GET")
+            .tag("uri", "/api/people")
+            .register(registry);
+
+        DistributionSummary requestSize = DistributionSummary.builder("request.size")
+            .baseUnit("bytes")
+            .register(registry);
+
+        for (int i = 0; i < 10; i++) {
+            latency.record(Duration.ofMillis(20 + i * 2));
+            requestSize.record(100 + i * 10);
+        }
+
+        LongTaskTimer handler = LongTaskTimer.builder("handler").register(registry);
+        LongTaskTimer.Sample sample1 = handler.start();
+        clock.add(Duration.ofSeconds(2));
+        LongTaskTimer.Sample sample2 = handler.start();
+        clock.add(Duration.ofSeconds(1));
+
+        AtomicLong processingTime = new AtomicLong(300);
+        TimeGauge.builder("processing.time", () -> processingTime, MILLISECONDS).register(registry);
+
+        AtomicInteger cacheMisses = new AtomicInteger(42);
+        FunctionCounter.builder("cache.miss", cacheMisses, AtomicInteger::doubleValue).register(registry);
+
+        AtomicLong cacheLatency = new AtomicLong(100);
+        FunctionTimer.builder("cache.latency", cacheLatency, obj -> 5, AtomicLong::doubleValue, MILLISECONDS)
+            .register(registry);
+
+        Meter
+            .builder("custom.meter", Meter.Type.OTHER,
+                    Arrays.asList(new Measurement(() -> 42d, Statistic.VALUE),
+                            new Measurement(() -> 21d, Statistic.UNKNOWN)))
+            .register(registry);
+
+        assertThat(registry.getMetersAsString()).isEqualTo("answers(COUNTER)[correct='true']; count=2.0\n"
+                + "answers(COUNTER)[correct='false']; count=1.0\n"
+                + "cache.latency(TIMER)[]; count=5.0, total_time=0.1 seconds\n" + "cache.miss(COUNTER)[]; count=42.0\n"
+                + "custom.meter(OTHER)[]; value=42.0, unknown=21.0\n"
+                + "handler(LONG_TASK_TIMER)[]; active_tasks=2.0, duration=4.0 seconds, max=3.0 seconds\n"
+                + "latency(TIMER)[method='GET', service='test', uri='/api/people']; count=10.0, total_time=0.29 seconds, max=0.038 seconds\n"
+                + "processing.time(GAUGE)[]; value=0.3 seconds\n"
+                + "request.size(DISTRIBUTION_SUMMARY)[]; count=10.0, total=1450.0 bytes, max=190.0 bytes\n"
+                + "temperature(GAUGE)[]; value=24.0 celsius");
+        sample.stop();
+    }
+
     @ParameterizedTest
     @MethodSource("getSuppliers")
     void newGaugeWhenSupplierProvidesSubClassOfNumberShouldReportCorrectly(Supplier<? extends Number> supplier) {
@@ -194,12 +264,6 @@ class SimpleMeterRegistryTest {
             assertThat(meter.measure()).singleElement()
                 .satisfies(measurement -> assertThat(measurement.getValue()).isEqualTo(70));
         });
-    }
-
-    private static Stream<Supplier<? extends Number>> getSuppliers() {
-        return Stream.of((Supplier<Integer>) () -> 70, (Supplier<Double>) () -> 70.0, (Supplier<Long>) () -> 70L,
-                (Supplier<AtomicInteger>) () -> new AtomicInteger(70),
-                (Supplier<BigInteger>) () -> new BigInteger("70"));
     }
 
     private SimpleMeterRegistry createRegistry(CountingMode mode) {
