@@ -25,6 +25,8 @@ import io.netty.channel.ChannelPromise;
 import io.netty.channel.unix.DomainSocketAddress;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import org.junit.jupiter.api.AfterEach;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -62,6 +64,29 @@ class StatsdMeterRegistryPublishTest {
     private final AtomicInteger serverMetricReadCount = new AtomicInteger();
 
     private volatile boolean bound = false;
+
+    @SuppressWarnings("NullAway.Init")
+    DisposableChannel server;
+
+    volatile boolean bound;
+
+    AtomicInteger serverMetricReadCount = new AtomicInteger();
+
+    @SuppressWarnings("NullAway.Init")
+    volatile CountDownLatch serverLatch;
+
+    @SuppressWarnings("NullAway.Init")
+    StatsdMeterRegistry meterRegistry;
+
+    @AfterEach
+    void cleanUp() {
+        if (meterRegistry != null) {
+            meterRegistry.close();
+        }
+        if (server != null) {
+            server.disposeNow();
+        }
+    }
 
     @ParameterizedTest
     @EnumSource
@@ -411,6 +436,7 @@ class StatsdMeterRegistryPublishTest {
 
     private StatsdConfig getConfig(StatsdProtocol protocol, int port, boolean buffered) {
         return new StatsdConfig() {
+            @Nullable
             @Override
             public @Nullable String get(String key) {
                 return null;

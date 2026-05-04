@@ -22,6 +22,7 @@ import io.micrometer.core.instrument.*;
 import io.micrometer.core.instrument.binder.logging.LogbackMetrics;
 import io.micrometer.core.instrument.config.NamingConvention;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -55,6 +56,16 @@ import static org.assertj.core.api.Assertions.*;
 class StatsdMeterRegistryTest {
 
     private final MockClock clock = new MockClock();
+
+    private MockClock clock = new MockClock();
+
+    @AfterEach
+    void cleanUp() {
+        registry.close();
+    }
+
+    @SuppressWarnings("NullAway.Init")
+    private StatsdMeterRegistry registry;
 
     private static StatsdConfig configWithFlavor(StatsdFlavor flavor) {
         return new StatsdConfig() {
@@ -469,6 +480,7 @@ class StatsdMeterRegistryTest {
             throw new RuntimeException("line sink should not be called");
         };
         StatsdMeterRegistry registry = StatsdMeterRegistry.builder(new StatsdConfig() {
+            @Nullable
             @Override
             public @Nullable String get(String key) {
                 return null;
