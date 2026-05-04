@@ -88,6 +88,7 @@ public class ResultMap {
         resultMap.hasNestedQueries = resultMap.hasNestedQueries || resultMapping.getNestedQueryId() != null;
         resultMap.hasNestedResultMaps = resultMap.hasNestedResultMaps || resultMapping.getNestedResultMapId() != null
             && resultMapping.getResultSet() == null && !JdbcType.CURSOR.equals(resultMapping.getJdbcType());
+
         final String column = resultMapping.getColumn();
         if (column != null) {
           resultMap.mappedColumns.add(column.toUpperCase(Locale.ENGLISH));
