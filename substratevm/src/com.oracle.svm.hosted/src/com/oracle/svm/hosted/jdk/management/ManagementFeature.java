@@ -77,6 +77,10 @@ import com.oracle.svm.hosted.imagelayer.LayeredImageUtils;
 import com.oracle.svm.util.ReflectionUtil;
 import com.oracle.svm.util.dynamicaccess.JVMCIRuntimeReflection;
 
+import jdk.vm.ci.code.BytecodePosition;
+
+import jdk.vm.ci.code.BytecodeFrame;
+
 /** See {@link ManagementSupport} for documentation. */
 @AutomaticallyRegisteredFeature
 @SingletonTraits(access = BuildtimeAccessOnly.class, layeredCallbacks = ManagementFeature.LayeredCallbacks.class, layeredInstallationKind = Independent.class)
