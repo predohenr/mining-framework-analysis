@@ -75,6 +75,11 @@ import com.oracle.svm.hosted.FeatureImpl;
 import com.oracle.svm.hosted.imagelayer.HostedImageLayerBuildingSupport;
 import com.oracle.svm.hosted.imagelayer.LayeredImageUtils;
 import com.oracle.svm.util.ReflectionUtil;
+
+import jdk.vm.ci.code.BytecodeFrame;
+
+import jdk.vm.ci.code.BytecodePosition;
+
 import com.oracle.svm.util.dynamicaccess.JVMCIRuntimeReflection;
 
 /** See {@link ManagementSupport} for documentation. */
