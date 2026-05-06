@@ -27,10 +27,9 @@ package com.oracle.svm.core.genscavenge;
 import static com.oracle.svm.guest.staging.Uninterruptible.CALLED_FROM_UNINTERRUPTIBLE_CODE;
 
 import org.graalvm.word.UnsignedWord;
-
 import com.oracle.svm.core.util.BasedOnJDKFile;
-import com.oracle.svm.core.util.UnsignedUtils;
 import com.oracle.svm.guest.staging.Uninterruptible;
+import com.oracle.svm.core.util.UnsignedUtils;
 
 /**
  * A weighted average maintains a running, weighted average of some floating-point value.
