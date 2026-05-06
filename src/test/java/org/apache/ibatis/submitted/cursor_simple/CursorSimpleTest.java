@@ -15,6 +15,7 @@
  */
 package org.apache.ibatis.submitted.cursor_simple;
 
+import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -162,6 +163,7 @@ class CursorSimpleTest {
 
   @Test
   void cursorIteratorNoSuchElementExceptionWithHasNext() {
+
     try (SqlSession sqlSession = sqlSessionFactory.openSession();
         Cursor<User> usersCursor = sqlSession.selectCursor("getAllUsers", null, new RowBounds(1, 1))) {
       try {

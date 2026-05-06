@@ -15,6 +15,8 @@
  */
 package org.apache.ibatis.cursor;
 
+import java.io.Closeable;
+
 /**
  * Cursor contract to handle fetching items lazily using an Iterator. Cursors are a perfect fit to handle millions of
  * items queries that would not normally fit in memory. If you use collections in resultMaps then cursor SQL queries
