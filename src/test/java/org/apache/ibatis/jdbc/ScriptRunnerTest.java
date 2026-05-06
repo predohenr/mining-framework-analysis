@@ -113,7 +113,7 @@ class ScriptRunnerTest extends BaseDataTest {
   }
 
   @Test
-  void commentAferStatementDelimiterShouldNotCauseRunnerFail() throws Exception {
+  void commentAfterStatementDelimiterShouldNotCauseRunnerFail() throws Exception {
     DataSource ds = createUnpooledDataSource(JPETSTORE_PROPERTIES);
     String resource = "org/apache/ibatis/jdbc/ScriptCommentAfterEOLTerminator.sql";
     try (Connection conn = ds.getConnection(); Reader reader = Resources.getResourceAsReader(resource)) {
@@ -184,6 +184,27 @@ class ScriptRunnerTest extends BaseDataTest {
 
   @Test
   void loggingFullScipt() throws Exception {
+    DataSource ds = createUnpooledDataSource(JPETSTORE_PROPERTIES);
+    try (Connection conn = ds.getConnection()) {
+      ScriptRunner runner = new ScriptRunner(conn);
+      runner.setAutoCommit(true);
+      runner.setStopOnError(false);
+      runner.setErrorLogWriter(null);
+      runner.setSendFullScript(true);
+      StringWriter sw = new StringWriter();
+      PrintWriter logWriter = new PrintWriter(sw);
+      runner.setLogWriter(logWriter);
+
+      Reader reader = new StringReader("select userid from account where userid = 'j2ee';");
+      runner.runScript(reader);
+
+      assertEquals("select userid from account where userid = 'j2ee';" + LINE_SEPARATOR + LINE_SEPARATOR + "USERID\t"
+          + LINE_SEPARATOR + "j2ee\t" + LINE_SEPARATOR, sw.toString());
+    }
+  }
+
+  @Test
+  void testLoggingFullScript() throws Exception {
     DataSource ds = createUnpooledDataSource(JPETSTORE_PROPERTIES);
     try (Connection conn = ds.getConnection()) {
       ScriptRunner runner = new ScriptRunner(conn);
