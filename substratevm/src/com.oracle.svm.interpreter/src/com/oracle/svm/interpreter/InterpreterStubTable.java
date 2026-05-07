@@ -24,22 +24,21 @@
  */
 package com.oracle.svm.interpreter;
 
-import java.nio.ByteBuffer;
-import java.util.Collection;
-
 import org.graalvm.word.Pointer;
-
-import com.oracle.objectfile.BasicProgbitsSectionImpl;
-import com.oracle.objectfile.ObjectFile;
+import com.oracle.svm.hosted.image.AbstractImage;
+import com.oracle.svm.hosted.image.RelocatableBuffer;
+import com.oracle.svm.core.SubstrateTarget;
 import com.oracle.objectfile.SectionName;
+import java.util.Collection;
+import com.oracle.svm.interpreter.metadata.InterpreterResolvedJavaMethod;
+import com.oracle.objectfile.ObjectFile;
+import com.oracle.svm.shared.util.VMError;
+import com.oracle.objectfile.BasicProgbitsSectionImpl;
+import java.nio.ByteBuffer;
 import com.oracle.svm.core.SubstrateOptions;
 import com.oracle.svm.guest.staging.c.CGlobalData;
 import com.oracle.svm.guest.staging.c.CGlobalDataFactory;
-import com.oracle.svm.core.SubstrateTarget;
-import com.oracle.svm.hosted.image.AbstractImage;
-import com.oracle.svm.hosted.image.RelocatableBuffer;
-import com.oracle.svm.interpreter.metadata.InterpreterResolvedJavaMethod;
-import com.oracle.svm.shared.util.VMError;
+import com.oracle.svm.core.config.ConfigurationValues;
 
 public class InterpreterStubTable {
     final SectionName section;
