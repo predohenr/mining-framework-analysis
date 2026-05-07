@@ -26,11 +26,18 @@ package com.oracle.svm.core.pltgot;
 
 import org.graalvm.word.Pointer;
 import org.graalvm.word.UnsignedWord;
-import org.graalvm.word.impl.Word;
-import com.oracle.svm.core.SubstrateTarget;
+
+import com.oracle.svm.core.config.ConfigurationValues;
+
 import com.oracle.svm.shared.Uninterruptible;
-import com.oracle.svm.guest.staging.c.CGlobalData;
+
 import com.oracle.svm.guest.staging.c.CGlobalDataFactory;
+
+import org.graalvm.word.impl.Word;
+
+import com.oracle.svm.core.SubstrateTarget;
+
+import com.oracle.svm.guest.staging.c.CGlobalData;
 
 public class IdentityMethodAddressResolver implements MethodAddressResolver {
 
