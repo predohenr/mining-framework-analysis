@@ -149,6 +149,14 @@ public class MapMultiSelectionMenuFragment extends BaseNestedFragment
 	}
 
 	@Override
+	public InsetTargetsCollection getInsetTargets() {
+		InsetTargetsCollection collection = super.getInsetTargets();
+		collection.replace(InsetTarget.createLeftSideContainer(true, view));
+		collection.replace(InsetTarget.createHorizontalLandscape(true, R.id.list, R.id.bottom_buttons_container));
+		return collection;
+	}
+
+	@Override
 	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
 		backPressedCallback = new OnBackPressedCallback(true) {
@@ -160,14 +168,6 @@ public class MapMultiSelectionMenuFragment extends BaseNestedFragment
 			}
 		};
 		view.post(() -> requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), backPressedCallback));
-	}
-
-	@Override
-	public InsetTargetsCollection getInsetTargets() {
-		InsetTargetsCollection collection = super.getInsetTargets();
-		collection.replace(InsetTarget.createLeftSideContainer(true, view));
-		collection.replace(InsetTarget.createHorizontalLandscape(true, R.id.list, R.id.bottom_buttons_container));
-		return collection;
 	}
 
 	@Override

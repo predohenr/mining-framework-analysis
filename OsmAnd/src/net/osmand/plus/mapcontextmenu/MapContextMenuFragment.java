@@ -611,7 +611,6 @@ public class MapContextMenuFragment extends BaseFullScreenFragment implements Do
 		view.post(() -> activity.getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), backPressedCallback));
 	}
 
-	@Nullable
 	@Override
 	public InsetTargetsCollection getInsetTargets() {
 		InsetTargetsCollection collection = super.getInsetTargets();
