@@ -21,8 +21,8 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.core.view.WindowInsetsCompat.Type.InsetsType;
 import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.core.view.WindowInsetsCompat.Type.InsetsType;
 
 import net.osmand.plus.R;
 import net.osmand.plus.base.ISupportInsets;
