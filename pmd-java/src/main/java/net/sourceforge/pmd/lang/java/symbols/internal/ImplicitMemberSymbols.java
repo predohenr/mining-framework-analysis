@@ -168,6 +168,18 @@ public final class ImplicitMemberSymbols {
         );
     }
 
+    public static JFieldSymbol lombokSlf4jLoggerField(JClassSymbol classSym, JavaAstProcessor processor) {
+        // https://javadoc.io/doc/org.projectlombok/lombok/1.16.18/lombok/extern/slf4j/Slf4j.html
+
+        return new FakeFieldSym(
+                classSym,
+                "log",
+                Modifier.PRIVATE | Modifier.STATIC | Modifier.FINAL,
+                (ts, s) ->
+                        ts.declaration(processor.findSymbolCannotFail("org.slf4j.Logger"))
+        );
+    }
+
     public static JMethodSymbol lombokGetter(JClassSymbol classSym, JFieldSymbol field, int accessModifier) {
         String fieldName = field.getSimpleName();
         String prefix = "get";
