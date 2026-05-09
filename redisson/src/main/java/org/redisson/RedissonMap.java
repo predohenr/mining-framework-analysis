@@ -1927,7 +1927,7 @@ public class RedissonMap<K, V> extends RedissonExpirable implements RMap<K, V> {
 
     @Override
     public RFuture<Void> removeListenerAsync(int listenerId) {
-        return removeListenerAsync(removeTrackingListenerAsync(listenerId), listenerId, "__keyevent@*:hset", "__keyevent@*:hdel");
+        return removeListenerAsync(removeTrackingListenerAsync(listenerId), listenerId, "__keyevent@*:hset", "__keyevent@*:hincrbyfloat", "__keyevent@*:hdel");
     }
 
 }
