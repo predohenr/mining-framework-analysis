@@ -20,7 +20,9 @@ import java.util.regex.Pattern;
 public class LusciousRipper extends AbstractHTMLRipper {
     private static String albumid;
 
-    private static final Pattern p = Pattern.compile("^https?://(?:www\\.)?(?:members\\.||legacy\\.||old\\.)?luscious\\.net/albums/([-_.0-9a-zA-Z]+).*$");
+    private static final Pattern P = Pattern.compile("^https?://(?:members\\.|legacy\\.|www\\.)?luscious.net/albums/([-_.0-9a-zA-Z]+)/?");
+    private DownloadThreadPool lusciousThreadPool = new DownloadThreadPool("lusciousThreadPool");
+    private Pattern p = Pattern.compile("^https?://(?:www\\.)?(?:members\\.||legacy\\.||old\\.)?luscious\\.net/albums/([-_.0-9a-zA-Z]+).*$");
 
     public LusciousRipper(URL url) throws IOException {
         super(url);
