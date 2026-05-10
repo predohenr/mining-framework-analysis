@@ -28,6 +28,7 @@ import org.robolectric.config.ConfigurationRegistry;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.ReflectionHelpers.ClassParameter;
 
+
 @SuppressWarnings({"UnusedDeclaration"})
 @Implements(Paint.class)
 public class ShadowPaint {

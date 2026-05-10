@@ -1,7 +1,7 @@
 package org.robolectric.shadows;
-
-import static android.os.Build.VERSION_CODES.BAKLAVA;
 import static android.os.Build.VERSION_CODES.VANILLA_ICE_CREAM;
+import static android.os.Build.VERSION_CODES.BAKLAVA;
+
 import static com.google.common.base.Preconditions.checkState;
 import static org.robolectric.RuntimeEnvironment.getApiLevel;
 import static org.robolectric.shadows.ShadowPausedLooper.shadowMsg;
