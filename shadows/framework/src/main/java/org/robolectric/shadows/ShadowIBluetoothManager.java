@@ -149,7 +149,7 @@ public class ShadowIBluetoothManager {
         serviceMessenger = null;
       }
     }
-  }
+    }
 
   @ForType(className = "android.bluetooth.IBluetoothProfileServiceConnection")
   private interface IBluetoothProfileServiceConnectionReflector {
