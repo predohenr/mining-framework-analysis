@@ -190,6 +190,7 @@ import org.springframework.web.reactive.socket.server.upgrade.ReactorNettyReques
  * @author Mete Alpaslan Katırcıoğlu
  * @author Alberto C. Ríos
  * @author Olga Maciaszek-Sharma
+ * @author Dominic Niemann
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(name = "spring.cloud.gateway.enabled", matchIfMissing = true)
@@ -275,8 +276,8 @@ public class GatewayAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public FilteringWebHandler filteringWebHandler(List<GlobalFilter> globalFilters) {
-		return new FilteringWebHandler(globalFilters);
+	public FilteringWebHandler filteringWebHandler(List<GlobalFilter> globalFilters, GatewayProperties properties) {
+		return new FilteringWebHandler(globalFilters, properties.isRouteFilterCacheEnabled());
 	}
 
 	@Bean
@@ -356,8 +357,23 @@ public class GatewayAutoConfiguration {
 	@ConditionalOnEnabledFilter(JsonToGrpcGatewayFilterFactory.class)
 	@ConditionalOnMissingBean(GrpcSslConfigurer.class)
 	@ConditionalOnClass(name = "io.grpc.Channel")
-	public GrpcSslConfigurer grpcSslConfigurer(HttpClientProperties properties, SslBundles bundles)
+	public GrpcSslConfigurer grpcSslConfigurer(HttpClientProperties properties)
 			throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
+		TrustManagerFactory trustManagerFactory = TrustManagerFactory
+			.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+		keyStore.load(null);
+		trustManagerFactory.init(keyStore);
+
+		return new GrpcSslConfigurer(properties.getSsl(), bundles);
+	}
+
+	@Bean
+	@ConditionalOnEnabledFilter(JsonToGrpcGatewayFilterFactory.class)
+	@ConditionalOnMissingBean(GrpcSslConfigurer.class)
+	@ConditionalOnClass(name = "io.grpc.Channel")
+	public GrpcSslConfigurer grpcSslConfigurer(HttpClientProperties properties, SslBundles bundles)
+			throws KeyStoreException, NoSuchAlgorithmException {
 		TrustManagerFactory trustManagerFactory = TrustManagerFactory
 			.getInstance(TrustManagerFactory.getDefaultAlgorithm());
 		KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
