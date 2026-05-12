@@ -53,6 +53,8 @@ public class ConfigServerHealthIndicator extends AbstractHealthIndicator {
 
 	private boolean acceptEmpty;
 
+	private final boolean acceptEmpty;
+
 	// autowired required or boot constructor binding produces an error
 	@Autowired
 	public ConfigServerHealthIndicator(EnvironmentRepository environmentRepository, ConfigServerProperties properties) {
