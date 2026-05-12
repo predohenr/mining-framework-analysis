@@ -190,6 +190,7 @@ import org.springframework.web.reactive.socket.server.upgrade.ReactorNettyReques
  * @author Mete Alpaslan Katırcıoğlu
  * @author Alberto C. Ríos
  * @author Olga Maciaszek-Sharma
+ * @author Dominic Niemann
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(name = "spring.cloud.gateway.enabled", matchIfMissing = true)
@@ -275,8 +276,8 @@ public class GatewayAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public FilteringWebHandler filteringWebHandler(List<GlobalFilter> globalFilters) {
-		return new FilteringWebHandler(globalFilters);
+	public FilteringWebHandler filteringWebHandler(List<GlobalFilter> globalFilters, GatewayProperties properties) {
+		return new FilteringWebHandler(globalFilters, properties.isRouteFilterCacheEnabled());
 	}
 
 	@Bean
