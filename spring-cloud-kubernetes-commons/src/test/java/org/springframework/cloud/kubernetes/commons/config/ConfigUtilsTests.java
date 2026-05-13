@@ -226,6 +226,13 @@ class ConfigUtilsTests {
 	}
 
 	@Test
+	void testKeysWithPrefixNonEmptyPrefix() {
+		Map<String, String> result = ConfigUtils.keysWithPrefix(Map.of("a", "b", "c", "d"), "prefix-");
+		Assertions.assertFalse(result.isEmpty());
+		Assertions.assertEquals(Map.of("prefix-a", "b", "prefix-c", "d"), result);
+	}
+
+	@Test
 	void testIssue1757() {
 
 		StrippedSourceContainer containerA = new StrippedSourceContainer(Map.of("load", "true"), "client-1",
