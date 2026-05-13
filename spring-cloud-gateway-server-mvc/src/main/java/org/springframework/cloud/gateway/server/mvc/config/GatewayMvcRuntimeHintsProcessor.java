@@ -35,8 +35,8 @@ import org.springframework.beans.factory.aot.BeanFactoryInitializationAotContrib
 import org.springframework.beans.factory.aot.BeanFactoryInitializationAotProcessor;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.cloud.gateway.server.mvc.filter.FilterAutoConfiguration;
 import org.springframework.cloud.gateway.server.mvc.filter.FilterFunctions;
+import org.springframework.cloud.gateway.server.mvc.filter.FilterAutoConfiguration;
 import org.springframework.cloud.gateway.server.mvc.predicate.PredicateAutoConfiguration;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.ResolvableType;
@@ -141,14 +141,6 @@ public class GatewayMvcRuntimeHintsProcessor implements BeanFactoryInitializatio
 		return classesToAdd;
 	}
 
-	private static void addGenericsForClass(Set<Class<?>> genericsToAdd, ResolvableType resolvableType) {
-		if (resolvableType.getSuperType().hasGenerics()) {
-			genericsToAdd.addAll(Arrays.stream(resolvableType.getSuperType().getGenerics())
-				.map(ResolvableType::toClass)
-				.collect(Collectors.toSet()));
-		}
-	}
-
 	private static void addSuperTypesForClass(ResolvableType resolvableType, Set<Class<?>> supertypesToAdd,
 			Set<Class<?>> genericsToAdd) {
 		ResolvableType superType = resolvableType.getSuperType();
@@ -156,6 +148,14 @@ public class GatewayMvcRuntimeHintsProcessor implements BeanFactoryInitializatio
 			addGenericsForClass(genericsToAdd, superType);
 			supertypesToAdd.add(superType.toClass());
 			addSuperTypesForClass(superType, supertypesToAdd, genericsToAdd);
+		}
+	}
+
+	private static void addGenericsForClass(Set<Class<?>> genericsToAdd, ResolvableType resolvableType) {
+		if (resolvableType.getSuperType().hasGenerics()) {
+			genericsToAdd.addAll(Arrays.stream(resolvableType.getSuperType().getGenerics())
+				.map(ResolvableType::toClass)
+				.collect(Collectors.toSet()));
 		}
 	}
 
