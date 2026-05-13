@@ -37,9 +37,8 @@ class KubernetesClientCacheableInformerDiscoveryClient extends KubernetesClientB
 
 	KubernetesClientCacheableInformerDiscoveryClient(List<SharedInformerFactory> sharedInformerFactories,
 			List<Lister<V1Service>> serviceListers, List<Lister<V1Endpoints>> endpointsListers,
-			List<SharedIndexInformer<V1Service>> serviceInformers,
-			List<SharedIndexInformer<V1Endpoints>> endpointsInformers, KubernetesDiscoveryProperties properties,
-			CoreV1Api coreV1Api, Predicate<V1Service> predicate) {
+			List<SharedIndexInformer<V1Service>> serviceInformers, List<SharedIndexInformer<V1Endpoints>> endpointsInformers,
+			KubernetesDiscoveryProperties properties, CoreV1Api coreV1Api, Predicate<V1Service> predicate) {
 		super(sharedInformerFactories, serviceListers, endpointsListers, serviceInformers, endpointsInformers,
 				properties, coreV1Api, predicate);
 	}
