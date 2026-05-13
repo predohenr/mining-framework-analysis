@@ -21,8 +21,8 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import jakarta.servlet.ServletException;
