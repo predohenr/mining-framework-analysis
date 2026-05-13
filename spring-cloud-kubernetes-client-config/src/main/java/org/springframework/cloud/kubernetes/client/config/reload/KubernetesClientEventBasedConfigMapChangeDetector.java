@@ -118,7 +118,7 @@ public class KubernetesClientEventBasedConfigMapChangeDetector extends Configura
 
 	@PostConstruct
 	void inform() {
-		LOG.info(() -> "Kubernetes event-based configMap change detector activated");
+
 		if (monitoringConfigMaps) {
 			LOG.info(() -> "Kubernetes event-based configMap change detector activated");
 
@@ -133,11 +133,12 @@ public class KubernetesClientEventBasedConfigMapChangeDetector extends Configura
 				factories.add(factory);
 				informer = factory
 					.sharedIndexInformerFor(
-						(CallGeneratorParams params) -> coreV1Api.listNamespacedConfigMap(namespace)
-							.timeoutSeconds(params.timeoutSeconds)
-							.resourceVersion(params.resourceVersion)
-							.watch(params.watch)
-							.buildCall(null), V1ConfigMap.class, V1ConfigMapList.class);
+							(CallGeneratorParams params) -> coreV1Api.listNamespacedConfigMap(namespace)
+									.timeoutSeconds(params.timeoutSeconds)
+									.resourceVersion(params.resourceVersion)
+									.watch(params.watch)
+									.buildCall(null),
+							V1ConfigMap.class, V1ConfigMapList.class);
 
 				LOG.debug(() -> "added configmap informer for namespace : " + namespace + " with filter : " + filter[0]);
 
