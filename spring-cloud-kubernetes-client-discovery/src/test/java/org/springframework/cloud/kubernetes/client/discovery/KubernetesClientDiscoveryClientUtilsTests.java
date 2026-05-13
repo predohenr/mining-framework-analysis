@@ -178,4 +178,20 @@ class KubernetesClientDiscoveryClientUtilsTests {
 		List<String> hostNames = addresses.stream().map(V1EndpointAddress::getHostname).sorted().toList();
 		Assertions.assertThat(hostNames).containsExactly("one", "three", "two");
 	}
+
+	@Test
+	void multipleLabels() {
+		Map<String, String> labels = new LinkedHashMap<>();
+		labels.put("a", "b");
+		labels.put("c", "d");
+		String result = KubernetesClientDiscoveryClientUtils.labelSelector(labels);
+		Assertions.assertThat(result).isEqualTo("a=b,c=d");
+	}
+
+	@Test
+	void testNull() {
+		String result = KubernetesClientDiscoveryClientUtils.labelSelector(null);
+		Assertions.assertThat(result).isNull();
+	}
+
 }
