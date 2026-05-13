@@ -83,6 +83,24 @@ class BeforeFilterFunctionsTests {
 	}
 
 	@Test
+	void removeRequestParameterWithEncodedRemainParameters() {
+		MockHttpServletRequest servletRequest = MockMvcRequestBuilders.get("http://localhost/path")
+			.queryParam("foo", "bar")
+			.queryParam("baz[]", "qux[]")
+			.queryParam("quux", "corge+")
+			.buildRequest(null);
+
+		ServerRequest request = ServerRequest.create(servletRequest, Collections.emptyList());
+
+		ServerRequest result = BeforeFilterFunctions.removeRequestParameter("foo").apply(request);
+
+		assertThat(result.param("foo")).isEmpty();
+		assertThat(result.param("baz[]")).isPresent().hasValue("qux[]");
+		assertThat(result.param("quux")).isPresent().hasValue("corge+");
+		assertThat(result.uri().toString()).hasToString("http://localhost/path?baz%5B%5D=qux%5B%5D&quux=corge%2B");
+	}
+
+	@Test
 	void rewriteRequestParameter() {
 		MockHttpServletRequest servletRequest = MockMvcRequestBuilders.get("http://localhost/path")
 			.param("foo", "bar")
@@ -95,6 +113,35 @@ class BeforeFilterFunctionsTests {
 
 		assertThat(result.param("foo")).isPresent().hasValue("replacement");
 		assertThat(result.uri().toString()).hasToString("http://localhost/path?baz=qux&foo=replacement");
+	}
+
+	@Test
+	void rewriteEncodedRequestParameter() {
+		MockHttpServletRequest servletRequest = MockMvcRequestBuilders.get("http://localhost/path")
+			.param("foo[]", "bar")
+			.param("baz", "qux")
+			.buildRequest(null);
+
+		ServerRequest request = ServerRequest.create(servletRequest, Collections.emptyList());
+
+		ServerRequest result = BeforeFilterFunctions.rewriteRequestParameter("foo[]", "replacement[]").apply(request);
+
+		assertThat(result.param("foo[]")).isPresent().hasValue("replacement[]");
+		assertThat(result.uri().toString()).hasToString("http://localhost/path?baz=qux&foo%5B%5D=replacement%5B%5D");
+	}
+
+	@Test
+	void rewriteRequestParameterWithEncodedPath() {
+		MockHttpServletRequest servletRequest = MockMvcRequestBuilders.get("http://localhost/path/é/last")
+			.param("foo", "bar")
+			.buildRequest(null);
+
+		ServerRequest request = ServerRequest.create(servletRequest, Collections.emptyList());
+
+		ServerRequest result = BeforeFilterFunctions.rewriteRequestParameter("foo", "replacement").apply(request);
+
+		assertThat(result.param("foo")).isPresent().hasValue("replacement");
+		assertThat(result.uri().toString()).hasToString("http://localhost/path/%C3%A9/last?foo=replacement");
 	}
 
 	@Test
@@ -115,23 +162,6 @@ class BeforeFilterFunctionsTests {
 	}
 
 	@Test
-	void rewriteEncodedRequestParameter() {
-		MockHttpServletRequest servletRequest = MockMvcRequestBuilders.get("http://localhost/path")
-			.param("foo", "bar")
-			.param("baz[]", "qux[]")
-				.param("quux", "corge+")
-			.buildRequest(null);
-
-		ServerRequest request = ServerRequest.create(servletRequest, Collections.emptyList());
-
-		ServerRequest result = BeforeFilterFunctions.rewriteRequestParameter("foo[]", "replacement[]").apply(request);
-
-		assertThat(result.param("foo[]")).isPresent().hasValue("replacement[]");
-		assertThat(result.param("quux")).isPresent().hasValue("corge+");
-		assertThat(result.uri().toString()).hasToString("http://localhost/path?baz=qux&foo%5B%5D=replacement%5B%5D&quux=corge%2B");
-	}
-
-	@Test
 	void rewriteRequestParameterWithEncodedRemainParameters() {
 		MockHttpServletRequest servletRequest = MockMvcRequestBuilders.get("http://localhost/path")
 			.param("foo", "bar")
@@ -144,20 +174,6 @@ class BeforeFilterFunctionsTests {
 
 		assertThat(result.param("foo")).isPresent().hasValue("replacement");
 		assertThat(result.uri().toString()).hasToString("http://localhost/path?baz%5B%5D=qux%5B%5D&foo=replacement");
-	}
-
-	@Test
-	void rewriteRequestParameterWithEncodedPath() {
-		MockHttpServletRequest servletRequest = MockMvcRequestBuilders.get("http://localhost/path/é/last")
-			.param("foo", "bar")
-			.buildRequest(null);
-
-		ServerRequest request = ServerRequest.create(servletRequest, Collections.emptyList());
-
-		ServerRequest result = BeforeFilterFunctions.rewriteRequestParameter("foo", "replacement").apply(request);
-
-		assertThat(result.param("foo")).isPresent().hasValue("replacement");
-		assertThat(result.uri().toString()).hasToString("http://localhost/path/%C3%A9/last?foo=replacement");
 	}
 
 	@Test
