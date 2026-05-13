@@ -91,6 +91,22 @@ final class KubernetesClientInformerReactiveDiscoveryClientAutoConfiguration {
 		return new ReactiveDiscoveryClientHealthIndicator(reactiveClient, properties);
 	}
 
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnDiscoveryCacheableReactiveDisabled
+	KubernetesClientInformerReactiveDiscoveryClient kubernetesClientReactiveDiscoveryClient(
+			KubernetesClientInformerDiscoveryClient kubernetesClientInformerDiscoveryClient) {
+		return new KubernetesClientInformerReactiveDiscoveryClient(kubernetesClientInformerDiscoveryClient);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnDiscoveryCacheableReactiveEnabled
+	KubernetesClientCacheableInformerReactiveDiscoveryClient kubernetesClientCacheableReactiveDiscoveryClient(
+			KubernetesClientInformerDiscoveryClient kubernetesClientInformerDiscoveryClient) {
+		return new KubernetesClientCacheableInformerReactiveDiscoveryClient(kubernetesClientInformerDiscoveryClient);
+	}
+
 	// Above two beans are created when cacheable is disabled
 
 	@Bean
