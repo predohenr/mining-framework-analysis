@@ -53,9 +53,9 @@ public class InvalidConfigurationPropertyValueException extends RuntimeException
 	 * including a {@code reason} why the value is invalid.
 	 * @param name the name of the property in canonical format
 	 * @param value the value of the property, can be {@code null}
-	 * @param reason a human-readable text that describes why the value is invalid. Starts
-	 * with an upper-case character and ends with a dot. Several sentences and lines are
-	 * allowed.
+	 * @param reason a human-readable text that describes why the reason is invalid.
+	 * Starts with an upper-case and ends with a dot. Several sentences and carriage
+	 * returns are allowed.
 	 * @param cause the cause of the exception or {@code null}
 	 * @since 4.1.0
 	 */
