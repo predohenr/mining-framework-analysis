@@ -431,13 +431,6 @@ public class Library {
 
 		Set<String> resolve();
 
-		default Configuration alignmentConfiguration(Project project, Collection<Dependency> dependencies) {
-			Configuration alignmentConfiguration = project.getConfigurations()
-				.detachedConfiguration(dependencies.toArray(new Dependency[0]));
-			alignmentConfiguration.getResolutionStrategy().cacheChangingModulesFor(0, TimeUnit.SECONDS);
-			return alignmentConfiguration;
-		}
-
 	}
 
 	public static class BomAlignment {
@@ -457,6 +450,13 @@ public class Library {
 
 		public boolean exclude(Id id) {
 			return this.excluding.test(id);
+		}
+
+		default Configuration alignmentConfiguration(Project project, Collection<Dependency> dependencies) {
+			Configuration alignmentConfiguration = project.getConfigurations()
+				.detachedConfiguration(dependencies.toArray(new Dependency[0]));
+			alignmentConfiguration.getResolutionStrategy().cacheChangingModulesFor(0, TimeUnit.SECONDS);
+			return alignmentConfiguration;
 		}
 
 	}
