@@ -228,12 +228,20 @@ public abstract class AbstractPackagerMojo extends AbstractDependencyFilterMojo 
 		}
 	}
 
+	private Document getDocumentIfAvailable(File xmlFile) throws Exception {
+		InputSource inputSource = new InputSource(new FileInputStream(xmlFile));
+		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+		factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+		factory.setNamespaceAware(true);
+		DocumentBuilder builder = factory.newDocumentBuilder();
+		return builder.parse(inputSource);
+	}
+
 	private Document getDocumentIfAvailable(InputStreamSource source) throws Exception {
 		try (InputStream in = source.getInputStream()) {
 			InputSource inputSource = new InputSource(in);
 			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-			factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-			factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
 			factory.setNamespaceAware(true);
 			DocumentBuilder builder = factory.newDocumentBuilder();
 			return builder.parse(inputSource);
