@@ -401,6 +401,16 @@ class JacksonAutoConfigurationTests {
 		});
 	}
 
+	@Test
+	void customJsonFactoryIsRegisteredWithTheMapperBuilder() {
+		JsonFactory customJsonFactory = new JsonFactoryBuilder().configure(StreamReadFeature.AUTO_CLOSE_SOURCE, false)
+			.build();
+		this.contextRunner.withBean("customJsonFactory", JsonFactory.class, () -> customJsonFactory).run((context) -> {
+			Builder jsonMapperBuilder = context.getBean(JsonMapper.Builder.class);
+			assertThat(jsonMapperBuilder.isEnabled(StreamReadFeature.AUTO_CLOSE_SOURCE)).isFalse();
+		});
+	}
+
 	@EnumSource
 	@ParameterizedTest
 	void enableReadFeature(MapperType mapperType) {
@@ -408,6 +418,14 @@ class JacksonAutoConfigurationTests {
 			ObjectMapper mapper = mapperType.getMapper(context);
 			assertThat(StreamReadFeature.STRICT_DUPLICATE_DETECTION.enabledByDefault()).isFalse();
 			assertThat(mapper.isEnabled(StreamReadFeature.STRICT_DUPLICATE_DETECTION)).isTrue();
+		});
+	}
+
+	@Test
+	void defaultJsonFactoryIsRegisteredWithTheMapperBuilderWhenNoCustomFactoryExists() {
+		this.contextRunner.run((context) -> {
+			Builder jsonMapperBuilder = context.getBean(JsonMapper.Builder.class);
+			assertThat(jsonMapperBuilder.isEnabled(StreamReadFeature.AUTO_CLOSE_SOURCE)).isTrue();
 		});
 	}
 
