@@ -18,6 +18,7 @@ package org.springframework.boot.web.server;
 
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.boot.context.properties.ConfigurationPropertiesSource;
 import org.springframework.util.StringUtils;
 import org.springframework.util.unit.DataSize;
 
