@@ -411,6 +411,24 @@ class JacksonAutoConfigurationTests {
 		});
 	}
 
+	@Test
+	void defaultJsonFactoryIsRegisteredWithTheMapperBuilderWhenNoCustomFactoryExists() {
+		this.contextRunner.run((context) -> {
+			Builder jsonMapperBuilder = context.getBean(JsonMapper.Builder.class);
+			assertThat(jsonMapperBuilder.isEnabled(StreamReadFeature.AUTO_CLOSE_SOURCE)).isTrue();
+		});
+	}
+
+	@Test
+	void customJsonFactoryIsRegisteredWithTheMapperBuilder() {
+		JsonFactory customJsonFactory = new JsonFactoryBuilder().configure(StreamReadFeature.AUTO_CLOSE_SOURCE, false)
+			.build();
+		this.contextRunner.withBean("customJsonFactory", JsonFactory.class, () -> customJsonFactory).run((context) -> {
+			Builder jsonMapperBuilder = context.getBean(JsonMapper.Builder.class);
+			assertThat(jsonMapperBuilder.isEnabled(StreamReadFeature.AUTO_CLOSE_SOURCE)).isFalse();
+		});
+	}
+
 	@EnumSource
 	@ParameterizedTest
 	void moduleBeansAndWellKnownModulesAreRegisteredWithTheMapperBuilder(MapperType mapperType) {
