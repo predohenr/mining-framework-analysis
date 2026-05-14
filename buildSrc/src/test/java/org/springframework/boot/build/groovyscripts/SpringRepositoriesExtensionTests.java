@@ -141,7 +141,7 @@ class SpringRepositoriesExtensionTests {
 
 	@Test
 	void mavenRepositoriesWhenConditionMatches() {
-		SpringRepositoriesExtension extension = createExtension("0.0.0-SNAPSHOT", "oss");
+		SpringRepositoriesExtension extension = createExtension("0.0.0", "oss");
 		extension.mavenRepositoriesFor("1.2.3-SNAPSHOT");
 		assertThat(this.repositories).hasSize(1);
 	}
