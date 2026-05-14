@@ -34,6 +34,50 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 class EurekaHttpClientsOptionalArgsConfigurationTests {
 
 	@Test
+	void contextLoadsWithRestTemplateAsDefault() {
+		new WebApplicationContextRunner().withUserConfiguration(EurekaSampleApplication.class)
+			.withPropertyValues("eureka.client.restclient.enabled=false")
+			.run(context -> {
+				assertThat(context).hasSingleBean(RestTemplateDiscoveryClientOptionalArgs.class);
+				assertThat(context).doesNotHaveBean(WebClientDiscoveryClientOptionalArgs.class);
+				assertThat(context).doesNotHaveBean(RestClientDiscoveryClientOptionalArgs.class);
+			});
+	}
+
+	@Test
+	void contextLoadsWithRestTemplateWhenRestClientDisabled() {
+		new WebApplicationContextRunner().withUserConfiguration(EurekaSampleApplication.class)
+			.withPropertyValues("eureka.client.restclient.enabled=false")
+			.run(context -> {
+				assertThat(context).hasSingleBean(RestTemplateDiscoveryClientOptionalArgs.class);
+				assertThat(context).doesNotHaveBean(WebClientDiscoveryClientOptionalArgs.class);
+				assertThat(context).doesNotHaveBean(RestClientDiscoveryClientOptionalArgs.class);
+			});
+	}
+
+	@Test
+	void contextLoadsWithRestClient() {
+		new WebApplicationContextRunner().withUserConfiguration(EurekaSampleApplication.class)
+			.withPropertyValues("eureka.client.restclient.enabled=true")
+			.run(context -> {
+				assertThat(context).doesNotHaveBean(RestTemplateDiscoveryClientOptionalArgs.class);
+				assertThat(context).doesNotHaveBean(WebClientDiscoveryClientOptionalArgs.class);
+				assertThat(context).hasSingleBean(RestClientDiscoveryClientOptionalArgs.class);
+			});
+	}
+
+	@Test
+	void contextLoadsWithRestTemplateWhenWebClientDisabled() {
+		new WebApplicationContextRunner().withUserConfiguration(EurekaSampleApplication.class)
+			.withPropertyValues("eureka.client.webclient.enabled=false")
+			.run(context -> {
+				assertThat(context).hasSingleBean(RestClientDiscoveryClientOptionalArgs.class);
+				assertThat(context).doesNotHaveBean(WebClientDiscoveryClientOptionalArgs.class);
+				assertThat(context).doesNotHaveBean(RestClientDiscoveryClientOptionalArgs.class);
+			});
+	}
+
+	@Test
 	public void contextLoadsWithRestClientWhenWebClientDisabled() {
 		new WebApplicationContextRunner().withUserConfiguration(EurekaSampleApplication.class)
 			.withPropertyValues("eureka.client.webclient.enabled=false")
