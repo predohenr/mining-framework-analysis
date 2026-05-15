@@ -467,6 +467,41 @@ public class DaoAuthenticationProviderTests {
 	public void testDisabledUserTiming() {
 		UsernamePasswordAuthenticationToken user = UsernamePasswordAuthenticationToken.unauthenticated("rod", "koala");
 		PasswordEncoder encoder = new BCryptPasswordEncoder();
+		DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+		provider.setPasswordEncoder(encoder);
+		MockUserDetailsServiceUserRod users = new MockUserDetailsServiceUserRod();
+		users.password = encoder.encode((CharSequence) user.getCredentials());
+		provider.setUserDetailsService(users);
+		int sampleSize = 100;
+		List<Long> enabledTimes = new ArrayList<>(sampleSize);
+		for (int i = 0; i < sampleSize; i++) {
+			long start = System.currentTimeMillis();
+			provider.authenticate(user);
+			enabledTimes.add(System.currentTimeMillis() - start);
+		}
+		UserDetailsChecker preChecks = mock(UserDetailsChecker.class);
+		willThrow(new DisabledException("User is disabled")).given(preChecks).check(any(UserDetails.class));
+		provider.setPreAuthenticationChecks(preChecks);
+		List<Long> disabledTimes = new ArrayList<>(sampleSize);
+		for (int i = 0; i < sampleSize; i++) {
+			long start = System.currentTimeMillis();
+			assertThatExceptionOfType(DisabledException.class).isThrownBy(() -> provider.authenticate(user));
+			disabledTimes.add(System.currentTimeMillis() - start);
+		}
+		double enabledAvg = avg(enabledTimes);
+		double disabledAvg = avg(disabledTimes);
+		assertThat(Math.abs(disabledAvg - enabledAvg) <= 3)
+			.withFailMessage("Disabled user average " + disabledAvg + " should be within 3ms of enabled user average "
+					+ enabledAvg)
+			.isTrue();
+	}
+
+	// related to SEC-2056
+	@Test
+	@EnabledIfSystemProperty(named = "spring.security.timing-tests", matches = "true")
+	public void testDisabledUserTiming() {
+		UsernamePasswordAuthenticationToken user = UsernamePasswordAuthenticationToken.unauthenticated("rod", "koala");
+		PasswordEncoder encoder = new BCryptPasswordEncoder();
 		MockUserDetailsServiceUserRod users = new MockUserDetailsServiceUserRod();
 		users.password = encoder.encode((CharSequence) user.getCredentials());
 		DaoAuthenticationProvider provider = new DaoAuthenticationProvider(users);
