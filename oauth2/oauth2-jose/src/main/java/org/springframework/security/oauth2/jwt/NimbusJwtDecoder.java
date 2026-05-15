@@ -228,7 +228,7 @@ public final class NimbusJwtDecoder implements JwtDecoder {
 	 * @see JwtDecoders
 	 */
 	public static JwkSetUriJwtDecoderBuilder withIssuerLocation(String issuer) {
-		return new JwkSetUriJwtDecoderBuilder((rest) -> {
+		return  new JwkSetUriJwtDecoderBuilder((rest) -> {
 			Map<String, Object> configuration = JwtDecoderProviderConfigurationUtils
 				.getConfigurationForIssuerLocation(issuer, rest);
 			JwtDecoderProviderConfigurationUtils.validateIssuer(configuration, issuer);
