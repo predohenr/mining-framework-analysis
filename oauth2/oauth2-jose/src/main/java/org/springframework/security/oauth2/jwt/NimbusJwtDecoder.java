@@ -304,6 +304,8 @@ public final class NimbusJwtDecoder implements JwtDecoder {
 
 		private OAuth2TokenValidator<Jwt> validator = JwtValidators.createDefault();
 
+		private OAuth2TokenValidator<Jwt> validator = JwtValidators.createDefault();
+
 		private JwkSetUriJwtDecoderBuilder(String jwkSetUri) {
 			Assert.hasText(jwkSetUri, "jwkSetUri cannot be empty");
 			this.jwkSetUri = (rest) -> jwkSetUri;
@@ -441,6 +443,12 @@ public final class NimbusJwtDecoder implements JwtDecoder {
 				Consumer<ConfigurableJWTProcessor<SecurityContext>> jwtProcessorCustomizer) {
 			Assert.notNull(jwtProcessorCustomizer, "jwtProcessorCustomizer cannot be null");
 			this.jwtProcessorCustomizer = jwtProcessorCustomizer;
+			return this;
+		}
+
+		JwkSetUriJwtDecoderBuilder validator(OAuth2TokenValidator<Jwt> validator) {
+			Assert.notNull(validator, "validator cannot be null");
+			this.validator = validator;
 			return this;
 		}
 
