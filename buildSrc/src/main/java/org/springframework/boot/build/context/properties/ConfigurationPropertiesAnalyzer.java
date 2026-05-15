@@ -67,13 +67,28 @@ class ConfigurationPropertiesAnalyzer {
 			.of(() -> JsonMapper.builder().enable(StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION).build());
 	}
 
-	void analyzeOrder(Report report) {
+	void analyzeOrder(Report report) throws IOException {
 		for (File source : this.sources) {
 			report.registerAnalysis(source, analyzeOrder(source));
 		}
 	}
 
-	private Analysis analyzeOrder(File source) {
+	private Analysis analyzeOrder(File source) throws IOException {
+		Map<String, Object> json = readJsonContent(source);
+		Analysis analysis = new Analysis("Metadata element order:");
+		for (String elementType : ELEMENT_TYPES) {
+			analyzeMetadataElementOrder(elementType, json, analysis);
+		}
+		return analysis;
+	}
+
+	void analyzeSort(Report report) {
+		for (File source : this.sources) {
+			report.registerAnalysis(source, analyzeOrder(source));
+		}
+	}
+
+	private Analysis analyzeSort(File source) {
 		Map<String, Object> json = readJsonContent(source);
 		Analysis analysis = new Analysis("Metadata element order:");
 		for (String elementType : ELEMENT_TYPES) {
@@ -97,13 +112,13 @@ class ConfigurationPropertiesAnalyzer {
 		}
 	}
 
-	void analyzeDuplicates(Report report) {
+	void analyzeDuplicates(Report report) throws IOException {
 		for (File source : this.sources) {
 			report.registerAnalysis(source, analyzeDuplicates(source));
 		}
 	}
 
-	private Analysis analyzeDuplicates(File source) {
+	private Analysis analyzeDuplicates(File source) throws IOException {
 		Map<String, Object> json = readJsonContent(source);
 		Analysis analysis = new Analysis("Metadata element duplicates:");
 		for (String elementType : ELEMENT_TYPES) {
