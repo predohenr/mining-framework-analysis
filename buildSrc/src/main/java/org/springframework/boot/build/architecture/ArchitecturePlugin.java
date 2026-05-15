@@ -16,8 +16,6 @@
 
 package org.springframework.boot.build.architecture;
 
-import java.util.Collections;
-
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPlugin;
@@ -47,22 +45,16 @@ public class ArchitecturePlugin implements Plugin<Project> {
 	private void registerTasks(Project project, ArchitectureCheckExtension extension) {
 		JavaPluginExtension javaPluginExtension = project.getExtensions().getByType(JavaPluginExtension.class);
 		for (SourceSet sourceSet : javaPluginExtension.getSourceSets()) {
-			registerArchitectureCheck(sourceSet, "java", project).configure((task) -> {
-				task.setClasses(project.files(project.getTasks()
+			registerArchitectureCheck(sourceSet, "java", project)
+				.configure((task) -> task.setClasses(project.files(project.getTasks()
 					.named(sourceSet.getCompileTaskName("java"), JavaCompile.class)
-					.flatMap((compile) -> compile.getDestinationDirectory())));
-				task.getNullMarkedEnabled().set(extension.getNullMarked().getEnabled());
-				task.getNullMarkedIgnoredPackages().set(extension.getNullMarked().getIgnoredPackages());
-			});
+					.flatMap((compile) -> compile.getDestinationDirectory()))));
 			project.getPlugins()
 				.withId("org.jetbrains.kotlin.jvm",
-						(kotlinPlugin) -> registerArchitectureCheck(sourceSet, "kotlin", project).configure((task) -> {
-							task.setClasses(project.files(project.getTasks()
+						(kotlinPlugin) -> registerArchitectureCheck(sourceSet, "kotlin", project)
+							.configure((task) -> task.setClasses(project.files(project.getTasks()
 								.named(sourceSet.getCompileTaskName("kotlin"), KotlinCompileTool.class)
-								.flatMap((compile) -> compile.getDestinationDirectory())));
-							task.getNullMarkedEnabled().set(false);
-							task.getNullMarkedIgnoredPackages().set(Collections.emptySet());
-						}));
+								.flatMap((compile) -> compile.getDestinationDirectory())))));
 		}
 	}
 
@@ -80,7 +72,9 @@ public class ArchitecturePlugin implements Plugin<Project> {
 						task.setDescription("Checks the architecture of the " + language + " classes of the "
 								+ sourceSet.getName() + " source set.");
 						task.setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
-					});
+			task.getNullMarkedEnabled().set(extension.getNullMarked().getEnabled());
+			task.getNullMarkedIgnoredPackages().set(extension.getNullMarked().getIgnoredPackages());
+		});
 		project.getTasks()
 			.named(LifecycleBasePlugin.CHECK_TASK_NAME)
 			.configure((check) -> check.dependsOn(checkArchitecture));
