@@ -450,6 +450,12 @@ public final class NimbusJwtDecoder implements JwtDecoder {
 			return this;
 		}
 
+		JwkSetUriJwtDecoderBuilder validator(OAuth2TokenValidator<Jwt> validator) {
+			Assert.notNull(validator, "validator cannot be null");
+			this.validator = validator;
+			return this;
+		}
+
 		JWSKeySelector<SecurityContext> jwsKeySelector(JWKSource<SecurityContext> jwkSource) {
 			if (this.signatureAlgorithms.isEmpty()) {
 				return new JWSVerificationKeySelector<>(this.defaultAlgorithms.apply(jwkSource), jwkSource);
