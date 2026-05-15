@@ -176,9 +176,9 @@ import org.springframework.security.saml2.provider.service.authentication.Saml2A
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticationToken;
 import org.springframework.security.saml2.provider.service.authentication.Saml2PostAuthenticationRequest;
 import org.springframework.security.saml2.provider.service.authentication.Saml2RedirectAuthenticationRequest;
+import org.springframework.security.saml2.provider.service.authentication.TestOpenSamlObjects;
 import org.springframework.security.saml2.provider.service.authentication.Saml2ResponseAssertion;
 import org.springframework.security.saml2.provider.service.authentication.Saml2ResponseAssertionAccessor;
-import org.springframework.security.saml2.provider.service.authentication.TestOpenSamlObjects;
 import org.springframework.security.saml2.provider.service.authentication.TestSaml2AuthenticationTokens;
 import org.springframework.security.saml2.provider.service.authentication.TestSaml2Authentications;
 import org.springframework.security.saml2.provider.service.authentication.TestSaml2LogoutRequests;
