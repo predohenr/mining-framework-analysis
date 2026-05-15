@@ -97,13 +97,13 @@ class ConfigurationPropertiesAnalyzer {
 		}
 	}
 
-	void analyzeDuplicates(Report report) {
+	void analyzeDuplicates(Report report) throws IOException {
 		for (File source : this.sources) {
 			report.registerAnalysis(source, analyzeDuplicates(source));
 		}
 	}
 
-	private Analysis analyzeDuplicates(File source) {
+	private Analysis analyzeDuplicates(File source) throws IOException {
 		Map<String, Object> json = readJsonContent(source);
 		Analysis analysis = new Analysis("Metadata element duplicates:");
 		for (String elementType : ELEMENT_TYPES) {
