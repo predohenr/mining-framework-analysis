@@ -1295,7 +1295,18 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 		 * @param path the file path (with or without a leading slash)
 		 * @return the alternative form or {@code null}
 		 */
-		private static @Nullable Resource createAlternative(String path, @Nullable Boolean useCaches) {
+		@Nullable
+		private static Resource createAlternative(String path, @Nullable Boolean useCaches) {
+			try {
+				String alternativePath = path.startsWith("/") ? path.substring(1) : "/" + path;
+				return asJarFileResource(alternativePath, useCaches);
+			}
+			catch (MalformedURLException ex) {
+				return null;
+			}
+		}
+
+		private static @Nullable Resource createAlternative(String path) {
 			try {
 				String alternativePath = path.startsWith("/") ? path.substring(1) : "/" + path;
 				return asJarFileResource(alternativePath, useCaches);
