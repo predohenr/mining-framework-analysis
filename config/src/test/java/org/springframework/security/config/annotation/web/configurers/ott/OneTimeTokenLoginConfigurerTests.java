@@ -206,7 +206,7 @@ public class OneTimeTokenLoginConfigurerTests {
 		this.mvc.perform(post("/ott/generate").param("username", "user").with(csrf()))
 			.andExpectAll(status().isFound(), redirectedUrl("/login/ott"));
 
-		OneTimeToken token = getLastToken();
+		OneTimeToken token = TestOneTimeTokenGenerationSuccessHandler.lastToken;
 
 		this.mvc.perform(post("/login/ott").param("token", token.getTokenValue()).with(csrf()))
 			.andExpectAll(status().isFound(), redirectedUrl("/"), authenticated());
@@ -219,35 +219,23 @@ public class OneTimeTokenLoginConfigurerTests {
 		return expiresMinutes - currentMinutes;
 	}
 
-	private OneTimeToken getLastToken() {
-		OneTimeToken lastToken = this.spring.getContext()
-			.getBean(TestOneTimeTokenGenerationSuccessHandler.class).lastToken;
-		return lastToken;
-	}
-
 	@Configuration(proxyBeanMethods = false)
 	@EnableWebSecurity
 	@Import(UserDetailsServiceConfig.class)
 	static class OneTimeTokenConfigWithCustomTokenExpirationTime {
 
 		@Bean
-		SecurityFilterChain securityFilterChain(HttpSecurity http,
-				OneTimeTokenGenerationSuccessHandler ottSuccessHandler) throws Exception {
+		SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 			// @formatter:off
 			http
 					.authorizeHttpRequests((authz) -> authz
 							.anyRequest().authenticated()
 					)
 					.oneTimeTokenLogin((ott) -> ott
-							.tokenGenerationSuccessHandler(ottSuccessHandler)
+							.tokenGenerationSuccessHandler(new TestOneTimeTokenGenerationSuccessHandler())
 					);
 			// @formatter:on
 			return http.build();
-		}
-
-		@Bean
-		TestOneTimeTokenGenerationSuccessHandler ottSuccessHandler() {
-			return new TestOneTimeTokenGenerationSuccessHandler();
 		}
 
 		@Bean
@@ -259,6 +247,12 @@ public class OneTimeTokenLoginConfigurerTests {
 			};
 		}
 
+	}
+
+	private OneTimeToken getLastToken() {
+		OneTimeToken lastToken = this.spring.getContext()
+			.getBean(TestOneTimeTokenGenerationSuccessHandler.class).lastToken;
+		return lastToken;
 	}
 
 	@Configuration(proxyBeanMethods = false)
