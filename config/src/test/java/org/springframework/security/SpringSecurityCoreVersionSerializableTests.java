@@ -298,6 +298,58 @@ class SpringSecurityCoreVersionSerializableTests {
 		return false;
 	}
 
+	private static boolean hasSuppressSerialInSource(Class<?> clazz) {
+		try {
+			Class<?> fileClass = clazz;
+			while (fileClass.getEnclosingClass() != null) {
+				fileClass = fileClass.getEnclosingClass();
+			}
+			var codeSource = fileClass.getProtectionDomain().getCodeSource();
+			if (codeSource == null) {
+				return false;
+			}
+			Path sourceFile = findSourceFile(Path.of(codeSource.getLocation().toURI()), fileClass);
+			if (sourceFile == null) {
+				return false;
+			}
+			return hasSuppressSerialAnnotation(Files.readAllLines(sourceFile), clazz.getSimpleName());
+		}
+		catch (Exception ex) {
+			return false;
+		}
+	}
+
+	private static Path findSourceFile(Path start, Class<?> clazz) {
+		String relativePath = clazz.getName().replace('.', '/') + ".java";
+		Path dir = start;
+		for (int i = 0; i < 10 && dir != null; i++) {
+			for (String sourceRoot : List.of("src/main/java", "src/test/java")) {
+				Path candidate = dir.resolve(sourceRoot).resolve(relativePath);
+				if (Files.exists(candidate)) {
+					return candidate;
+				}
+			}
+			dir = dir.getParent();
+		}
+		return null;
+	}
+
+	private static boolean hasSuppressSerialAnnotation(List<String> lines, String simpleClassName) {
+		Pattern classDeclaration = Pattern
+			.compile("\\b(?:class|interface|enum|record)\\s+" + Pattern.quote(simpleClassName) + "\\b");
+		for (int i = 0; i < lines.size(); i++) {
+			if (classDeclaration.matcher(lines.get(i)).find()) {
+				for (int j = Math.max(0, i - 5); j < i; j++) {
+					String line = lines.get(j);
+					if (line.contains("@SuppressWarnings") && line.contains("\"serial\"")) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
 	private static String getCurrentVersion() {
 		String version = System.getProperty("springSecurityVersion");
 		String[] parts = version.split("\\.");
