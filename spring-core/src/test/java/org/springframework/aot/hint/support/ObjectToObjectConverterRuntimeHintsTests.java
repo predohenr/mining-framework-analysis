@@ -44,10 +44,9 @@ class ObjectToObjectConverterRuntimeHintsTests {
 
 	@BeforeEach
 	void setup() {
-		ClassLoader classLoader = ClassUtils.getDefaultClassLoader();
 		SpringFactoriesLoader.forResourceLocation("META-INF/spring/aot.factories")
 				.load(RuntimeHintsRegistrar.class)
-				.forEach(registrar -> registrar.registerHints(this.hints, classLoader));
+				.forEach(registrar -> registrar.registerHints(this.hints, ClassUtils.getDefaultClassLoader()));
 	}
 
 	@Test
@@ -58,11 +57,11 @@ class ObjectToObjectConverterRuntimeHintsTests {
 
 	@Test  // gh-35156
 	void javaSqlTimestampHasHints() throws NoSuchMethodException {
-		assertThat(reflection().onMethodInvocation(java.sql.Timestamp.class.getMethod("from", Instant.class))).accepts(this.hints);
+		assertThat(reflection().onMethod(java.sql.Timestamp.class.getMethod("from", Instant.class))).accepts(this.hints);
 	}
 
 	@Test
-	void uriHasHints() {
+	void uriHasHints() throws NoSuchMethodException {
 		assertThat(reflection().onType(URI.class)).accepts(this.hints);
 	}
 
