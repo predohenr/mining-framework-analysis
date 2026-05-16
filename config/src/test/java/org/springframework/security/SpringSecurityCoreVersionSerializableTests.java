@@ -633,6 +633,40 @@ class SpringSecurityCoreVersionSerializableTests {
 			webAuthnAuthentication.setDetails(details);
 			return webAuthnAuthentication;
 		});
+
+		// webauthn
+		CredProtectAuthenticationExtensionsClientInput.CredProtect credProtect = new CredProtectAuthenticationExtensionsClientInput.CredProtect(
+				CredProtectAuthenticationExtensionsClientInput.CredProtect.ProtectionPolicy.USER_VERIFICATION_OPTIONAL,
+				true);
+		Bytes id = TestBytes.get();
+		AuthenticationExtensionsClientInputs inputs = new ImmutableAuthenticationExtensionsClientInputs(
+				ImmutableAuthenticationExtensionsClientInput.credProps);
+		// @formatter:off
+		PublicKeyCredentialDescriptor descriptor = PublicKeyCredentialDescriptor.builder()
+				.id(id)
+				.type(PublicKeyCredentialType.PUBLIC_KEY)
+				.transports(Set.of(AuthenticatorTransport.USB))
+				.build();
+		// @formatter:on
+		generatorByClassName.put(AuthenticatorTransport.class, (a) -> AuthenticatorTransport.USB);
+		generatorByClassName.put(PublicKeyCredentialType.class, (k) -> PublicKeyCredentialType.PUBLIC_KEY);
+		generatorByClassName.put(UserVerificationRequirement.class, (r) -> UserVerificationRequirement.REQUIRED);
+		generatorByClassName.put(CredProtectAuthenticationExtensionsClientInput.CredProtect.class, (c) -> credProtect);
+		generatorByClassName.put(CredProtectAuthenticationExtensionsClientInput.class,
+				(c) -> new CredProtectAuthenticationExtensionsClientInput(credProtect));
+		generatorByClassName.put(ImmutableAuthenticationExtensionsClientInputs.class, (i) -> inputs);
+		Field credPropsField = ReflectionUtils.findField(ImmutableAuthenticationExtensionsClientInput.class,
+				"credProps");
+		generatorByClassName.put(credPropsField.getType(),
+				(i) -> ImmutableAuthenticationExtensionsClientInput.credProps);
+		generatorByClassName.put(Bytes.class, (b) -> id);
+		generatorByClassName.put(PublicKeyCredentialDescriptor.class, (d) -> descriptor);
+		// @formatter:off
+		generatorByClassName.put(PublicKeyCredentialRequestOptions.class, (o) -> TestPublicKeyCredentialRequestOptions.create()
+				.extensions(inputs)
+				.allowCredentials(List.of(descriptor))
+				.build()
+		);
 		// @formatter:on
 	}
 
