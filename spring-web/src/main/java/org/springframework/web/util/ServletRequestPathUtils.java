@@ -186,7 +186,8 @@ public abstract class ServletRequestPathUtils {
 	 * @return the prefix, or {@code null} if the Servlet is not mapped by prefix
 	 * @since 6.2.3
 	 */
-	public static @Nullable String getServletPathPrefix(HttpServletRequest request) {
+	@Nullable
+	public static String getServletPathPrefix(HttpServletRequest request) {
 		HttpServletMapping mapping = (HttpServletMapping) request.getAttribute(RequestDispatcher.INCLUDE_MAPPING);
 		mapping = (mapping != null ? mapping : request.getHttpServletMapping());
 		if (ObjectUtils.nullSafeEquals(mapping.getMappingMatch(), MappingMatch.PATH)) {
@@ -197,6 +198,7 @@ public abstract class ServletRequestPathUtils {
 		}
 		return null;
 	}
+
 
 
 	/**
@@ -272,6 +274,28 @@ public abstract class ServletRequestPathUtils {
 			String servletPathPrefix = getServletPathPrefix(request);
 			if (!StringUtils.hasLength(servletPathPrefix)) {
 				return RequestPath.parse(requestUri, request.getContextPath());
+			}
+			servletPathPrefix = UriUtils.encodePath(servletPathPrefix, StandardCharsets.UTF_8);
+			return new ServletRequestPath(new PathElements(requestUri, request.getContextPath(), servletPathPrefix));
+		}
+
+		public static RequestPath parse(HttpServletRequest request) {
+			String requestUri = (String) request.getAttribute(WebUtils.INCLUDE_REQUEST_URI_ATTRIBUTE);
+			requestUri = (requestUri != null ? requestUri : request.getRequestURI());
+			String servletPathPrefix = getServletPathPrefix(request);
+			return (StringUtils.hasText(servletPathPrefix) ?
+					new ServletRequestPath(new PathElements(requestUri, request.getContextPath(), servletPathPrefix)) :
+					RequestPath.parse(requestUri, request.getContextPath()));
+		}
+
+		private static @Nullable String getServletPathPrefix(HttpServletRequest request) {
+			HttpServletMapping mapping = (HttpServletMapping) request.getAttribute(RequestDispatcher.INCLUDE_MAPPING);
+			mapping = (mapping != null ? mapping : request.getHttpServletMapping());
+			if (ObjectUtils.nullSafeEquals(mapping.getMappingMatch(), MappingMatch.PATH)) {
+				String servletPath = (String) request.getAttribute(WebUtils.INCLUDE_SERVLET_PATH_ATTRIBUTE);
+				servletPath = (servletPath != null ? servletPath : request.getServletPath());
+				servletPath = (servletPath.endsWith("/") ? servletPath.substring(0, servletPath.length() - 1) : servletPath);
+				return UriUtils.encodePath(servletPath, StandardCharsets.UTF_8);
 			}
 			servletPathPrefix = UriUtils.encodePath(servletPathPrefix, StandardCharsets.UTF_8);
 			return new ServletRequestPath(new PathElements(requestUri, request.getContextPath(), servletPathPrefix));
