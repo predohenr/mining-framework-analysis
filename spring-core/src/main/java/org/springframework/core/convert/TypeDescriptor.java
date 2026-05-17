@@ -74,7 +74,8 @@ public class TypeDescriptor implements Serializable {
 
 	private final AnnotatedElementSupplier annotatedElementSupplier;
 
-	private volatile @Nullable AnnotatedElementAdapter annotatedElement;
+	@Nullable
+	private volatile AnnotatedElementAdapter annotatedElement;
 
 
 	/**
