@@ -21,7 +21,6 @@ import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.test.context.ContextConfigurationAttributes;
 import org.springframework.test.context.bean.override.DummyBean.DummyBeanOverrideProcessor.DummyBeanOverrideHandler;
 
