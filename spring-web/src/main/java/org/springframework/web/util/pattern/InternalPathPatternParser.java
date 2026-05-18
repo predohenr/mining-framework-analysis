@@ -71,6 +71,9 @@ class InternalPathPatternParser {
 	// Did we parse a WildcardSegments(**) or CaptureSegments({*foo}) PathElement already?
 	private boolean hasMultipleSegmentsElement = false;
 
+	// Did we parse a WildcardSegments(**) or CaptureSegments({*foo}) PathElement already?
+	private boolean hasMultipleSegmentsElement = false;
+
 	// Variables captures in this path pattern
 	private @Nullable List<String> capturedVariableNames;
 
