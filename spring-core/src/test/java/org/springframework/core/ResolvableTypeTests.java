@@ -1787,9 +1787,6 @@ class ResolvableTypeTests {
 	public interface Consumer<T> {
 	}
 
-	public interface Consumer<T> {
-	}
-
 	public class Wildcard<T extends CharSequence> {
 	}
 
@@ -1798,6 +1795,7 @@ class ResolvableTypeTests {
 
 	public class WildcardConsumer<T extends CharSequence & Serializable> implements Consumer<Wildcard<T>> {
 	}
+
 
 	public class DoubleWildcard<T extends CharSequence & Serializable> {
 	}
