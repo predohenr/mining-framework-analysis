@@ -244,7 +244,8 @@ public abstract class BeanDefinitionPropertyValueCodeGeneratorDelegates {
 	private static class AutowiredPropertyMarkerDelegate implements Delegate {
 
 		@Override
-		public @Nullable CodeBlock generateCode(ValueCodeGenerator valueCodeGenerator, Object value) {
+		@Nullable
+		public CodeBlock generateCode(ValueCodeGenerator valueCodeGenerator, Object value) {
 			if (value instanceof AutowiredPropertyMarker) {
 				return CodeBlock.of("$T.INSTANCE", AutowiredPropertyMarker.class);
 			}
