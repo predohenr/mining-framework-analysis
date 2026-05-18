@@ -38,6 +38,7 @@ final class BufferingClientHttpResponseWrapper implements ClientHttpResponse {
 
 	private final ClientHttpResponse response;
 
+	
 	private volatile byte @Nullable [] body;
 
 
