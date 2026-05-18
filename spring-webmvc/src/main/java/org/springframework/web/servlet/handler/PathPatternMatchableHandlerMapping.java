@@ -59,6 +59,7 @@ class PathPatternMatchableHandlerMapping implements MatchableHandlerMapping {
 		this.cacheLimit = cacheLimit;
 	}
 
+
 	@SuppressWarnings("removal")
 	@Deprecated(since = "7.0", forRemoval = true)
 	@Override
