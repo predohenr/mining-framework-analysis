@@ -33,11 +33,14 @@ import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.classic.methods.HttpPut;
 import org.apache.hc.client5.http.classic.methods.HttpTrace;
 import org.apache.hc.client5.http.config.Configurable;
+import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.BasicHttpClientConnectionManager;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.core5.http.ClassicHttpRequest;
+import org.apache.hc.core5.http.io.SocketConfig;
 import org.apache.hc.core5.http.protocol.HttpContext;
 import org.jspecify.annotations.Nullable;
 
@@ -66,6 +69,8 @@ public class HttpComponentsClientHttpRequestFactory implements ClientHttpRequest
 	private HttpClient httpClient;
 
 	private @Nullable BiFunction<HttpMethod, URI, HttpContext> httpContextFactory;
+
+	private long connectTimeout = -1;
 
 	private long connectionRequestTimeout = -1;
 
@@ -105,6 +110,54 @@ public class HttpComponentsClientHttpRequestFactory implements ClientHttpRequest
 	 */
 	public HttpClient getHttpClient() {
 		return this.httpClient;
+	}
+
+	/**
+	 * Set the connection timeout for the underlying {@link RequestConfig}.
+	 * A timeout value of 0 specifies an infinite timeout.
+	 * <p>Additional properties can be configured by specifying a
+	 * {@link RequestConfig} instance on a custom {@link HttpClient}.
+	 * <p>This options does not affect connection timeouts for SSL
+	 * handshakes or CONNECT requests; for that, it is required to
+	 * use the {@link SocketConfig} on the
+	 * {@link HttpClient} itself.
+	 * @param connectTimeout the timeout value in milliseconds
+	 * @see RequestConfig#getConnectTimeout()
+	 * @see SocketConfig#getSoTimeout
+	 * @deprecated as of 6.2.13 in favor of setting it on
+	 * {@link BasicHttpClientConnectionManager#setConnectionConfig(ConnectionConfig) the connection configuration}
+	 * for the {@link org.apache.hc.client5.http.impl.classic.HttpClientBuilder#setConnectionManager(HttpClientConnectionManager)
+	 * connection manager}.
+	 */
+	@Deprecated(since = "6.2.13", forRemoval = true)
+	public void setConnectTimeout(int connectTimeout) {
+		Assert.isTrue(connectTimeout >= 0, "Timeout must be a non-negative value");
+		this.connectTimeout = connectTimeout;
+	}
+
+	/**
+	 * Set the connection timeout for the underlying {@link RequestConfig}.
+	 * A timeout value of 0 specifies an infinite timeout.
+	 * <p>Additional properties can be configured by specifying a
+	 * {@link RequestConfig} instance on a custom {@link HttpClient}.
+	 * <p>This options does not affect connection timeouts for SSL
+	 * handshakes or CONNECT requests; for that, it is required to
+	 * use the {@link SocketConfig} on the
+	 * {@link HttpClient} itself.
+	 * @param connectTimeout the timeout as a {@code Duration}.
+	 * @since 6.1
+	 * @see RequestConfig#getConnectTimeout()
+	 * @see SocketConfig#getSoTimeout
+	 * @deprecated as of 6.2.13 in favor of setting it on
+	 * {@link BasicHttpClientConnectionManager#setConnectionConfig(ConnectionConfig) the connection configuration}
+	 * for the {@link org.apache.hc.client5.http.impl.classic.HttpClientBuilder#setConnectionManager(HttpClientConnectionManager)
+	 * connection manager}.
+	 */
+	@Deprecated(since = "6.2.13", forRemoval = true)
+	public void setConnectTimeout(Duration connectTimeout) {
+		Assert.notNull(connectTimeout, "ConnectTimeout must not be null");
+		Assert.isTrue(!connectTimeout.isNegative(), "Timeout must be a non-negative value");
+		this.connectTimeout = connectTimeout.toMillis();
 	}
 
 	/**
@@ -254,12 +307,16 @@ public class HttpComponentsClientHttpRequestFactory implements ClientHttpRequest
 	 * @return the merged request config
 	 * @since 4.2
 	 */
+	@SuppressWarnings("deprecation")  // setConnectTimeout
 	protected RequestConfig mergeRequestConfig(RequestConfig clientConfig) {
-		if (this.connectionRequestTimeout == -1 && this.readTimeout == -1) {  // nothing to merge
+		if (this.connectTimeout == -1 && this.connectionRequestTimeout == -1 && this.readTimeout == -1) {  // nothing to merge
 			return clientConfig;
 		}
 
 		RequestConfig.Builder builder = RequestConfig.copy(clientConfig);
+		if (this.connectTimeout >= 0) {
+			builder.setConnectTimeout(this.connectTimeout, TimeUnit.MILLISECONDS);
+		}
 		if (this.connectionRequestTimeout >= 0) {
 			builder.setConnectionRequestTimeout(this.connectionRequestTimeout, TimeUnit.MILLISECONDS);
 		}
