@@ -80,7 +80,8 @@ public abstract class AbstractPropertyResolver implements ConfigurablePropertyRe
 	 * Cached value for the default escape character.
 	 * @since 6.2.7
 	 */
-	static volatile @Nullable Character defaultEscapeCharacter = UNDEFINED_ESCAPE_CHARACTER;
+	@Nullable
+	static volatile Character defaultEscapeCharacter = UNDEFINED_ESCAPE_CHARACTER;
 
 
 	protected final Log logger = LogFactory.getLog(getClass());
@@ -338,7 +339,8 @@ public abstract class AbstractPropertyResolver implements ConfigurablePropertyRe
 	 * @see SystemPropertyUtils#ESCAPE_CHARACTER
 	 * @see SpringProperties
 	 */
-	public static @Nullable Character getDefaultEscapeCharacter() throws IllegalArgumentException {
+	@Nullable
+	public static Character getDefaultEscapeCharacter() throws IllegalArgumentException {
 		Character escapeCharacter = defaultEscapeCharacter;
 		if (UNDEFINED_ESCAPE_CHARACTER.equals(escapeCharacter)) {
 			String value = SpringProperties.getProperty(DEFAULT_PLACEHOLDER_ESCAPE_CHARACTER_PROPERTY_NAME);
