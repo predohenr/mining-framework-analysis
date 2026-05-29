@@ -49,7 +49,7 @@ import org.thingsboard.server.common.data.util.KeyValueEntry;
 import org.thingsboard.server.common.msg.TbMsg;
 import org.thingsboard.server.common.msg.TbMsgDataType;
 import org.thingsboard.server.common.msg.TbMsgMetaData;
-import org.thingsboard.server.exception.DataValidationException;
+import org.thingsboard.server.dao.exception.DataValidationException;
 
 import java.io.IOException;
 import java.util.ArrayList;
