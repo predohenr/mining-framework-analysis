@@ -909,4 +909,3 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
         this.tabsPagerAdapter = tabsPagerAdapter;
     }
 }
-
