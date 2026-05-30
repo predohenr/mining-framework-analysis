@@ -120,13 +120,12 @@ public interface UserService extends EntityDaoService {
 
     int countTenantAdmins(TenantId tenantId);
 
-    PageData<User> findUsersByFilter(TenantId tenantId, UsersFilter filter, PageLink pageLink);
+    UserAuthDetails findUserAuthDetailsByUserId(TenantId tenantId, UserId userId);
+
+    List<User> findUsersByTenantIdAndIds(TenantId tenantId, List<UserId> userIds);
 
     boolean matchesFilter(TenantId tenantId, SystemLevelUsersFilter filter, User user);
 
-    UserAuthDetails findUserAuthDetailsByUserId(TenantId tenantId, UserId userId);
-
-
-    List<User> findUsersByTenantIdAndIds(TenantId tenantId, List<UserId> userIds);
+    PageData<User> findUsersByFilter(TenantId tenantId, UsersFilter filter, PageLink pageLink);
 
 }

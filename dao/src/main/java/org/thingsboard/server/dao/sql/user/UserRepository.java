@@ -79,10 +79,10 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
     int countByTenantIdAndAuthority(UUID tenantId, Authority authority);
 
+    List<UserEntity> findUsersByTenantIdAndIdIn(UUID tenantId, List<UUID> userIds);
+
     @Query("SELECT new org.thingsboard.server.common.data.util.TbPair(u, uc.enabled) " +
             "FROM UserEntity u JOIN UserCredentialsEntity uc ON u.id = uc.userId WHERE u.id = :userId ")
     TbPair<UserEntity, Boolean> findUserAuthDetailsByUserId(@Param("userId") UUID userId);
-
-    List<UserEntity> findUsersByTenantIdAndIdIn(UUID tenantId, List<UUID> userIds);
 
 }
