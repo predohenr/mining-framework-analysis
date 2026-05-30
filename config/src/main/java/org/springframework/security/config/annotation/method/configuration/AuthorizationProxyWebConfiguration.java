@@ -84,11 +84,6 @@ class AuthorizationProxyWebConfiguration implements WebMvcConfigurer {
 			return null;
 		}
 
-		@Override
-		public int getOrder() {
-			return DEFAULT_ORDER;
-		}
-
 	}
 
 	static class AccessDeniedExceptionResolver implements HandlerExceptionResolver {
@@ -107,6 +102,11 @@ class AuthorizationProxyWebConfiguration implements WebMvcConfigurer {
 				});
 			}
 			return null;
+		}
+
+		@Override
+		public int getOrder() {
+			return DEFAULT_ORDER;
 		}
 
 	}
