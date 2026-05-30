@@ -295,30 +295,6 @@ public class UniqueSecurityAnnotationScannerTests {
 			.isThrownBy(() -> this.parameterScanner.scan(parameter));
 	}
 
-	// gh-16751
-	@Test
-	void scanWhenAnnotationOnParameterizedInterfaceTheLocates() throws Exception {
-		Method method = MyServiceImpl.class.getDeclaredMethod("get", String.class);
-		PreAuthorize pre = this.scanner.scan(method, method.getDeclaringClass());
-		assertThat(pre).isNotNull();
-	}
-
-	// gh-16751
-	@Test
-	void scanWhenAnnotationOnParameterizedSuperClassThenLocates() throws Exception {
-		Method method = MyServiceImpl.class.getDeclaredMethod("getExt", Long.class);
-		PreAuthorize pre = this.scanner.scan(method, method.getDeclaringClass());
-		assertThat(pre).isNotNull();
-	}
-
-	// gh-16751
-	@Test
-	void scanWhenAnnotationOnParameterizedMethodThenLocates() throws Exception {
-		Method method = MyServiceImpl.class.getDeclaredMethod("getExtByClass", Class.class, Long.class);
-		PreAuthorize pre = this.scanner.scan(method, method.getDeclaringClass());
-		assertThat(pre).isNotNull();
-	}
-
 	interface UserService {
 
 		void add(@CustomParameterAnnotation("one") String user);
@@ -377,6 +353,30 @@ public class UniqueSecurityAnnotationScannerTests {
 
 		String value();
 
+	}
+
+	// gh-16751
+	@Test
+	void scanWhenAnnotationOnParameterizedInterfaceTheLocates() throws Exception {
+		Method method = MyServiceImpl.class.getDeclaredMethod("get", String.class);
+		PreAuthorize pre = this.scanner.scan(method, method.getDeclaringClass());
+		assertThat(pre).isNotNull();
+	}
+
+	// gh-16751
+	@Test
+	void scanWhenAnnotationOnParameterizedSuperClassThenLocates() throws Exception {
+		Method method = MyServiceImpl.class.getDeclaredMethod("getExt", Long.class);
+		PreAuthorize pre = this.scanner.scan(method, method.getDeclaringClass());
+		assertThat(pre).isNotNull();
+	}
+
+	// gh-16751
+	@Test
+	void scanWhenAnnotationOnParameterizedMethodThenLocates() throws Exception {
+		Method method = MyServiceImpl.class.getDeclaredMethod("getExtByClass", Class.class, Long.class);
+		PreAuthorize pre = this.scanner.scan(method, method.getDeclaringClass());
+		assertThat(pre).isNotNull();
 	}
 
 	@PreAuthorize("one")
