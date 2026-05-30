@@ -48,10 +48,10 @@ import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCredentia
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
 import org.springframework.security.web.webauthn.api.TestCredentialRecords;
 import org.springframework.security.web.webauthn.api.TestPublicKeyCredentialCreationOptions;
-import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
-import org.springframework.security.web.webauthn.management.MapPublicKeyCredentialUserEntityRepository;
-import org.springframework.security.web.webauthn.management.MapUserCredentialRepository;
 import org.springframework.security.web.webauthn.management.PublicKeyCredentialUserEntityRepository;
+import org.springframework.security.web.webauthn.management.MapUserCredentialRepository;
+import org.springframework.security.web.webauthn.management.MapPublicKeyCredentialUserEntityRepository;
+import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
 import org.springframework.security.web.webauthn.management.UserCredentialRepository;
 import org.springframework.security.web.webauthn.management.WebAuthnRelyingPartyOperations;
 import org.springframework.security.web.webauthn.registration.HttpSessionPublicKeyCredentialCreationOptionsRepository;
