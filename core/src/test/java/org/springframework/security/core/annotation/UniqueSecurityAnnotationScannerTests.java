@@ -320,19 +320,19 @@ public class UniqueSecurityAnnotationScannerTests {
 		assertThat(pre).isNotNull();
 	}
 
-	@Test
-	void scanParameterAnnotationWhenPresentInParentAndInterfaceThenException() throws Exception {
-		Parameter parameter = DefaultUserService.class.getDeclaredMethod("batch", String[].class).getParameters()[0];
-		assertThatExceptionOfType(AnnotationConfigurationException.class)
-			.isThrownBy(() -> this.parameterScanner.scan(parameter));
-	}
-
 	// gh-17898
 	@Test
 	void scanWhenAnnotationOnParameterizedUndeclaredMethodAndThenLocates() throws Exception {
 		Method method = ClassUtils.getMethod(GenericInterfaceImpl.class, "processOneAndTwo", Long.class, Object.class);
 		PreAuthorize pre = this.scanner.scan(method, method.getDeclaringClass());
 		assertThat(pre).isNotNull();
+	}
+
+	@Test
+	void scanParameterAnnotationWhenPresentInParentAndInterfaceThenException() throws Exception {
+		Parameter parameter = DefaultUserService.class.getDeclaredMethod("batch", String[].class).getParameters()[0];
+		assertThatExceptionOfType(AnnotationConfigurationException.class)
+			.isThrownBy(() -> this.parameterScanner.scan(parameter));
 	}
 
 	interface UserService {
