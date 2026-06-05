@@ -78,16 +78,6 @@ class AuthoritiesAuthorizationManagerTests {
 	}
 
 	@Test
-	void checkWhenRoleHierarchySetThenGreaterRoleTakesPrecedence() {
-		AuthoritiesAuthorizationManager manager = new AuthoritiesAuthorizationManager();
-		RoleHierarchyImpl roleHierarchy = RoleHierarchyImpl.fromHierarchy("ROLE_ADMIN > ROLE_USER");
-		manager.setRoleHierarchy(roleHierarchy);
-		Supplier<Authentication> authentication = () -> new TestingAuthenticationToken("user", "password",
-				"ROLE_ADMIN");
-		assertThat(manager.authorize(authentication, Collections.singleton("ROLE_USER")).isGranted()).isTrue();
-	}
-
-	@Test
 	// gh-18543
 	void authorizeWhenAuthorityIsNullThenDoesNotThrowNullPointerException() {
 		AuthoritiesAuthorizationManager manager = new AuthoritiesAuthorizationManager();
@@ -101,6 +91,16 @@ class AuthoritiesAuthorizationManagerTests {
 		// to replicate the issue in gh-18543
 		assertThatNullPointerException().isThrownBy(() -> authoritiesContainsThrowsNPE.contains(null));
 		assertThat(manager.authorize(() -> authentication, authoritiesContainsThrowsNPE).isGranted()).isFalse();
+	}
+
+	@Test
+	void checkWhenRoleHierarchySetThenGreaterRoleTakesPrecedence() {
+		AuthoritiesAuthorizationManager manager = new AuthoritiesAuthorizationManager();
+		RoleHierarchyImpl roleHierarchy = RoleHierarchyImpl.fromHierarchy("ROLE_ADMIN > ROLE_USER");
+		manager.setRoleHierarchy(roleHierarchy);
+		Supplier<Authentication> authentication = () -> new TestingAuthenticationToken("user", "password",
+				"ROLE_ADMIN");
+		assertThat(manager.authorize(authentication, Collections.singleton("ROLE_USER")).isGranted()).isTrue();
 	}
 
 }
