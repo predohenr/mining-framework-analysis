@@ -510,6 +510,16 @@ public class WebSocketMessageBrokerConfigTests {
 	}
 
 	@Test
+	public void configureWhenCsrfChannelInterceptorBeanThenUses() {
+		this.spring.configLocations(xml("CustomCsrfInterceptor")).autowire();
+		ExecutorSubscribableChannel channel = this.spring.getContext()
+			.getBean("clientInboundChannel", ExecutorSubscribableChannel.class);
+		ChannelInterceptor interceptor = this.spring.getContext()
+			.getBean("csrfChannelInterceptor", ChannelInterceptor.class);
+		assertThat(channel.getInterceptors()).contains(interceptor);
+	}
+
+	@Test
 	public void sendWhenCustomAuthorizationManagerThenAuthorizesAccordingly() {
 		this.spring.configLocations(xml("CustomAuthorizationManagerConfig")).autowire();
 		AuthorizationManager<Message<?>> authorizationManager = this.spring.getContext()
@@ -519,16 +529,6 @@ public class WebSocketMessageBrokerConfigTests {
 		assertThatExceptionOfType(Exception.class).isThrownBy(send(message))
 			.withCauseInstanceOf(AccessDeniedException.class);
 		verify(authorizationManager).authorize(any(), any());
-	}
-
-	@Test
-	public void configureWhenCsrfChannelInterceptorBeanThenUses() {
-		this.spring.configLocations(xml("CustomCsrfInterceptor")).autowire();
-		ExecutorSubscribableChannel channel = this.spring.getContext()
-			.getBean("clientInboundChannel", ExecutorSubscribableChannel.class);
-		ChannelInterceptor interceptor = this.spring.getContext()
-			.getBean("csrfChannelInterceptor", ChannelInterceptor.class);
-		assertThat(channel.getInterceptors()).contains(interceptor);
 	}
 
 	private String xml(String configName) {
