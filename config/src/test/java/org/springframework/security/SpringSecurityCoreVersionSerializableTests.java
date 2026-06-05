@@ -45,8 +45,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import jakarta.servlet.http.Cookie;
 import org.apache.commons.lang3.ObjectUtils;
+import jakarta.servlet.http.Cookie;
 import org.apereo.cas.client.validation.AssertionImpl;
 import org.instancio.Instancio;
 import org.instancio.InstancioApi;
@@ -206,6 +206,7 @@ import org.springframework.security.web.savedrequest.DefaultSavedRequest;
 import org.springframework.security.web.savedrequest.SimpleSavedRequest;
 import org.springframework.security.web.server.firewall.ServerExchangeRejectedException;
 import org.springframework.security.web.session.HttpSessionCreatedEvent;
+import org.springframework.security.web.util.UrlUtils;
 import org.springframework.security.web.webauthn.api.Bytes;
 import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCredentialUserEntity;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialUserEntity;
