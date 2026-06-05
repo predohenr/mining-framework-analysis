@@ -57,8 +57,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Role;
-import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.AnnotationAwareOrderComparator;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.AnnotationConfigurationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.PermissionEvaluator;
@@ -1108,17 +1108,6 @@ public class PrePostMethodSecurityConfigurationTests {
 		verifyNoInteractions(handler);
 	}
 
-	@Test
-	@WithMockUser
-	public void preAuthorizeWhenDenyAllThenPublishesParameterizedAuthorizationDeniedEvent() {
-		this.spring
-			.register(MethodSecurityServiceConfig.class, EventPublisherConfig.class, AuthorizationDeniedListener.class)
-			.autowire();
-		assertThatExceptionOfType(AccessDeniedException.class)
-			.isThrownBy(() -> this.methodSecurityService.preAuthorize());
-		assertThat(this.spring.getContext().getBean(AuthorizationDeniedListener.class).invocations).isEqualTo(1);
-	}
-
 	// gh-16819
 	@Test
 	void autowireWhenDefaultsThenAdvisorAnnotationsAreSorted() {
@@ -1132,6 +1121,17 @@ public class PrePostMethodSecurityConfigurationTests {
 			assertThat(ordered).isTrue();
 			previous = advisor;
 		}
+	}
+
+	@Test
+	@WithMockUser
+	public void preAuthorizeWhenDenyAllThenPublishesParameterizedAuthorizationDeniedEvent() {
+		this.spring
+			.register(MethodSecurityServiceConfig.class, EventPublisherConfig.class, AuthorizationDeniedListener.class)
+			.autowire();
+		assertThatExceptionOfType(AccessDeniedException.class)
+			.isThrownBy(() -> this.methodSecurityService.preAuthorize());
+		assertThat(this.spring.getContext().getBean(AuthorizationDeniedListener.class).invocations).isEqualTo(1);
 	}
 
 	private static Consumer<ConfigurableWebApplicationContext> disallowBeanOverriding() {
