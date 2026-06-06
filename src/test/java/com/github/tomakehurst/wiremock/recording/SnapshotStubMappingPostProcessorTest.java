@@ -31,6 +31,7 @@ import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("removal")
 public class SnapshotStubMappingPostProcessorTest {
 
   // NOTE: testStubMappings is not deeply immutable, as StubMappings are mutable, and to preserve
