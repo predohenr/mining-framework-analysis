@@ -29,6 +29,7 @@ import com.github.tomakehurst.wiremock.testsupport.StubMappingTransformerWithSer
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("removal")
 public class SnapshotStubMappingTransformerRunnerTest {
   private final StubMapping stubMapping = WireMock.get("/").build();
   private final ServeEvent serveEvent =
