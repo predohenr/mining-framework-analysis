@@ -79,8 +79,9 @@ public class TestProperties implements ModelContext.Properties, ModelContext.Fea
     private final Map<ClusterSpec.Type, String> mallocImpl = new HashMap<>();
     private final Map<String, Integer> searchNodeInitializerThreads = new HashMap<>();
     private boolean useTriton = false;
-    private boolean scaleMetricsproxyHeapByNodeCount = false;
     private boolean ignoreConnectivityChecksAtStartup = false;
+
+    private boolean scaleMetricsproxyHeapByNodeCount = false;
     private double searchNodeReservedDiskSpaceFactor = 0.0;
 
     @Override public ModelContext.FeatureFlags featureFlags() { return this; }
@@ -138,8 +139,9 @@ public class TestProperties implements ModelContext.Properties, ModelContext.Fea
         return clusterType.map(c -> mallocImpl.get(c)).orElse(null);
     }
     @Override public boolean useTriton() { return useTriton; }
-    @Override public boolean scaleMetricsproxyHeapByNodeCount() { return scaleMetricsproxyHeapByNodeCount; }
     @Override public boolean ignoreConnectivityChecksAtStartup() { return ignoreConnectivityChecksAtStartup; }
+
+    @Override public boolean scaleMetricsproxyHeapByNodeCount() { return scaleMetricsproxyHeapByNodeCount; }
     @Override public double searchNodeReservedDiskSpaceFactor() { return searchNodeReservedDiskSpaceFactor; }
 
     public TestProperties maxUnCommittedMemory(int maxUnCommittedMemory) {
