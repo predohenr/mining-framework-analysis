@@ -112,10 +112,10 @@ public interface UserService extends EntityDaoService {
 
     void removeMobileSession(TenantId tenantId, String mobileToken);
 
+    UserAuthDetails findUserAuthDetailsByUserId(TenantId tenantId, UserId userId);
+
     PageData<User> findUsersByFilter(TenantId tenantId, UsersFilter filter, PageLink pageLink);
 
     boolean matchesFilter(TenantId tenantId, SystemLevelUsersFilter filter, User user);
-
-    UserAuthDetails findUserAuthDetailsByUserId(TenantId tenantId, UserId userId);
 
 }
