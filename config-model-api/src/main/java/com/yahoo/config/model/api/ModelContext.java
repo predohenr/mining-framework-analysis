@@ -121,6 +121,7 @@ public interface ModelContext {
         @ModelFeatureFlag(owners = {"hmusum"}) default boolean useNewPrepareForRestart() { return true; }
         @ModelFeatureFlag(owners = {"hmusum"}, removeAfter = "8.599") default int searchNodeInitializerThreads() { return 0; }
         @ModelFeatureFlag(owners = {"hmusum"}) default int searchCoreMaxOutstandingMoveOps() { return 100; }
+        @ModelFeatureFlag(owners = {"hmusum", "johsol"}, removeAfter = "8.584.3") default String useMallocImpl() { return ""; }
         @ModelFeatureFlag(owners = {"johsol"}) default double docprocHandlerThreadpool() { return 1.0; }
     }
 
