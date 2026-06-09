@@ -138,8 +138,9 @@ public class TestProperties implements ModelContext.Properties, ModelContext.Fea
         return clusterType.map(c -> mallocImpl.get(c)).orElse(null);
     }
     @Override public boolean useTriton() { return useTriton; }
-    @Override public boolean scaleMetricsproxyHeapByNodeCount() { return scaleMetricsproxyHeapByNodeCount; }
     @Override public boolean ignoreConnectivityChecksAtStartup() { return ignoreConnectivityChecksAtStartup; }
+
+    @Override public boolean scaleMetricsproxyHeapByNodeCount() { return scaleMetricsproxyHeapByNodeCount; }
     @Override public double searchNodeReservedDiskSpaceFactor() { return searchNodeReservedDiskSpaceFactor; }
 
     public TestProperties maxUnCommittedMemory(int maxUnCommittedMemory) {
