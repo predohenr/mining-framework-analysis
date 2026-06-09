@@ -120,6 +120,7 @@ public interface ModelContext {
         @ModelFeatureFlag(owners = {"bjorncs"}) default boolean useTriton() { return false; }
         @ModelFeatureFlag(owners = {"hmusum"}) default boolean useNewPrepareForRestart() { return true; }
         @ModelFeatureFlag(owners = {"hmusum"}, removeAfter = "8.599") default int searchNodeInitializerThreads() { return 0; }
+        @ModelFeatureFlag(owners = {"hmusum"}) default boolean useNewPrepareForRestart() { return false; }
         @ModelFeatureFlag(owners = {"hmusum"}) default int searchCoreMaxOutstandingMoveOps() { return 100; }
     }
 
