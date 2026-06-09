@@ -1346,7 +1346,9 @@ public class CalculatedFieldIntegrationTest extends CalculatedFieldControllerTes
                 };
                 """);
 
-        config.setOutput(new TimeSeriesOutput());
+        Output output = new Output();
+        output.setType(OutputType.TIME_SERIES);
+        config.setOutput(output);
 
         calculatedField.setConfiguration(config);
 
