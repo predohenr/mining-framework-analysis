@@ -45,6 +45,11 @@ public class ElytronOidcClientSubsystemTransformerTestCase extends AbstractSubsy
         this.controllerVersion = controllerVersion;
     }
 
+    public ElytronOidcClientSubsystemTransformerTestCase(ModelTestControllerVersion controllerVersion, ModelVersion version) {
+        super(ElytronOidcExtension.SUBSYSTEM_NAME, new ElytronOidcExtension(), ElytronOidcSubsystemSchema.VERSION_2_0_COMMUNITY, ElytronOidcSubsystemSchema.CURRENT.get(Stability.COMMUNITY));
+        this.controllerVersion = controllerVersion;
+    }
+
     @Test
     public void testTransformations() throws Exception {
         KernelServices services = this.buildKernelServices(controllerVersion, CURRENT_MODEL_VERSION);

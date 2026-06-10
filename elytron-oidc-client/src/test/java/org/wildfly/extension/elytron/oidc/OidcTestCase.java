@@ -52,6 +52,10 @@ public class OidcTestCase extends AbstractSubsystemSchemaTest<ElytronOidcSubsyst
         return readResource(String.format("oidc-%s.xml", this.getSubsystemSchema().getStability().toString().toLowerCase()));
     }
 
+    public OidcTestCase() {
+        super(ElytronOidcExtension.SUBSYSTEM_NAME, new ElytronOidcExtension(), ElytronOidcSubsystemSchema.VERSION_2_0_COMMUNITY, ElytronOidcSubsystemSchema.CURRENT.get(Stability.COMMUNITY));
+    }
+
     @Before
     public void prepare() throws Throwable {
         if (services != null) return;
