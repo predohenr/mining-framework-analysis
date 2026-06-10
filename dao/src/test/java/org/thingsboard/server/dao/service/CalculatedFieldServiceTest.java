@@ -45,8 +45,8 @@ import org.thingsboard.server.common.data.relation.RelationPathLevel;
 import org.thingsboard.server.dao.cf.CalculatedFieldService;
 import org.thingsboard.server.dao.device.DeviceService;
 import org.thingsboard.server.dao.tenant.TbTenantProfileCache;
-import org.thingsboard.server.dao.tenant.TenantProfileService;
 import org.thingsboard.server.exception.DataValidationException;
+import org.thingsboard.server.dao.tenant.TenantProfileService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -281,10 +281,6 @@ public class CalculatedFieldServiceTest extends AbstractServiceTest {
             cf.setName("GF zero scheduled update interval test");
             cf.setConfigurationVersion(0);
             cf.setConfiguration(cfg);
-
-            var out = new AttributesOutput();
-            out.setScope(AttributeScope.SERVER_SCOPE);
-            cfg.setOutput(out);
 
             // WHEN
             CalculatedField saved = calculatedFieldService.save(cf);
