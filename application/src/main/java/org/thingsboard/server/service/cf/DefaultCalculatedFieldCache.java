@@ -19,8 +19,8 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ConcurrentReferenceHashMap;
 import org.thingsboard.server.actors.ActorSystemContext;
@@ -28,9 +28,9 @@ import org.thingsboard.server.common.data.EntityType;
 import org.thingsboard.server.common.data.TenantProfile;
 import org.thingsboard.server.common.data.cf.CalculatedField;
 import org.thingsboard.server.common.data.cf.CalculatedFieldLink;
-import org.thingsboard.server.common.data.cf.CalculatedFieldType;
-import org.thingsboard.server.common.data.plugin.ComponentLifecycleEvent;
 import org.thingsboard.server.common.msg.plugin.ComponentLifecycleMsg;
+import org.thingsboard.server.common.data.plugin.ComponentLifecycleEvent;
+import org.thingsboard.server.common.data.cf.CalculatedFieldType;
 import org.thingsboard.server.common.data.cf.configuration.CalculatedFieldConfiguration;
 import org.thingsboard.server.common.data.id.AssetId;
 import org.thingsboard.server.common.data.id.CalculatedFieldId;
@@ -50,8 +50,8 @@ import org.thingsboard.server.service.profile.TbDeviceProfileCache;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -237,64 +237,6 @@ public class DefaultCalculatedFieldCache implements CalculatedFieldCache {
         log.debug("[{}] evict calculated field links from cached links by entity id: {}", calculatedFieldId, oldCalculatedField);
     }
 
-    @Override
-    public void handleTenantProfileUpdate(TenantProfileId tenantProfileId) {
-        calculatedFieldsCtx.values().stream()
-                .filter(ctx -> {
-                    TenantProfile tenantProfile = tenantProfileCache.get(ctx.getTenantId());
-                    return tenantProfile != null && tenantProfileId.equals(tenantProfile.getId());
-                })
-                .forEach(CalculatedFieldCtx::setTenantProfileProperties);
-    }
-
-    @Override
-    public EntityId getProfileId(TenantId tenantId, EntityId entityId) {
-        HasId<? extends EntityId> profile = switch (entityId.getEntityType()) {
-            case ASSET -> assetProfileCache.get(tenantId, (AssetId) entityId);
-            case DEVICE -> deviceProfileCache.get(tenantId, (DeviceId) entityId);
-            default -> null;
-        };
-        return profile != null ? profile.getId() : null;
-    }
-
-    @Override
-    public Set<EntityId> getDynamicEntities(TenantId tenantId, EntityId entityId) {
-        if (entityId != null && entityId.getEntityType().isOneOf(EntityType.CUSTOMER, EntityType.TENANT)) {
-            return getOwnedEntities(tenantId, entityId);
-        }
-        return Collections.emptySet();
-    }
-
-    @Override
-    public void addOwnerEntity(TenantId tenantId, EntityId entityId) {
-        EntityId owner = ownerService.getOwner(tenantId, entityId);
-        getOwnedEntities(tenantId, owner).add(entityId);
-    }
-
-    @Override
-    public void updateOwnerEntity(TenantId tenantId, EntityId entityId) {
-        evictEntity(entityId);
-        addOwnerEntity(tenantId, entityId);
-    }
-
-    @Override
-    public void evictEntity(EntityId entityId) {
-        ownerEntities.values().forEach(entities -> entities.remove(entityId));
-    }
-
-    @Override
-    public void evictOwner(EntityId owner) {
-        ownerEntities.remove(owner);
-    }
-
-    private Set<EntityId> getOwnedEntities(TenantId tenantId, EntityId ownerId) {
-        return ownerEntities.computeIfAbsent(ownerId, owner -> {
-            Set<EntityId> entities = ConcurrentHashMap.newKeySet();
-            entities.addAll(ownerService.getOwnedEntities(tenantId, ownerId));
-            return entities;
-        });
-    }
-
     @EventListener(ComponentLifecycleMsg.class)
     public void onComponentLifecycleEvent(ComponentLifecycleMsg event) {
         if (event.getEvent() != ComponentLifecycleEvent.DELETED) {
@@ -313,7 +255,7 @@ public class DefaultCalculatedFieldCache implements CalculatedFieldCache {
                         calculatedFields.remove(cfId);
                         List<CalculatedFieldLink> links = calculatedFieldLinks.remove(cfId);
                         if (links != null) {
-                            links.forEach(link -> removedLinkEntityIds.add(link.entityId()));
+                            links.forEach(link -> removedLinkEntityIds.add(link.getEntityId()));
                         }
                         calculatedFieldsCtx.remove(cfId);
                         removedCfIds.add(cfId);
@@ -333,7 +275,7 @@ public class DefaultCalculatedFieldCache implements CalculatedFieldCache {
                 removedLinkEntityIds.forEach(entityId -> {
                     List<CalculatedFieldLink> entityLinks = entityIdCalculatedFieldLinks.get(entityId);
                     if (entityLinks != null) {
-                        entityLinks.removeIf(link -> removedCfIds.contains(link.calculatedFieldId()));
+                        entityLinks.removeIf(link -> removedCfIds.contains(link.getCalculatedFieldId()));
                         if (entityLinks.isEmpty()) {
                             entityIdCalculatedFieldLinks.remove(entityId);
                         }
@@ -356,12 +298,70 @@ public class DefaultCalculatedFieldCache implements CalculatedFieldCache {
                         cfIds.add(cf.getId());
                         log.debug("[{}] evict calculated field from cache on entity deletion: {}", cf.getId(), cf);
                     });
-                    entityIdCalculatedFieldLinks.values().forEach(list -> list.removeIf(link -> cfIds.contains(link.calculatedFieldId())));
+                    entityIdCalculatedFieldLinks.values().forEach(list -> list.removeIf(link -> cfIds.contains(link.getCalculatedFieldId())));
                     cfIds.forEach(calculatedFieldFetchLocks::remove);
                 }
                 entityIdCalculatedFieldLinks.remove(entityId);
                 break;
         }
+    }
+
+    @Override
+    public Set<EntityId> getDynamicEntities(TenantId tenantId, EntityId entityId) {
+        if (entityId != null && entityId.getEntityType().isOneOf(EntityType.CUSTOMER, EntityType.TENANT)) {
+            return getOwnedEntities(tenantId, entityId);
+        }
+        return Collections.emptySet();
+    }
+
+    @Override
+    public void addOwnerEntity(TenantId tenantId, EntityId entityId) {
+        EntityId owner = ownerService.getOwner(tenantId, entityId);
+        getOwnedEntities(tenantId, owner).add(entityId);
+    }
+
+    @Override
+    public void evictOwner(EntityId owner) {
+        ownerEntities.remove(owner);
+    }
+
+    private Set<EntityId> getOwnedEntities(TenantId tenantId, EntityId ownerId) {
+        return ownerEntities.computeIfAbsent(ownerId, owner -> {
+            Set<EntityId> entities = ConcurrentHashMap.newKeySet();
+            entities.addAll(ownerService.getOwnedEntities(tenantId, ownerId));
+            return entities;
+        });
+    }
+
+    @Override
+    public void updateOwnerEntity(TenantId tenantId, EntityId entityId) {
+        evictEntity(entityId);
+        addOwnerEntity(tenantId, entityId);
+    }
+
+    @Override
+    public void evictEntity(EntityId entityId) {
+        ownerEntities.values().forEach(entities -> entities.remove(entityId));
+    }
+
+    @Override
+    public void handleTenantProfileUpdate(TenantProfileId tenantProfileId) {
+        calculatedFieldsCtx.values().stream()
+                .filter(ctx -> {
+                    TenantProfile tenantProfile = tenantProfileCache.get(ctx.getTenantId());
+                    return tenantProfile != null && tenantProfileId.equals(tenantProfile.getId());
+                })
+                .forEach(CalculatedFieldCtx::setTenantProfileProperties);
+    }
+
+    @Override
+    public EntityId getProfileId(TenantId tenantId, EntityId entityId) {
+        HasId<? extends EntityId> profile = switch (entityId.getEntityType()) {
+            case ASSET -> assetProfileCache.get(tenantId, (AssetId) entityId);
+            case DEVICE -> deviceProfileCache.get(tenantId, (DeviceId) entityId);
+            default -> null;
+        };
+        return profile != null ? profile.getId() : null;
     }
 
     private Lock getFetchLock(CalculatedFieldId id) {
