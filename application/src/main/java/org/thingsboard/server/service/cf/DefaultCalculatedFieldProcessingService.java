@@ -136,6 +136,7 @@ public class DefaultCalculatedFieldProcessingService extends AbstractCalculatedF
         return super.fetchMetricDuringInterval(tenantId, entityId, argKey, metric, interval);
     }
 
+    @Override
     public void processResult(TenantId tenantId, EntityId entityId, CalculatedFieldResult result, List<CalculatedFieldId> cfIds, TbCallback callback) {
         if (result instanceof AlarmCalculatedFieldResult) {
             sendMsgToRuleEngine(tenantId, entityId, callback, result.toTbMsg(entityId, cfIds));

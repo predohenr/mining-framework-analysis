@@ -41,9 +41,9 @@ import org.thingsboard.server.common.data.cf.configuration.AttributesImmediateOu
 import org.thingsboard.server.common.data.cf.configuration.OutputStrategy;
 import org.thingsboard.server.common.data.cf.configuration.OutputType;
 import org.thingsboard.server.common.data.cf.configuration.RelationPathQueryDynamicSourceConfiguration;
-import org.thingsboard.server.common.data.cf.configuration.TimeSeriesImmediateOutputStrategy;
 import org.thingsboard.server.common.data.cf.configuration.aggregation.AggFunction;
 import org.thingsboard.server.common.data.cf.configuration.aggregation.AggMetric;
+import org.thingsboard.server.common.data.cf.configuration.TimeSeriesImmediateOutputStrategy;
 import org.thingsboard.server.common.data.cf.configuration.aggregation.RelatedEntitiesAggregationCalculatedFieldConfiguration;
 import org.thingsboard.server.common.data.cf.configuration.aggregation.single.EntityAggregationCalculatedFieldConfiguration;
 import org.thingsboard.server.common.data.cf.configuration.aggregation.single.interval.AggInterval;
