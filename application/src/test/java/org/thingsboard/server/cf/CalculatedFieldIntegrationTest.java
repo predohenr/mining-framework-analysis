@@ -624,254 +624,6 @@ public class CalculatedFieldIntegrationTest extends CalculatedFieldControllerTes
     }
 
     @Test
-    public void testSimpleCalculatedFieldWhenCtxBecameUninitialized() throws Exception {
-        Device testDevice = createDevice("Test device", "1234567890");
-
-        CalculatedField calculatedField = new CalculatedField();
-        calculatedField.setEntityId(testDevice.getId());
-        calculatedField.setType(CalculatedFieldType.SIMPLE);
-        calculatedField.setName("M + 1");
-        calculatedField.setDebugSettings(DebugSettings.all());
-
-        SimpleCalculatedFieldConfiguration config = new SimpleCalculatedFieldConfiguration();
-
-        Argument argument = new Argument();
-        ReferencedEntityKey refEntityKey = new ReferencedEntityKey("m", ArgumentType.TS_LATEST, null);
-        argument.setRefEntityKey(refEntityKey);
-        config.setArguments(Map.of("m", argument));
-        config.setExpression("m + 1");
-
-        Output output = new Output();
-        output.setName("m1");
-        output.setType(OutputType.TIME_SERIES);
-        output.setDecimalsByDefault(0);
-        config.setOutput(output);
-
-        calculatedField.setConfiguration(config);
-
-        calculatedField = doPost("/api/calculatedField", calculatedField, CalculatedField.class);
-
-        doPost("/api/plugins/telemetry/DEVICE/" + testDevice.getUuidId() + "/timeseries/" + DataConstants.SERVER_SCOPE, JacksonUtil.toJsonNode("{\"m\":1}"));
-
-        await().alias("create CF -> ctx is initialized -> perform calculation").atMost(TIMEOUT, TimeUnit.SECONDS)
-                .pollInterval(POLL_INTERVAL, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    ObjectNode m1 = getLatestTelemetry(testDevice.getId(), "m1");
-                    assertThat(m1).isNotNull();
-                    assertThat(m1.get("m1").get(0).get("value").asText()).isEqualTo("2");
-                });
-
-        config.setExpression("m m");
-        calculatedField.setConfiguration(config);
-        calculatedField = doPost("/api/calculatedField", calculatedField, CalculatedField.class);
-
-        doPost("/api/plugins/telemetry/DEVICE/" + testDevice.getUuidId() + "/timeseries/" + DataConstants.SERVER_SCOPE, JacksonUtil.toJsonNode("{\"m\":2}"));
-
-        await().alias("update CF -> ctx is not initialized -> no calculation performed").atMost(TIMEOUT, TimeUnit.SECONDS)
-                .pollInterval(POLL_INTERVAL, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    ObjectNode m1 = getLatestTelemetry(testDevice.getId(), "m1");
-                    assertThat(m1).isNotNull();
-                    assertThat(m1.get("m1").get(0).get("value").asText()).isEqualTo("2");
-                });
-    }
-
-    @Test
-    public void testGeofencingCalculatedField_withZonesCreatedOnDevice() throws Exception {
-        // --- Arrange entities ---
-        Device device = createDevice("GF Test Device", "sn-geo-2");
-
-        // Allowed zone polygon (square)
-        String allowedPolygon = "[[50.472000, 30.504000], [50.472000, 30.506000], [50.474000, 30.506000], [50.474000, 30.504000]]";
-        // Restricted zone polygon (square)
-        String restrictedPolygon = "[[50.475000, 30.510000], [50.475000, 30.512000], [50.477000, 30.512000], [50.477000, 30.510000]]";
-
-        doPost("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/attributes/" + DataConstants.SERVER_SCOPE,
-                JacksonUtil.toJsonNode("{\"allowedZone\":" + allowedPolygon + "}")).andExpect(status().isOk());
-
-        doPost("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/attributes/" + DataConstants.SERVER_SCOPE,
-                JacksonUtil.toJsonNode("{\"restrictedZone\":" + restrictedPolygon + "}")).andExpect(status().isOk());
-
-        // Initial device coordinates (inside Allowed, outside Restricted)
-        doPost("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/timeseries/unusedScope",
-                JacksonUtil.toJsonNode("{\"latitude\":50.4730,\"longitude\":30.5050}"));
-
-        // --- Build CF: GEOFENCING ---
-        CalculatedField cf = new CalculatedField();
-        cf.setEntityId(device.getDeviceProfileId());
-        cf.setType(CalculatedFieldType.GEOFENCING);
-        cf.setName("Geofencing CF");
-        cf.setDebugSettings(DebugSettings.off());
-
-        GeofencingCalculatedFieldConfiguration cfg = new GeofencingCalculatedFieldConfiguration();
-
-        // Coordinates: TS_LATEST on the device
-        EntityCoordinates entityCoordinates = new EntityCoordinates("latitude", "longitude");
-        cfg.setEntityCoordinates(entityCoordinates);
-
-        // Zone groups: ATTRIBUTE on the device
-        ZoneGroupConfiguration allowedZonesGroup = new ZoneGroupConfiguration("allowedZone", REPORT_TRANSITION_EVENTS_AND_PRESENCE_STATUS, false);
-        ZoneGroupConfiguration restrictedZonesGroup = new ZoneGroupConfiguration("restrictedZone", REPORT_TRANSITION_EVENTS_AND_PRESENCE_STATUS, false);
-
-        cfg.setZoneGroups(Map.of("allowedZones", allowedZonesGroup, "restrictedZones", restrictedZonesGroup));
-
-        // Output to server attributes
-        Output out = new Output();
-        out.setType(OutputType.ATTRIBUTES);
-        out.setScope(AttributeScope.SERVER_SCOPE);
-        cfg.setOutput(out);
-
-        cf.setConfiguration(cfg);
-
-        doPost("/api/calculatedField", cf, CalculatedField.class);
-
-        // --- Assert initial evaluation (ENTERED / OUTSIDE) ---
-        await().alias("initial geofencing evaluation")
-                .atMost(TIMEOUT, TimeUnit.SECONDS)
-                .pollInterval(POLL_INTERVAL, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    ArrayNode attrs = getServerAttributes(device.getId(),
-                            "allowedZonesEvent", "allowedZonesStatus", "restrictedZonesStatus", "restrictedZonesEvent");
-                    // --- no restrictedZonesEvent as no transition happened yet
-                    assertThat(attrs).isNotNull().isNotEmpty().hasSize(3);
-                    Map<String, String> m = kv(attrs);
-                    assertThat(m).containsEntry("allowedZonesEvent", "ENTERED")
-                            .containsEntry("allowedZonesStatus", "INSIDE")
-                            .containsEntry("restrictedZonesStatus", "OUTSIDE");
-                });
-
-        // --- delete attributes reported in previous evaluation
-        doDelete("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/SERVER_SCOPE?keys=allowedZonesEvent,allowedZonesStatus,restrictedZonesStatus", String.class);
-
-        // --- Update restrictedZone by 'restrictedZone' attribute update
-        doPost("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/attributes/" + DataConstants.SERVER_SCOPE,
-                JacksonUtil.toJsonNode("{\"restrictedZone\":" + restrictedPolygon + "}")).andExpect(status().isOk());
-
-        // --- Assert no transition ---
-        // --- Assert attributes updated with the same values for restrictedZones ---
-        // --- Assert attributes updated with the new values for allowedZones ---
-        await().alias("evaluation after version bump of geo argument")
-                .atMost(TIMEOUT, TimeUnit.SECONDS)
-                .pollInterval(POLL_INTERVAL, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    ArrayNode attrs = getServerAttributes(device.getId(),
-                            "allowedZonesEvent", "allowedZonesStatus",
-                            "restrictedZonesEvent", "restrictedZonesStatus");
-                    assertThat(attrs).isNotNull().isNotEmpty().hasSize(2);
-                    Map<String, String> m = kv(attrs);
-                    assertThat(m).containsEntry("allowedZonesStatus", "INSIDE")
-                            .containsEntry("restrictedZonesStatus", "OUTSIDE");
-                });
-    }
-
-    @Test
-    public void testGeofencingCalculatedField_withoutRelationsCreationAndDynamicRefresh() throws Exception {
-        // --- Arrange entities ---
-        Device device = createDevice("GF Device", "sn-geo-1");
-
-        // Allowed zone polygon (square)
-        String allowedPolygon = "[[50.472000, 30.504000], [50.472000, 30.506000], [50.474000, 30.506000], [50.474000, 30.504000]]";
-        // Restricted zone polygon (square)
-        String restrictedPolygon = "[[50.475000, 30.510000], [50.475000, 30.512000], [50.477000, 30.512000], [50.477000, 30.510000]]";
-
-        Asset allowedZoneAsset = createAsset("Allowed Zone", null);
-        doPost("/api/plugins/telemetry/ASSET/" + allowedZoneAsset.getUuidId() + "/attributes/" + DataConstants.SERVER_SCOPE,
-                JacksonUtil.toJsonNode("{\"zone\":" + allowedPolygon + "}")).andExpect(status().isOk());
-
-        Asset restrictedZoneAsset = createAsset("Restricted Zone", null);
-        doPost("/api/plugins/telemetry/ASSET/" + restrictedZoneAsset.getUuidId() + "/attributes/" + DataConstants.SERVER_SCOPE,
-                JacksonUtil.toJsonNode("{\"zone\":" + restrictedPolygon + "}")).andExpect(status().isOk());
-
-        // Relations from device to zones
-        EntityRelation deviceToAllowedZoneRelation = new EntityRelation();
-        deviceToAllowedZoneRelation.setFrom(device.getId());
-        deviceToAllowedZoneRelation.setTo(allowedZoneAsset.getId());
-        deviceToAllowedZoneRelation.setType("AllowedZone");
-
-        EntityRelation deviceToRestrictedZoneRelation = new EntityRelation();
-        deviceToRestrictedZoneRelation.setFrom(device.getId());
-        deviceToRestrictedZoneRelation.setTo(restrictedZoneAsset.getId());
-        deviceToRestrictedZoneRelation.setType("RestrictedZone");
-
-        doPost("/api/relation", deviceToAllowedZoneRelation).andExpect(status().isOk());
-        doPost("/api/relation", deviceToRestrictedZoneRelation).andExpect(status().isOk());
-
-        // Initial device coordinates (inside Allowed, outside Restricted)
-        doPost("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/timeseries/unusedScope",
-                JacksonUtil.toJsonNode("{\"latitude\":50.4730,\"longitude\":30.5050}"));
-
-        // --- Build CF: GEOFENCING ---
-        CalculatedField cf = new CalculatedField();
-        cf.setEntityId(device.getId());
-        cf.setType(CalculatedFieldType.GEOFENCING);
-        cf.setName("Geofencing CF");
-        cf.setDebugSettings(DebugSettings.off());
-
-        GeofencingCalculatedFieldConfiguration cfg = new GeofencingCalculatedFieldConfiguration();
-
-        // Coordinates: TS_LATEST on the device
-        EntityCoordinates entityCoordinates = new EntityCoordinates("latitude", "longitude");
-        cfg.setEntityCoordinates(entityCoordinates);
-
-        // Zone groups: ATTRIBUTE on specific assets (one zone per group)
-        ZoneGroupConfiguration allowedZonesGroup = new ZoneGroupConfiguration("zone", REPORT_TRANSITION_EVENTS_AND_PRESENCE_STATUS, false);
-        var allowedZoneDynamicSourceConfiguration = new RelationPathQueryDynamicSourceConfiguration();
-        allowedZoneDynamicSourceConfiguration.setLevels(List.of(new RelationPathLevel(EntitySearchDirection.FROM, "AllowedZone")));
-        allowedZonesGroup.setRefDynamicSourceConfiguration(allowedZoneDynamicSourceConfiguration);
-
-        ZoneGroupConfiguration restrictedZonesGroup = new ZoneGroupConfiguration("zone", REPORT_TRANSITION_EVENTS_AND_PRESENCE_STATUS, false);
-        var restrictedZoneDynamicSourceConfiguration = new RelationPathQueryDynamicSourceConfiguration();
-        restrictedZoneDynamicSourceConfiguration.setLevels(List.of(new RelationPathLevel(EntitySearchDirection.FROM, "RestrictedZone")));
-        restrictedZonesGroup.setRefDynamicSourceConfiguration(restrictedZoneDynamicSourceConfiguration);
-
-        cfg.setZoneGroups(Map.of("allowedZones", allowedZonesGroup, "restrictedZones", restrictedZonesGroup));
-
-        // Output to server attributes
-        Output out = new Output();
-        out.setType(OutputType.ATTRIBUTES);
-        out.setScope(AttributeScope.SERVER_SCOPE);
-        cfg.setOutput(out);
-
-        cf.setConfiguration(cfg);
-
-        doPost("/api/calculatedField", cf, CalculatedField.class);
-
-        // --- Assert initial evaluation (ENTERED / OUTSIDE) ---
-        await().alias("initial geofencing evaluation")
-                .atMost(TIMEOUT, TimeUnit.SECONDS)
-                .pollInterval(POLL_INTERVAL, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    ArrayNode attrs = getServerAttributes(device.getId(),
-                            "allowedZonesEvent", "allowedZonesStatus", "restrictedZonesStatus");
-                    assertThat(attrs).isNotNull().isNotEmpty().hasSize(3);
-                    Map<String, String> m = kv(attrs);
-                    assertThat(m).containsEntry("allowedZonesEvent", "ENTERED")
-                            .containsEntry("allowedZonesStatus", "INSIDE")
-                            .containsEntry("restrictedZonesStatus", "OUTSIDE");
-                });
-
-        // --- Move the device into Restricted zone (and outside Allowed) ---
-        doPost("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/timeseries/unusedScope",
-                JacksonUtil.toJsonNode("{\"latitude\":50.4760,\"longitude\":30.5110}"));
-
-        // --- Assert transition (LEFT / ENTERED) ---
-        await().alias("transition evaluation after movement")
-                .atMost(TIMEOUT, TimeUnit.SECONDS)
-                .pollInterval(POLL_INTERVAL, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    ArrayNode attrs = getServerAttributes(device.getId(),
-                            "allowedZonesEvent", "allowedZonesStatus",
-                            "restrictedZonesEvent", "restrictedZonesStatus");
-                    assertThat(attrs).isNotNull().isNotEmpty().hasSize(4);
-                    Map<String, String> m = kv(attrs);
-                    assertThat(m).containsEntry("allowedZonesEvent", "LEFT")
-                            .containsEntry("restrictedZonesEvent", "ENTERED")
-                            .containsEntry("allowedZonesStatus", "OUTSIDE")
-                            .containsEntry("restrictedZonesStatus", "INSIDE");
-                });
-    }
-
-    @Test
     public void testGeofencingCalculatedField_DynamicRefresh_RebindsZoneArguments() throws Exception {
         // --- Update min allowed scheduled update intervals for CFs ---
         loginSysAdmin();
@@ -999,6 +751,254 @@ public class CalculatedFieldIntegrationTest extends CalculatedFieldControllerTes
                     Map<String, String> m = kv(attrs);
                     assertThat(m).containsEntry("allowedZonesEvent", "ENTERED")
                             .containsEntry("allowedZonesStatus", "INSIDE");
+                });
+    }
+
+    @Test
+    public void testGeofencingCalculatedField_withZonesCreatedOnDevice() throws Exception {
+        // --- Arrange entities ---
+        Device device = createDevice("GF Test Device", "sn-geo-2");
+
+        // Allowed zone polygon (square)
+        String allowedPolygon = "[[50.472000, 30.504000], [50.472000, 30.506000], [50.474000, 30.506000], [50.474000, 30.504000]]";
+        // Restricted zone polygon (square)
+        String restrictedPolygon = "[[50.475000, 30.510000], [50.475000, 30.512000], [50.477000, 30.512000], [50.477000, 30.510000]]";
+
+        doPost("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/attributes/" + DataConstants.SERVER_SCOPE,
+                JacksonUtil.toJsonNode("{\"allowedZone\":" + allowedPolygon + "}")).andExpect(status().isOk());
+
+        doPost("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/attributes/" + DataConstants.SERVER_SCOPE,
+                JacksonUtil.toJsonNode("{\"restrictedZone\":" + restrictedPolygon + "}")).andExpect(status().isOk());
+
+        // Initial device coordinates (inside Allowed, outside Restricted)
+        doPost("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/timeseries/unusedScope",
+                JacksonUtil.toJsonNode("{\"latitude\":50.4730,\"longitude\":30.5050}"));
+
+        // --- Build CF: GEOFENCING ---
+        CalculatedField cf = new CalculatedField();
+        cf.setEntityId(device.getDeviceProfileId());
+        cf.setType(CalculatedFieldType.GEOFENCING);
+        cf.setName("Geofencing CF");
+        cf.setDebugSettings(DebugSettings.off());
+
+        GeofencingCalculatedFieldConfiguration cfg = new GeofencingCalculatedFieldConfiguration();
+
+        // Coordinates: TS_LATEST on the device
+        EntityCoordinates entityCoordinates = new EntityCoordinates("latitude", "longitude");
+        cfg.setEntityCoordinates(entityCoordinates);
+
+        // Zone groups: ATTRIBUTE on the device
+        ZoneGroupConfiguration allowedZonesGroup = new ZoneGroupConfiguration("allowedZone", REPORT_TRANSITION_EVENTS_AND_PRESENCE_STATUS, false);
+        ZoneGroupConfiguration restrictedZonesGroup = new ZoneGroupConfiguration("restrictedZone", REPORT_TRANSITION_EVENTS_AND_PRESENCE_STATUS, false);
+
+        cfg.setZoneGroups(Map.of("allowedZones", allowedZonesGroup, "restrictedZones", restrictedZonesGroup));
+
+        // Output to server attributes
+        Output out = new Output();
+        out.setType(OutputType.ATTRIBUTES);
+        out.setScope(AttributeScope.SERVER_SCOPE);
+        cfg.setOutput(out);
+
+        cf.setConfiguration(cfg);
+
+        doPost("/api/calculatedField", cf, CalculatedField.class);
+
+        // --- Assert initial evaluation (ENTERED / OUTSIDE) ---
+        await().alias("initial geofencing evaluation")
+                .atMost(TIMEOUT, TimeUnit.SECONDS)
+                .pollInterval(POLL_INTERVAL, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    ArrayNode attrs = getServerAttributes(device.getId(),
+                            "allowedZonesEvent", "allowedZonesStatus", "restrictedZonesStatus", "restrictedZonesEvent");
+                    // --- no restrictedZonesEvent as no transition happened yet
+                    assertThat(attrs).isNotNull().isNotEmpty().hasSize(3);
+                    Map<String, String> m = kv(attrs);
+                    assertThat(m).containsEntry("allowedZonesEvent", "ENTERED")
+                            .containsEntry("allowedZonesStatus", "INSIDE")
+                            .containsEntry("restrictedZonesStatus", "OUTSIDE");
+                });
+
+        // --- delete attributes reported in previous evaluation
+        doDelete("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/SERVER_SCOPE?keys=allowedZonesEvent,allowedZonesStatus,restrictedZonesStatus", String.class);
+
+        // --- Update restrictedZone by 'restrictedZone' attribute update
+        doPost("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/attributes/" + DataConstants.SERVER_SCOPE,
+                JacksonUtil.toJsonNode("{\"restrictedZone\":" + restrictedPolygon + "}")).andExpect(status().isOk());
+
+        // --- Assert no transition ---
+        // --- Assert attributes updated with the same values for restrictedZones ---
+        // --- Assert attributes updated with the new values for allowedZones ---
+        await().alias("evaluation after version bump of geo argument")
+                .atMost(TIMEOUT, TimeUnit.SECONDS)
+                .pollInterval(POLL_INTERVAL, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    ArrayNode attrs = getServerAttributes(device.getId(),
+                            "allowedZonesEvent", "allowedZonesStatus",
+                            "restrictedZonesEvent", "restrictedZonesStatus");
+                    assertThat(attrs).isNotNull().isNotEmpty().hasSize(2);
+                    Map<String, String> m = kv(attrs);
+                    assertThat(m).containsEntry("allowedZonesStatus", "INSIDE")
+                            .containsEntry("restrictedZonesStatus", "OUTSIDE");
+                });
+    }
+
+    @Test
+    public void testSimpleCalculatedFieldWhenCtxBecameUninitialized() throws Exception {
+        Device testDevice = createDevice("Test device", "1234567890");
+
+        CalculatedField calculatedField = new CalculatedField();
+        calculatedField.setEntityId(testDevice.getId());
+        calculatedField.setType(CalculatedFieldType.SIMPLE);
+        calculatedField.setName("M + 1");
+        calculatedField.setDebugSettings(DebugSettings.all());
+
+        SimpleCalculatedFieldConfiguration config = new SimpleCalculatedFieldConfiguration();
+
+        Argument argument = new Argument();
+        ReferencedEntityKey refEntityKey = new ReferencedEntityKey("m", ArgumentType.TS_LATEST, null);
+        argument.setRefEntityKey(refEntityKey);
+        config.setArguments(Map.of("m", argument));
+        config.setExpression("m + 1");
+
+        Output output = new Output();
+        output.setName("m1");
+        output.setType(OutputType.TIME_SERIES);
+        output.setDecimalsByDefault(0);
+        config.setOutput(output);
+
+        calculatedField.setConfiguration(config);
+
+        calculatedField = doPost("/api/calculatedField", calculatedField, CalculatedField.class);
+
+        doPost("/api/plugins/telemetry/DEVICE/" + testDevice.getUuidId() + "/timeseries/" + DataConstants.SERVER_SCOPE, JacksonUtil.toJsonNode("{\"m\":1}"));
+
+        await().alias("create CF -> ctx is initialized -> perform calculation").atMost(TIMEOUT, TimeUnit.SECONDS)
+                .pollInterval(POLL_INTERVAL, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    ObjectNode m1 = getLatestTelemetry(testDevice.getId(), "m1");
+                    assertThat(m1).isNotNull();
+                    assertThat(m1.get("m1").get(0).get("value").asText()).isEqualTo("2");
+                });
+
+        config.setExpression("m m");
+        calculatedField.setConfiguration(config);
+        calculatedField = doPost("/api/calculatedField", calculatedField, CalculatedField.class);
+
+        doPost("/api/plugins/telemetry/DEVICE/" + testDevice.getUuidId() + "/timeseries/" + DataConstants.SERVER_SCOPE, JacksonUtil.toJsonNode("{\"m\":2}"));
+
+        await().alias("update CF -> ctx is not initialized -> no calculation performed").atMost(TIMEOUT, TimeUnit.SECONDS)
+                .pollInterval(POLL_INTERVAL, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    ObjectNode m1 = getLatestTelemetry(testDevice.getId(), "m1");
+                    assertThat(m1).isNotNull();
+                    assertThat(m1.get("m1").get(0).get("value").asText()).isEqualTo("2");
+                });
+    }
+
+    @Test
+    public void testGeofencingCalculatedField_withoutRelationsCreationAndDynamicRefresh() throws Exception {
+        // --- Arrange entities ---
+        Device device = createDevice("GF Device", "sn-geo-1");
+
+        // Allowed zone polygon (square)
+        String allowedPolygon = "[[50.472000, 30.504000], [50.472000, 30.506000], [50.474000, 30.506000], [50.474000, 30.504000]]";
+        // Restricted zone polygon (square)
+        String restrictedPolygon = "[[50.475000, 30.510000], [50.475000, 30.512000], [50.477000, 30.512000], [50.477000, 30.510000]]";
+
+        Asset allowedZoneAsset = createAsset("Allowed Zone", null);
+        doPost("/api/plugins/telemetry/ASSET/" + allowedZoneAsset.getUuidId() + "/attributes/" + DataConstants.SERVER_SCOPE,
+                JacksonUtil.toJsonNode("{\"zone\":" + allowedPolygon + "}")).andExpect(status().isOk());
+
+        Asset restrictedZoneAsset = createAsset("Restricted Zone", null);
+        doPost("/api/plugins/telemetry/ASSET/" + restrictedZoneAsset.getUuidId() + "/attributes/" + DataConstants.SERVER_SCOPE,
+                JacksonUtil.toJsonNode("{\"zone\":" + restrictedPolygon + "}")).andExpect(status().isOk());
+
+        // Relations from device to zones
+        EntityRelation deviceToAllowedZoneRelation = new EntityRelation();
+        deviceToAllowedZoneRelation.setFrom(device.getId());
+        deviceToAllowedZoneRelation.setTo(allowedZoneAsset.getId());
+        deviceToAllowedZoneRelation.setType("AllowedZone");
+
+        EntityRelation deviceToRestrictedZoneRelation = new EntityRelation();
+        deviceToRestrictedZoneRelation.setFrom(device.getId());
+        deviceToRestrictedZoneRelation.setTo(restrictedZoneAsset.getId());
+        deviceToRestrictedZoneRelation.setType("RestrictedZone");
+
+        doPost("/api/relation", deviceToAllowedZoneRelation).andExpect(status().isOk());
+        doPost("/api/relation", deviceToRestrictedZoneRelation).andExpect(status().isOk());
+
+        // Initial device coordinates (inside Allowed, outside Restricted)
+        doPost("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/timeseries/unusedScope",
+                JacksonUtil.toJsonNode("{\"latitude\":50.4730,\"longitude\":30.5050}"));
+
+        // --- Build CF: GEOFENCING ---
+        CalculatedField cf = new CalculatedField();
+        cf.setEntityId(device.getId());
+        cf.setType(CalculatedFieldType.GEOFENCING);
+        cf.setName("Geofencing CF");
+        cf.setDebugSettings(DebugSettings.off());
+
+        GeofencingCalculatedFieldConfiguration cfg = new GeofencingCalculatedFieldConfiguration();
+
+        // Coordinates: TS_LATEST on the device
+        EntityCoordinates entityCoordinates = new EntityCoordinates("latitude", "longitude");
+        cfg.setEntityCoordinates(entityCoordinates);
+
+        // Zone groups: ATTRIBUTE on specific assets (one zone per group)
+        ZoneGroupConfiguration allowedZonesGroup = new ZoneGroupConfiguration("zone", REPORT_TRANSITION_EVENTS_AND_PRESENCE_STATUS, false);
+        var allowedZoneDynamicSourceConfiguration = new RelationPathQueryDynamicSourceConfiguration();
+        allowedZoneDynamicSourceConfiguration.setLevels(List.of(new RelationPathLevel(EntitySearchDirection.FROM, "AllowedZone")));
+        allowedZonesGroup.setRefDynamicSourceConfiguration(allowedZoneDynamicSourceConfiguration);
+
+        ZoneGroupConfiguration restrictedZonesGroup = new ZoneGroupConfiguration("zone", REPORT_TRANSITION_EVENTS_AND_PRESENCE_STATUS, false);
+        var restrictedZoneDynamicSourceConfiguration = new RelationPathQueryDynamicSourceConfiguration();
+        restrictedZoneDynamicSourceConfiguration.setLevels(List.of(new RelationPathLevel(EntitySearchDirection.FROM, "RestrictedZone")));
+        restrictedZonesGroup.setRefDynamicSourceConfiguration(restrictedZoneDynamicSourceConfiguration);
+
+        cfg.setZoneGroups(Map.of("allowedZones", allowedZonesGroup, "restrictedZones", restrictedZonesGroup));
+
+        // Output to server attributes
+        Output out = new Output();
+        out.setType(OutputType.ATTRIBUTES);
+        out.setScope(AttributeScope.SERVER_SCOPE);
+        cfg.setOutput(out);
+
+        cf.setConfiguration(cfg);
+
+        doPost("/api/calculatedField", cf, CalculatedField.class);
+
+        // --- Assert initial evaluation (ENTERED / OUTSIDE) ---
+        await().alias("initial geofencing evaluation")
+                .atMost(TIMEOUT, TimeUnit.SECONDS)
+                .pollInterval(POLL_INTERVAL, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    ArrayNode attrs = getServerAttributes(device.getId(),
+                            "allowedZonesEvent", "allowedZonesStatus", "restrictedZonesStatus");
+                    assertThat(attrs).isNotNull().isNotEmpty().hasSize(3);
+                    Map<String, String> m = kv(attrs);
+                    assertThat(m).containsEntry("allowedZonesEvent", "ENTERED")
+                            .containsEntry("allowedZonesStatus", "INSIDE")
+                            .containsEntry("restrictedZonesStatus", "OUTSIDE");
+                });
+
+        // --- Move the device into Restricted zone (and outside Allowed) ---
+        doPost("/api/plugins/telemetry/DEVICE/" + device.getUuidId() + "/timeseries/unusedScope",
+                JacksonUtil.toJsonNode("{\"latitude\":50.4760,\"longitude\":30.5110}"));
+
+        // --- Assert transition (LEFT / ENTERED) ---
+        await().alias("transition evaluation after movement")
+                .atMost(TIMEOUT, TimeUnit.SECONDS)
+                .pollInterval(POLL_INTERVAL, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    ArrayNode attrs = getServerAttributes(device.getId(),
+                            "allowedZonesEvent", "allowedZonesStatus",
+                            "restrictedZonesEvent", "restrictedZonesStatus");
+                    assertThat(attrs).isNotNull().isNotEmpty().hasSize(4);
+                    Map<String, String> m = kv(attrs);
+                    assertThat(m).containsEntry("allowedZonesEvent", "LEFT")
+                            .containsEntry("restrictedZonesEvent", "ENTERED")
+                            .containsEntry("allowedZonesStatus", "OUTSIDE")
+                            .containsEntry("restrictedZonesStatus", "INSIDE");
                 });
     }
 
