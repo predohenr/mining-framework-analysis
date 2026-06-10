@@ -282,10 +282,6 @@ public class CalculatedFieldServiceTest extends AbstractServiceTest {
             cf.setConfigurationVersion(0);
             cf.setConfiguration(cfg);
 
-            var out = new AttributesOutput();
-            out.setScope(AttributeScope.SERVER_SCOPE);
-            cfg.setOutput(out);
-
             // WHEN
             CalculatedField saved = calculatedFieldService.save(cf);
 
