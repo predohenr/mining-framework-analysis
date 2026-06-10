@@ -41,13 +41,13 @@ import org.thingsboard.server.common.data.cf.configuration.AttributesImmediateOu
 import org.thingsboard.server.common.data.cf.configuration.OutputStrategy;
 import org.thingsboard.server.common.data.cf.configuration.OutputType;
 import org.thingsboard.server.common.data.cf.configuration.RelationPathQueryDynamicSourceConfiguration;
-import org.thingsboard.server.common.data.cf.configuration.TimeSeriesImmediateOutputStrategy;
 import org.thingsboard.server.common.data.cf.configuration.aggregation.AggFunction;
+import org.thingsboard.server.common.data.cf.configuration.TimeSeriesImmediateOutputStrategy;
 import org.thingsboard.server.common.data.cf.configuration.aggregation.AggMetric;
 import org.thingsboard.server.common.data.cf.configuration.aggregation.RelatedEntitiesAggregationCalculatedFieldConfiguration;
 import org.thingsboard.server.common.data.cf.configuration.aggregation.single.EntityAggregationCalculatedFieldConfiguration;
-import org.thingsboard.server.common.data.cf.configuration.aggregation.single.interval.AggInterval;
 import org.thingsboard.server.common.data.id.CalculatedFieldId;
+import org.thingsboard.server.common.data.cf.configuration.aggregation.single.interval.AggInterval;
 import org.thingsboard.server.common.data.id.EntityId;
 import org.thingsboard.server.common.data.id.TenantId;
 import org.thingsboard.server.common.data.kv.Aggregation;
@@ -70,8 +70,8 @@ import org.thingsboard.server.dao.usagerecord.ApiLimitService;
 import org.thingsboard.server.service.cf.ctx.state.ArgumentEntry;
 import org.thingsboard.server.service.cf.ctx.state.CalculatedFieldCtx;
 import org.thingsboard.server.service.cf.ctx.state.SingleValueArgumentEntry;
-import org.thingsboard.server.service.cf.ctx.state.aggregation.single.AggIntervalEntry;
 import org.thingsboard.server.service.telemetry.TelemetrySubscriptionService;
+import org.thingsboard.server.service.cf.ctx.state.aggregation.single.AggIntervalEntry;
 
 import java.util.Collections;
 import java.util.HashMap;
