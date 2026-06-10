@@ -96,6 +96,11 @@ public class CoreIT {
         Thread.sleep(1000);
     }
 
+    @BeforeEach
+    public void setUp() throws Exception {
+        Thread.sleep(1000);
+    }
+
     @Test
     public void testWeb3ClientVersion() throws Exception {
         Web3ClientVersion web3ClientVersion = web3j.web3ClientVersion().send();
