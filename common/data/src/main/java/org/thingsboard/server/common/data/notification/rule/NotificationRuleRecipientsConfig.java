@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Schema(
         discriminatorProperty = "triggerType",
         discriminatorMapping = {
@@ -50,7 +51,6 @@ import java.util.UUID;
                 @DiscriminatorMapping(value = "TASK_PROCESSING_FAILURE", schema = DefaultNotificationRuleRecipientsConfig.TaskProcessingFailureRecipientsConfig.class),
                 @DiscriminatorMapping(value = "RESOURCES_SHORTAGE", schema = DefaultNotificationRuleRecipientsConfig.ResourceShortageRecipientsConfig.class)
         })
-@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "triggerType", visible = true, include = JsonTypeInfo.As.EXISTING_PROPERTY)
 @JsonSubTypes({
         @Type(name = "ALARM", value = EscalatedNotificationRuleRecipientsConfig.class),
