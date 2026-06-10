@@ -302,7 +302,7 @@ public class PhraseItem extends CompositeIndexedItem {
                 }
             } else {
                 // Regular case: Just encode child
-                builder.addChildren(child.toProtobuf());
+                builder.addChildren(child.toProtobuf(context));
             }
         }
         return SearchProtocol.QueryTreeItem.newBuilder()
