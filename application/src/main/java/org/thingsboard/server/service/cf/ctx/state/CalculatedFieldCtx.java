@@ -499,7 +499,7 @@ public class CalculatedFieldCtx {
         return new CalculatedFieldEntityCtxId(tenantId, cfId, entityId);
     }
 
-    public boolean hasContextOnlyChanges(CalculatedFieldCtx other) { // has changes that do not require state reinit and will be picked up by the state on the fly
+    public boolean hasContextOnlyChanges(CalculatedFieldCtx other) {
         if (calculatedField.getConfiguration() instanceof ExpressionBasedCalculatedFieldConfiguration && !Objects.equals(expression, other.expression)) {
             return true;
         }
@@ -524,7 +524,10 @@ public class CalculatedFieldCtx {
                 return true;
             }
         }
-        return hasGeofencingZoneGroupConfigurationChanges(other);
+        if (hasGeofencingZoneGroupConfigurationChanges(other)) {
+            return true;
+        }
+        return false;
     }
 
     private boolean hasGeofencingZoneGroupConfigurationChanges(CalculatedFieldCtx other) {
