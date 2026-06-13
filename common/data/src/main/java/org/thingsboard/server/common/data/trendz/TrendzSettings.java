@@ -29,5 +29,4 @@ public class TrendzSettings implements Serializable {
     private boolean enabled;
     private String baseUrl;
     private String apiKey;
-
 }
