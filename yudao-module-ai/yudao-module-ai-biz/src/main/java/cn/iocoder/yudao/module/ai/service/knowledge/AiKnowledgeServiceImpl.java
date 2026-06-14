@@ -10,11 +10,10 @@ import cn.iocoder.yudao.module.ai.dal.dataobject.knowledge.AiKnowledgeDO;
 import cn.iocoder.yudao.module.ai.dal.dataobject.knowledge.AiKnowledgeDocumentDO;
 import cn.iocoder.yudao.module.ai.dal.dataobject.model.AiModelDO;
 import cn.iocoder.yudao.module.ai.dal.mysql.knowledge.AiKnowledgeMapper;
-import cn.iocoder.yudao.module.ai.service.model.AiModelService;
-import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import javax.annotation.Resource;
 import org.springframework.stereotype.Service;
-
+import cn.iocoder.yudao.module.ai.service.model.AiModelService;
 import java.util.List;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
