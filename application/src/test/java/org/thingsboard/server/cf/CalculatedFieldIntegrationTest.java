@@ -1160,6 +1160,7 @@ public class CalculatedFieldIntegrationTest extends CalculatedFieldControllerTes
                 });
     }
 
+
     @Test
     public void testCalculatedFieldWhenTheSameTelemetryKeysUsed() throws Exception {
         Device testDevice = createDevice("Test device", "1234567890");

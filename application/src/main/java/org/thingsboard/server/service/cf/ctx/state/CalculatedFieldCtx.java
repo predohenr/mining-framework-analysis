@@ -54,6 +54,7 @@ import org.thingsboard.server.common.data.tenant.profile.DefaultTenantProfileCon
 import org.thingsboard.server.common.data.util.CollectionsUtil;
 import org.thingsboard.server.common.util.ProtoUtils;
 import org.thingsboard.server.dao.relation.RelationService;
+import org.thingsboard.server.gen.transport.TransportProtos.CalculatedFieldTelemetryMsgProto;
 import org.thingsboard.server.service.cf.ctx.CalculatedFieldEntityCtxId;
 import org.thingsboard.server.service.cf.ctx.state.geofencing.GeofencingCalculatedFieldState;
 import org.thingsboard.server.service.telemetry.AlarmSubscriptionService;
@@ -64,8 +65,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
+import java.util.Objects;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -82,7 +83,7 @@ public class CalculatedFieldCtx implements Closeable {
     private final Map<String, Argument> arguments;
     private final Map<ReferencedEntityKey, Set<String>> mainEntityArguments;
     private final Map<EntityId, Map<ReferencedEntityKey, Set<String>>> linkedEntityArguments;
-    private final Map<ReferencedEntityKey, Set<String>> dynamicEntityArguments;
+    private final Map<ReferencedEntityKey, String> dynamicEntityArguments;
     private final List<String> argNames;
     private Output output;
     private String expression;
@@ -139,9 +140,9 @@ public class CalculatedFieldCtx implements Closeable {
                         continue;
                     }
                     if (entry.getValue().hasOwnerSource()) {
-                        dynamicEntityArguments.compute(refKey, (key, existingNames) -> CollectionsUtil.addToSet(existingNames, entry.getKey()));
+                        dynamicEntityArguments.put(refKey, entry.getKey());
                     } else {
-                        mainEntityArguments.compute(refKey, (key, existingNames) -> CollectionsUtil.addToSet(existingNames, entry.getKey()));
+                        mainEntityArguments.put(refKey, entry.getKey());
                     }
                 } else if (refId.equals(calculatedField.getEntityId())) {
                     mainEntityArguments.compute(refKey, (key, existingNames) -> CollectionsUtil.addToSet(existingNames, entry.getKey()));
@@ -483,8 +484,8 @@ public class CalculatedFieldCtx implements Closeable {
         }
     }
 
-    public Map<ReferencedEntityKey, Set<String>> getLinkedAndDynamicArgs(EntityId entityId) {
-        var argNames = new HashMap<ReferencedEntityKey, Set<String>>();
+    public Map<ReferencedEntityKey, String> getLinkedAndDynamicArgs(EntityId entityId) {
+        var argNames = new HashMap<ReferencedEntityKey, String>();
         var linkedArgNames = linkedEntityArguments.get(entityId);
         if (linkedArgNames != null && !linkedArgNames.isEmpty()) {
             argNames.putAll(linkedArgNames);
