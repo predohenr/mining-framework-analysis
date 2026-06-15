@@ -7,6 +7,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import javax.annotation.Resource;
+
 import java.util.Collection;
 
 /**
