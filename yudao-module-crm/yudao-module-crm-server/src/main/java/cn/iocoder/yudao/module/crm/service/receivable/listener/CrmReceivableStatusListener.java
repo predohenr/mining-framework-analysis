@@ -6,11 +6,16 @@ import cn.iocoder.yudao.module.bpm.api.event.BpmProcessInstanceStatusEventListen
 import cn.iocoder.yudao.module.crm.enums.ApiConstants;
 import cn.iocoder.yudao.module.crm.service.receivable.CrmReceivableService;
 import cn.iocoder.yudao.module.crm.service.receivable.CrmReceivableServiceImpl;
-import jakarta.annotation.Resource;
-import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
+
+import org.springframework.cloud.openfeign.FeignClient;
+
 import org.springframework.web.bind.annotation.RequestBody;
+
+import org.springframework.web.bind.annotation.PostMapping;
+
+import javax.annotation.Resource;
+
 import org.springframework.web.bind.annotation.RestController;
 
 /**
