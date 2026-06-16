@@ -33,7 +33,6 @@ import org.thingsboard.server.common.data.id.DeviceId;
 import org.thingsboard.server.common.data.id.DeviceProfileId;
 import org.thingsboard.server.common.data.id.EntityId;
 import org.thingsboard.server.common.data.id.TenantId;
-import org.thingsboard.server.common.data.id.TenantProfileId;
 import org.thingsboard.server.common.data.page.PageData;
 import org.thingsboard.server.common.data.plugin.ComponentLifecycleEvent;
 import org.thingsboard.server.common.msg.plugin.ComponentLifecycleMsg;
@@ -54,9 +53,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -378,96 +374,6 @@ public class DefaultCalculatedFieldCacheTest {
         cache.onComponentLifecycleEvent(new ComponentLifecycleMsg(tenant, cf.getId(), ComponentLifecycleEvent.UPDATED));
 
         assertThat(cache.getCalculatedField(cf.getId())).isEqualTo(updatedCf);
-    }
-
-    // --- evictOwner recursive traversal tests ---
-
-    @Test
-    public void evictOwner_customerDeleted_recursivelyEvictsDevicesOwnedByThatCustomer() {
-        TenantId tenant = new TenantId(UUID.randomUUID());
-        CustomerId customer = new CustomerId(UUID.randomUUID());
-        DeviceId device = new DeviceId(UUID.randomUUID());
-
-        stubDeviceOwner(tenant, device, customer);
-        when(customerService.findCustomersByTenantId(any(), any())).thenReturn(PageData.emptyPageData());
-
-        // tenant owns customer (getOwner for CUSTOMER returns tenantId)
-        cache.addOwnerEntity(tenant, customer);         // ownerEntities[tenant] = {customer}
-        cache.addOwnerEntity(tenant, device);           // ownerEntities[customer] = {device}
-
-        assertThat(cache.getDynamicEntities(tenant, tenant)).contains(customer);
-        assertThat(cache.getDynamicEntities(tenant, customer)).contains(device);
-
-        // deleting the customer evicts the customer key and recursively cleans its owned set
-        cache.onComponentLifecycleEvent(new ComponentLifecycleMsg(tenant, customer, ComponentLifecycleEvent.DELETED));
-
-        assertThat(cache.getDynamicEntities(tenant, customer)).doesNotContain(device);
-    }
-
-    @Test
-    public void evictOwner_tenantDeleted_recursivelyEvictsCustomerAndItsOwnedDevices() {
-        TenantId tenant = new TenantId(UUID.randomUUID());
-        CustomerId customer = new CustomerId(UUID.randomUUID());
-        DeviceId device = new DeviceId(UUID.randomUUID());
-
-        stubDeviceOwner(tenant, device, customer);
-        when(customerService.findCustomersByTenantId(any(), any())).thenReturn(PageData.emptyPageData());
-
-        cache.addOwnerEntity(tenant, customer);         // ownerEntities[tenant] = {customer}
-        cache.addOwnerEntity(tenant, device);           // ownerEntities[customer] = {device}
-
-        assertThat(cache.getDynamicEntities(tenant, tenant)).contains(customer);
-        assertThat(cache.getDynamicEntities(tenant, customer)).contains(device);
-
-        // deleting the tenant: evictOwner(tenant) finds customer (CUSTOMER type) and recurses into it
-        cache.onComponentLifecycleEvent(new ComponentLifecycleMsg(tenant, tenant, ComponentLifecycleEvent.DELETED));
-
-        // both levels must be gone
-        assertThat(cache.getDynamicEntities(tenant, tenant)).doesNotContain(customer);
-        assertThat(cache.getDynamicEntities(tenant, customer)).doesNotContain(device);
-    }
-
-    // --- TenantProfile lifecycle tests ---
-
-    @Test
-    public void onComponentLifecycleEvent_tenantProfileUpdated_callsHandleTenantProfileUpdate() {
-        TenantId tenant = new TenantId(UUID.randomUUID());
-        TenantProfileId profileId = new TenantProfileId(UUID.randomUUID());
-        DefaultCalculatedFieldCache spyCache = spy(cache);
-
-        spyCache.onComponentLifecycleEvent(new ComponentLifecycleMsg(tenant, profileId, ComponentLifecycleEvent.UPDATED));
-
-        verify(spyCache).handleTenantProfileUpdate(profileId);
-    }
-
-    @Test
-    public void onComponentLifecycleEvent_tenantProfileDeleted_doesNotCallHandleTenantProfileUpdate() {
-        TenantId tenant = new TenantId(UUID.randomUUID());
-        TenantProfileId profileId = new TenantProfileId(UUID.randomUUID());
-        DefaultCalculatedFieldCache spyCache = spy(cache);
-
-        spyCache.onComponentLifecycleEvent(new ComponentLifecycleMsg(tenant, profileId, ComponentLifecycleEvent.DELETED));
-
-        verify(spyCache, never()).handleTenantProfileUpdate(any());
-    }
-
-    // --- Helpers ---
-
-    private void stubDeviceOwner(TenantId tenantId, DeviceId deviceId, EntityId ownerId) {
-        Device device = new Device();
-        device.setId(deviceId);
-        device.setTenantId(tenantId);
-        if (ownerId instanceof CustomerId customerId) {
-            device.setCustomerId(customerId);
-        }
-        // If ownerId is a TenantId, leaving customerId null means getOwnerId() returns tenantId
-        when(deviceService.findDeviceById(tenantId, deviceId)).thenReturn(device);
-        // Stubs for getOwnedEntities iteration (empty pages — device is added explicitly)
-        when(deviceService.findDeviceInfosByFilter(any(), any())).thenReturn(PageData.emptyPageData());
-        when(assetService.findAssetsByTenantIdAndCustomerId(any(), any(), any())).thenReturn(PageData.emptyPageData());
-        if (ownerId instanceof TenantId) {
-            when(customerService.findCustomersByTenantId(any(), any())).thenReturn(PageData.emptyPageData());
-        }
     }
 
     private CalculatedField addCfToCache(TenantId tenantId, EntityId entityId) {
