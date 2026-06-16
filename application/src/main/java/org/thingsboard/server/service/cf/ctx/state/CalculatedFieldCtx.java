@@ -70,7 +70,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Data
 @Slf4j
@@ -86,7 +85,10 @@ public class CalculatedFieldCtx implements Closeable {
     private final Map<ReferencedEntityKey, Set<String>> mainEntityArguments;
     private final Map<EntityId, Map<ReferencedEntityKey, Set<String>>> linkedEntityArguments;
     private final Map<ReferencedEntityKey, Set<String>> dynamicEntityArguments;
-    private final Map<ReferencedEntityKey, Set<String>> relatedEntityArguments;
+    private final Map<ReferencedEntityKey, String> mainEntityArguments;
+    private final Map<ReferencedEntityKey, String> relatedEntityArguments;
+    private final Map<EntityId, Map<ReferencedEntityKey, String>> linkedEntityArguments;
+    private final Map<ReferencedEntityKey, String> dynamicEntityArguments;
     private final List<String> argNames;
     private Output output;
     private String expression;
@@ -142,7 +144,7 @@ public class CalculatedFieldCtx implements Closeable {
                 var refKey = entry.getValue().getRefEntityKey();
                 if (refId == null) {
                     if (CalculatedFieldType.RELATED_ENTITIES_AGGREGATION.equals(cfType)) {
-                        relatedEntityArguments.compute(refKey, (key, existingNames) -> CollectionsUtil.addToSet(existingNames, entry.getKey()));
+                        relatedEntityArguments.put(refKey, entry.getKey());
                         continue;
                     }
                     if (entry.getValue().hasRelationQuerySource()) {
@@ -162,9 +164,7 @@ public class CalculatedFieldCtx implements Closeable {
                 }
             }
             this.argNames.addAll(arguments.keySet());
-            this.relatedEntityArgumentNames = relatedEntityArguments.values().stream()
-                    .flatMap(Set::stream)
-                    .collect(Collectors.toList());
+            this.relatedEntityArgumentNames.addAll(relatedEntityArguments.values());
             if (argBasedConfig instanceof ExpressionBasedCalculatedFieldConfiguration expressionBasedConfig) {
                 this.expression = expressionBasedConfig.getExpression();
                 this.useLatestTs = CalculatedFieldType.SIMPLE.equals(calculatedField.getType()) && ((SimpleCalculatedFieldConfiguration) argBasedConfig).isUseLatestTs();
