@@ -998,6 +998,13 @@ public abstract class AbstractWebTest extends AbstractInMemoryStorageTest {
         return mockMvc.perform(deleteRequest);
     }
 
+    protected ResultActions doDeleteWithApiKey(String urlTemplate, String... params) throws Exception {
+        MockHttpServletRequestBuilder deleteRequest = delete(urlTemplate);
+        setApiKey(deleteRequest);
+        populateParams(deleteRequest, params);
+        return mockMvc.perform(deleteRequest);
+    }
+
     protected ResultActions doDeleteAsync(String urlTemplate, MultiValueMap<String, String> params) throws Exception {
         MockHttpServletRequestBuilder deleteRequest = delete(urlTemplate)
                 .params(params);
@@ -1005,13 +1012,6 @@ public abstract class AbstractWebTest extends AbstractInMemoryStorageTest {
         MvcResult result = mockMvc.perform(deleteRequest).andReturn();
         result.getAsyncResult(DEFAULT_TIMEOUT);
         return mockMvc.perform(asyncDispatch(result));
-    }
-
-    protected ResultActions doDeleteWithApiKey(String urlTemplate, String... params) throws Exception {
-        MockHttpServletRequestBuilder deleteRequest = delete(urlTemplate);
-        setApiKey(deleteRequest);
-        populateParams(deleteRequest, params);
-        return mockMvc.perform(deleteRequest);
     }
 
     protected ResultActions doDeleteAsync(String urlTemplate, Long timeout, String... params) throws Exception {
@@ -1409,12 +1409,12 @@ public abstract class AbstractWebTest extends AbstractInMemoryStorageTest {
 
     protected void postTelemetry(EntityId entityId, String payload) throws Exception {
         doPostAsync("/api/plugins/telemetry/" + entityId.getEntityType() + "/" + entityId.getId() +
-                "/timeseries/" + DataConstants.SERVER_SCOPE, JacksonUtil.toJsonNode(payload), 30_000L).andExpect(status().isOk());
+                    "/timeseries/" + DataConstants.SERVER_SCOPE, JacksonUtil.toJsonNode(payload), 30_000L).andExpect(status().isOk());
     }
 
     protected void postAttributes(EntityId entityId, AttributeScope scope, String payload) throws Exception {
         doPostAsync("/api/plugins/telemetry/" + entityId.getEntityType() + "/" + entityId.getId() +
-                "/attributes/" + scope, JacksonUtil.toJsonNode(payload), 30_000L).andExpect(status().isOk());
+                    "/attributes/" + scope, JacksonUtil.toJsonNode(payload), 30_000L).andExpect(status().isOk());
     }
 
     protected CalculatedField saveCalculatedField(CalculatedField calculatedField) {
@@ -1423,7 +1423,7 @@ public abstract class AbstractWebTest extends AbstractInMemoryStorageTest {
 
     protected PageData<CalculatedField> getCalculatedFields(EntityId entityId, CalculatedFieldType type, PageLink pageLink) throws Exception {
         return doGetTypedWithPageLink("/api/" + entityId.getEntityType() + "/" + entityId.getId() + "/calculatedFields" +
-                (type != null ? "?type=" + type.name() + "&" : "?"), new TypeReference<>() {}, pageLink);
+                                      (type != null ? "?type=" + type.name() + "&" : "?"), new TypeReference<>() {}, pageLink);
     }
 
     protected PageData<EventInfo> getDebugEvents(TenantId tenantId, EntityId entityId, int limit) throws Exception {
