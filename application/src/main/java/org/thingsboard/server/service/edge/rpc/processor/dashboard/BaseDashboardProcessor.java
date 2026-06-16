@@ -63,7 +63,7 @@ public abstract class BaseDashboardProcessor extends BaseEdgeProcessor {
                 dashboard.setId(dashboardId);
             }
             Dashboard savedDashboard = edgeCtx.getDashboardService().saveDashboard(dashboard, false);
-            updateDashboardAssignments(tenantId, dashboardById, savedDashboard, newAssignedCustomers);
+            updateDashboardAssignments(tenantId, customerId, dashboardById, savedDashboard, newAssignedCustomers);
         }
         return created;
     }
