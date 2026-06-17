@@ -3,13 +3,15 @@ package cn.iocoder.yudao.module.infra.api.file;
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.module.infra.api.file.dto.FileCreateReqDTO;
 import cn.iocoder.yudao.module.infra.enums.ApiConstants;
-import io.swagger.v3.oas.annotations.Operation;
+
+import javax.validation.Valid;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
-import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.cloud.openfeign.FeignClient;
+import jakarta.validation.constraints.NotEmpty;
 import org.springframework.web.bind.annotation.RequestBody;
+import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
 
 @FeignClient(name = ApiConstants.NAME) // TODO 芋艿：fallbackFactory =
 @Tag(name = "RPC 服务 - 文件")
