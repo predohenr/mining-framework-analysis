@@ -84,9 +84,29 @@ public class DefaultTbRuleEngineConsumerService extends AbstractPartitionBasedCo
                                               TbApiUsageStateService apiUsageStateService,
                                               PartitionService partitionService,
                                               ApplicationEventPublisher eventPublisher,
-                                              JwtSettingsService jwtSettingsService,
-                                              TbMsgPackProcessingContextFactory packProcessingContextFactory) {
+                                              JwtSettingsService jwtSettingsService) {
         super(actorContext, tenantProfileCache, deviceProfileCache, assetProfileCache, tbResourceDataCache, apiUsageStateService, partitionService, eventPublisher, jwtSettingsService);
+        this.ctx = ctx;
+        this.tbDeviceRpcService = tbDeviceRpcService;
+        this.queueService = queueService;
+        this.packProcessingContextFactory = packProcessingContextFactory;
+    }
+
+    public DefaultTbRuleEngineConsumerService(TbRuleEngineConsumerContext ctx,
+                                              ActorSystemContext actorContext,
+                                              TbRuleEngineDeviceRpcService tbDeviceRpcService,
+                                              QueueService queueService,
+                                              TbDeviceProfileCache deviceProfileCache,
+                                              TbAssetProfileCache assetProfileCache,
+                                              TbResourceDataCache tbResourceDataCache,
+                                              TbTenantProfileCache tenantProfileCache,
+                                              TbApiUsageStateService apiUsageStateService,
+                                              PartitionService partitionService,
+                                              ApplicationEventPublisher eventPublisher,
+                                              JwtSettingsService jwtSettingsService,
+                                              CalculatedFieldCache calculatedFieldCache,
+                                              TbMsgPackProcessingContextFactory packProcessingContextFactory) {
+        super(actorContext, tenantProfileCache, deviceProfileCache, assetProfileCache, tbResourceDataCache, calculatedFieldCache, apiUsageStateService, partitionService, eventPublisher, jwtSettingsService);
         this.ctx = ctx;
         this.tbDeviceRpcService = tbDeviceRpcService;
         this.queueService = queueService;
