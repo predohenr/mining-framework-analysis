@@ -221,9 +221,7 @@ public class DefaultCalculatedFieldQueueService implements CalculatedFieldQueueS
 
         for (int i = 0; i < entries.size(); i++) {
             AttributeValueProto.Builder attrProtoBuilder = ProtoUtils.toProto(entries.get(i)).toBuilder();
-            if (versions != null && !versions.isEmpty() && versions.get(i) != null) {
-                attrProtoBuilder.setVersion(versions.get(i));
-            }
+            attrProtoBuilder.setVersion(versions.get(i));
             telemetryMsg.addAttrData(attrProtoBuilder.build());
         }
         msg.setTelemetryMsg(telemetryMsg.build());
