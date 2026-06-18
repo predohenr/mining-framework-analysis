@@ -38,11 +38,11 @@ import org.thingsboard.server.common.data.cf.configuration.RelationPathQueryDyna
 import org.thingsboard.server.common.data.cf.configuration.ScriptCalculatedFieldConfiguration;
 import org.thingsboard.server.common.data.cf.configuration.SimpleCalculatedFieldConfiguration;
 import org.thingsboard.server.common.data.cf.configuration.TimeSeriesOutput;
-import org.thingsboard.server.common.data.cf.configuration.aggregation.AggFunction;
-import org.thingsboard.server.common.data.cf.configuration.aggregation.AggFunctionInput;
-import org.thingsboard.server.common.data.cf.configuration.aggregation.AggKeyInput;
-import org.thingsboard.server.common.data.cf.configuration.aggregation.AggMetric;
 import org.thingsboard.server.common.data.cf.configuration.aggregation.RelatedEntitiesAggregationCalculatedFieldConfiguration;
+import org.thingsboard.server.common.data.cf.configuration.aggregation.AggFunctionInput;
+import org.thingsboard.server.common.data.cf.configuration.aggregation.AggFunction;
+import org.thingsboard.server.common.data.cf.configuration.aggregation.AggMetric;
+import org.thingsboard.server.common.data.cf.configuration.aggregation.AggKeyInput;
 import org.thingsboard.server.common.data.cf.configuration.geofencing.EntityCoordinates;
 import org.thingsboard.server.common.data.cf.configuration.geofencing.GeofencingCalculatedFieldConfiguration;
 import org.thingsboard.server.common.data.cf.configuration.geofencing.ZoneGroupConfiguration;
@@ -774,7 +774,8 @@ public class CalculatedFieldTest extends AbstractContainerTest {
         aggMetrics.put("totalSpaces", totalSpaces);
         configuration.setMetrics(aggMetrics);
 
-        TimeSeriesOutput output = new TimeSeriesOutput();
+        Output output = new Output();
+        output.setType(OutputType.TIME_SERIES);
         output.setDecimalsByDefault(0);
         configuration.setOutput(output);
 
