@@ -263,7 +263,8 @@ public class CalculatedFieldEntityMessageProcessor extends AbstractContextAwareM
         } catch (Exception e) {
             log.debug("[{}][{}] Failed to handle relation update", entityId, ctx.getCfId(), e);
             if (e instanceof CalculatedFieldException cfe) {
-                throw cfe;
+                persistDebugErrorIfEnabled(cfe, msg.getCallback());
+                return;
             }
             throw CalculatedFieldException.builder().ctx(ctx).eventEntity(entityId).cause(e).build();
         }
@@ -302,7 +303,8 @@ public class CalculatedFieldEntityMessageProcessor extends AbstractContextAwareM
         } catch (Exception e) {
             log.debug("[{}][{}] Failed to handle relation delete", entityId, ctx.getCfId(), e);
             if (e instanceof CalculatedFieldException cfe) {
-                throw cfe;
+                persistDebugErrorIfEnabled(cfe, msg.getCallback());
+                return;
             }
             throw CalculatedFieldException.builder().ctx(ctx).eventEntity(entityId).cause(e).build();
         }
