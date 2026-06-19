@@ -1,9 +1,10 @@
 package cn.iocoder.yudao.framework.common.validation;
 
 import cn.iocoder.yudao.framework.common.core.ArrayValuable;
-import jakarta.validation.ConstraintValidator;
-import jakarta.validation.ConstraintValidatorContext;
 
+import javax.validation.ConstraintValidatorContext;
+
+import javax.validation.ConstraintValidator;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
