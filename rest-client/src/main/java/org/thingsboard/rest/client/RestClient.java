@@ -1829,6 +1829,26 @@ public class RestClient implements Closeable {
                 }).getBody();
     }
 
+    public JsonNode findEntityTimeseriesAndAttributesKeysByQuery(EntityDataQuery query, boolean isTimeseries, boolean isAttributes, String scope) {
+        Map<String, String> params = new HashMap<>();
+        params.put("timeseries", String.valueOf(isTimeseries));
+        params.put("attributes", String.valueOf(isAttributes));
+
+        StringBuilder urlBuilder = new StringBuilder(baseURL);
+        urlBuilder.append("/api/entitiesQuery/find/keys?timeseries={timeseries}&attributes={attributes}");
+
+        if (scope != null) {
+            urlBuilder.append("&scope={scope}");
+            params.put("scope", scope);
+        }
+        return restTemplate.exchange(
+                urlBuilder.toString(),
+                HttpMethod.POST, new HttpEntity<>(query),
+                new ParameterizedTypeReference<JsonNode>() {
+                },
+                params).getBody();
+    }
+
     public AvailableEntityKeys findAvailableEntityKeysByQuery(EntityDataQuery query, boolean includeTimeseries, boolean includeAttributes, AttributeScope scope) {
         var uri = UriComponentsBuilder.fromUriString(baseURL)
                 .path("/api/entitiesQuery/find/keys")
