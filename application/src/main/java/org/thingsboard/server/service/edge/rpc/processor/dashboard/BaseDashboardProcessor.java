@@ -102,9 +102,7 @@ public abstract class BaseDashboardProcessor extends BaseEdgeProcessor {
         }
     }
 
-    protected void deleteDashboard(TenantId tenantId, DashboardId dashboardId) {
-        deleteDashboard(tenantId, null, dashboardId);
-    }
+    protected abstract Set<ShortCustomerInfo> filterNonExistingCustomers(TenantId tenantId, CustomerId customerId, Set<ShortCustomerInfo> currentAssignedCustomers, Set<ShortCustomerInfo> newAssignedCustomers);
 
     protected void deleteDashboard(TenantId tenantId, Edge edge, DashboardId dashboardId) {
         Dashboard dashboardById = edgeCtx.getDashboardService().findDashboardById(tenantId, dashboardId);
@@ -114,6 +112,8 @@ public abstract class BaseDashboardProcessor extends BaseEdgeProcessor {
         }
     }
 
-    protected abstract Set<ShortCustomerInfo> filterNonExistingCustomers(TenantId tenantId, CustomerId customerId, Set<ShortCustomerInfo> currentAssignedCustomers, Set<ShortCustomerInfo> newAssignedCustomers);
+    protected void deleteDashboard(TenantId tenantId, DashboardId dashboardId) {
+        deleteDashboard(tenantId, null, dashboardId);
+    }
 
 }
