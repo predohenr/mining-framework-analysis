@@ -102,6 +102,8 @@ public abstract class BaseDashboardProcessor extends BaseEdgeProcessor {
         }
     }
 
+    protected abstract Set<ShortCustomerInfo> filterNonExistingCustomers(TenantId tenantId, CustomerId customerId, Set<ShortCustomerInfo> currentAssignedCustomers, Set<ShortCustomerInfo> newAssignedCustomers);
+
     protected void deleteDashboard(TenantId tenantId, DashboardId dashboardId) {
         deleteDashboard(tenantId, null, dashboardId);
     }
@@ -113,7 +115,5 @@ public abstract class BaseDashboardProcessor extends BaseEdgeProcessor {
             pushEntityEventToRuleEngine(tenantId, edge, dashboardById, TbMsgType.ENTITY_DELETED);
         }
     }
-
-    protected abstract Set<ShortCustomerInfo> filterNonExistingCustomers(TenantId tenantId, CustomerId customerId, Set<ShortCustomerInfo> currentAssignedCustomers, Set<ShortCustomerInfo> newAssignedCustomers);
 
 }
