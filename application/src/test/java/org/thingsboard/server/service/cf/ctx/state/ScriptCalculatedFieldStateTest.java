@@ -141,7 +141,7 @@ public class ScriptCalculatedFieldStateTest {
                 "assetHumidity", new SingleValueArgumentEntry(System.currentTimeMillis() - 10, new LongDataEntry("a", 45L), 10L)
         ));
 
-        CalculatedFieldResult result = state.performCalculation(ctx.getEntityId(), ctx).get();
+        CalculatedFieldResult result = state.performCalculation(ctx).get();
 
         assertThat(result).isNotNull();
         Output output = getCalculatedFieldConfig().getOutput();
