@@ -3,17 +3,23 @@ package cn.iocoder.yudao.module.system.controller.admin.captcha;
 import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.util.servlet.ServletUtils;
 import com.anji.captcha.model.common.ResponseModel;
-import com.anji.captcha.model.vo.CaptchaVO;
+import org.springframework.web.bind.annotation.RequestBody;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.RequestMapping;
+import jakarta.annotation.Resource;
+import org.springframework.web.bind.annotation.PostMapping;
+import jakarta.annotation.security.PermitAll;
+import org.springframework.web.bind.annotation.RestController;
 import com.anji.captcha.service.CaptchaService;
+import com.anji.captcha.model.vo.CaptchaVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.annotation.Resource;
-import jakarta.annotation.security.PermitAll;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import javax.annotation.security.PermitAll;
+import com.xingyuv.captcha.model.common.ResponseModel;
+import javax.servlet.http.HttpServletRequest;
+import javax.annotation.Resource;
+import com.xingyuv.captcha.service.CaptchaService;
+import com.xingyuv.captcha.model.vo.CaptchaVO;
 
 @Tag(name = "管理后台 - 验证码")
 @RestController("adminCaptchaController")
