@@ -10,6 +10,10 @@ import lombok.Data;
 import org.hibernate.validator.constraints.Length;
 import org.hibernate.validator.constraints.URL;
 
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
 import java.util.Map;
 
 import static cn.iocoder.yudao.framework.pay.core.enums.transfer.PayTransferTypeEnum.Alipay;
