@@ -2,10 +2,11 @@ package cn.iocoder.yudao.module.mp.controller.admin.user.vo;
 
 import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+
+import javax.validation.constraints.NotNull;
 
 import java.util.List;
 
