@@ -16,14 +16,16 @@ import cn.iocoder.yudao.module.infra.framework.file.core.client.FileClientFactor
 import cn.iocoder.yudao.module.infra.framework.file.core.enums.FileStorageEnum;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import jakarta.annotation.Resource;
-import jakarta.validation.Validator;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.validation.annotation.Validated;
 
+import javax.annotation.Resource;
+import lombok.Getter;
+import org.springframework.transaction.annotation.Transactional;
+import javax.validation.Validator;
+import jakarta.validation.Validator;
+import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.Resource;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
