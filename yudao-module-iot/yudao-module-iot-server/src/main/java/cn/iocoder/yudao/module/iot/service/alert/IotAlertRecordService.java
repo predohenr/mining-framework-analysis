@@ -5,10 +5,10 @@ import cn.iocoder.yudao.module.iot.controller.admin.alert.vo.recrod.IotAlertReco
 import cn.iocoder.yudao.module.iot.core.mq.message.IotDeviceMessage;
 import cn.iocoder.yudao.module.iot.dal.dataobject.alert.IotAlertConfigDO;
 import cn.iocoder.yudao.module.iot.dal.dataobject.alert.IotAlertRecordDO;
-import cn.iocoder.yudao.module.iot.dal.dataobject.device.IotDeviceDO;
 import jakarta.annotation.Nullable;
-import jakarta.validation.constraints.NotNull;
+import cn.iocoder.yudao.module.iot.dal.dataobject.device.IotDeviceDO;
 
+import javax.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.List;
 
