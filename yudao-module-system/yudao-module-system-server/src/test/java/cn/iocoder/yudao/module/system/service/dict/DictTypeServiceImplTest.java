@@ -11,6 +11,8 @@ import cn.iocoder.yudao.module.system.dal.mysql.dict.DictTypeMapper;
 import jakarta.annotation.Resource;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Import;
+
+import javax.annotation.Resource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.List;

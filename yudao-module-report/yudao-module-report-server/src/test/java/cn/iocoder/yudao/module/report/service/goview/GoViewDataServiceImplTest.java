@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
+
+import javax.annotation.Resource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.Arrays;
