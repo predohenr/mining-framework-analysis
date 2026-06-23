@@ -21,12 +21,18 @@ import cn.iocoder.yudao.module.system.api.notify.NotifyMessageSendApi;
 import cn.iocoder.yudao.module.system.api.notify.dto.NotifySendSingleToUserReqDTO;
 import cn.iocoder.yudao.module.system.api.sms.SmsSendApi;
 import cn.iocoder.yudao.module.system.api.sms.dto.send.SmsSendSingleToUserReqDTO;
-import jakarta.annotation.Nullable;
-import jakarta.annotation.Resource;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+
+import lombok.extern.slf4j.Slf4j;
+
+import jakarta.annotation.Nullable;
+
+import javax.annotation.Resource;
+
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 
