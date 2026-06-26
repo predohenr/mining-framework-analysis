@@ -7,12 +7,12 @@ import cn.iocoder.yudao.module.ai.controller.admin.model.vo.model.AiModelPageReq
 import cn.iocoder.yudao.module.ai.controller.admin.model.vo.model.AiModelSaveReqVO;
 import cn.iocoder.yudao.module.ai.dal.dataobject.model.AiModelDO;
 import dev.tinyflow.core.Tinyflow;
-import jakarta.validation.Valid;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.image.ImageModel;
 import org.springframework.ai.vectorstore.VectorStore;
 
 import javax.annotation.Nullable;
+import javax.validation.Valid;
 import java.util.List;
 import java.util.Map;
 
