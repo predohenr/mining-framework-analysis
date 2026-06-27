@@ -13,24 +13,25 @@ import cn.iocoder.yudao.module.system.controller.admin.socail.vo.client.SocialCl
 import cn.iocoder.yudao.module.system.dal.dataobject.social.SocialClientDO;
 import cn.iocoder.yudao.module.system.dal.mysql.social.SocialClientMapper;
 import cn.iocoder.yudao.module.system.enums.social.SocialTypeEnum;
-import cn.iocoder.yudao.module.system.framework.justauth.core.AuthRequestFactory;
-import com.binarywang.spring.starter.wxjava.miniapp.properties.WxMaProperties;
-import com.binarywang.spring.starter.wxjava.mp.properties.WxMpProperties;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import jakarta.annotation.Resource;
-import me.chanjar.weixin.common.bean.WxJsapiSignature;
 import me.chanjar.weixin.common.error.WxErrorException;
-import me.chanjar.weixin.mp.api.WxMpService;
-import me.zhyd.oauth.config.AuthConfig;
-import me.zhyd.oauth.model.AuthResponse;
-import me.zhyd.oauth.model.AuthUser;
-import me.zhyd.oauth.request.AuthDefaultRequest;
 import me.zhyd.oauth.request.AuthRequest;
 import me.zhyd.oauth.utils.AuthStateUtils;
+import me.chanjar.weixin.common.bean.WxJsapiSignature;
+import com.binarywang.spring.starter.wxjava.miniapp.properties.WxMaProperties;
+import com.binarywang.spring.starter.wxjava.mp.properties.WxMpProperties;
+import javax.annotation.Resource;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import me.zhyd.oauth.model.AuthResponse;
+import me.chanjar.weixin.mp.api.WxMpService;
+import cn.iocoder.yudao.module.system.framework.justauth.core.AuthRequestFactory;
 import org.springframework.context.annotation.Import;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import me.zhyd.oauth.config.AuthConfig;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.mockito.MockedStatic;
+import me.zhyd.oauth.request.AuthDefaultRequest;
+import me.zhyd.oauth.model.AuthUser;
 
 import static cn.hutool.core.util.RandomUtil.randomEle;
 import static cn.iocoder.yudao.framework.common.util.object.ObjectUtils.cloneIgnoreId;
@@ -290,7 +291,7 @@ public class SocialClientServiceImplTest extends BaseDbUnitTest {
         // mock 方法
         WxMaUserService userService = mock(WxMaUserService.class);
         when(wxMaService.getUserService()).thenReturn(userService);
-        WxErrorException wxErrorException = new WxErrorException(new NullPointerException());
+        WxErrorException wxErrorException = randomPojo(WxErrorException.class);
         when(userService.getPhoneNoInfo(eq(phoneCode))).thenThrow(wxErrorException);
 
         // 调用并断言异常
