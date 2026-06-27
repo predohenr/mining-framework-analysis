@@ -11,12 +11,13 @@ import cn.iocoder.yudao.module.system.dal.dataobject.social.SocialUserDO;
 import cn.iocoder.yudao.module.system.dal.mysql.social.SocialUserBindMapper;
 import cn.iocoder.yudao.module.system.dal.mysql.social.SocialUserMapper;
 import cn.iocoder.yudao.module.system.enums.social.SocialTypeEnum;
-import jakarta.annotation.Resource;
 import me.zhyd.oauth.model.AuthUser;
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
-
+import org.junit.jupiter.api.Test;
+import jakarta.annotation.Resource;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import javax.annotation.Resource;
+import com.xingyuv.jushauth.model.AuthUser;
 import java.util.List;
 
 import static cn.hutool.core.util.RandomUtil.randomEle;
