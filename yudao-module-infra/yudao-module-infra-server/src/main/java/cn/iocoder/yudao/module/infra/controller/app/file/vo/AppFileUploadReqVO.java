@@ -1,12 +1,13 @@
 package cn.iocoder.yudao.module.infra.controller.app.file.vo;
 
-import cn.hutool.core.util.StrUtil;
+import javax.validation.constraints.NotNull;
+import org.springframework.web.multipart.MultipartFile;
+import lombok.Data;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.AssertTrue;
+import cn.hutool.core.util.StrUtil;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
-import org.springframework.web.multipart.MultipartFile;
+import jakarta.validation.constraints.AssertTrue;
 
 @Schema(description = "用户 App - 上传文件 Request VO")
 @Data

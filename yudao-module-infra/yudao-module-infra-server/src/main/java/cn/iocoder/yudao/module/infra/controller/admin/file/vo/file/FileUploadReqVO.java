@@ -1,11 +1,12 @@
 package cn.iocoder.yudao.module.infra.controller.admin.file.vo.file;
 
-import cn.hutool.core.util.StrUtil;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
+import javax.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import cn.hutool.core.util.StrUtil;
 import org.springframework.web.multipart.MultipartFile;
 
 @Schema(description = "管理后台 - 上传文件 Request VO")

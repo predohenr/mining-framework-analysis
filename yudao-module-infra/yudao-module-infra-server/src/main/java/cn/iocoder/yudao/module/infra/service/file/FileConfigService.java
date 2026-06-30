@@ -6,9 +6,9 @@ import cn.iocoder.yudao.module.infra.controller.admin.file.vo.config.FileConfigS
 import cn.iocoder.yudao.module.infra.dal.dataobject.file.FileConfigDO;
 import cn.iocoder.yudao.module.infra.framework.file.core.client.FileClient;
 
-import javax.validation.Valid;
-
 import java.util.List;
+
+import javax.validation.Valid;
 
 /**
  * 文件配置 Service 接口
