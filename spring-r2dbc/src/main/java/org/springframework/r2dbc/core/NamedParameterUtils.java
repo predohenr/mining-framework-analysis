@@ -593,7 +593,8 @@ abstract class NamedParameterUtils {
 			markers.next().bind(target, valueToBind);
 		}
 
-		private @Nullable List<List<BindMarker>> getBindMarkers(String identifier) {
+		@Nullable
+		private List<List<BindMarker>> getBindMarkers(String identifier) {
 			List<NamedParameters.NamedParameter> parameters = this.parameters.getMarker(identifier);
 			if (parameters == null) {
 				return null;
