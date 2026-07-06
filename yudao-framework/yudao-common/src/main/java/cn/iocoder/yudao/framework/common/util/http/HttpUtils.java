@@ -8,14 +8,14 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.util.StringUtils;
-import org.springframework.web.util.UriComponents;
-import org.springframework.web.util.UriComponentsBuilder;
-
-import java.net.URI;
-import java.net.URLEncoder;
 import java.nio.charset.Charset;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import org.springframework.util.StringUtils;
+import org.springframework.web.util.UriComponentsBuilder;
+import java.net.URLEncoder;
+import org.springframework.web.util.UriComponents;
+import javax.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 /**
