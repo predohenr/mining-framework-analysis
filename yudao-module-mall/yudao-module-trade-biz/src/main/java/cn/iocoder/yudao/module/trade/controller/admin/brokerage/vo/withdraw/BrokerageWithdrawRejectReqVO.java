@@ -3,9 +3,10 @@ package cn.iocoder.yudao.module.trade.controller.admin.brokerage.vo.withdraw;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.ToString;
-
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 
 @Schema(description = "管理后台 - 驳回申请 Request VO")
 @Data

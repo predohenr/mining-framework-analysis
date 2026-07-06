@@ -1,34 +1,34 @@
 package cn.iocoder.yudao.module.trade.controller.app.brokerage;
 
-import cn.hutool.core.util.ObjUtil;
-import cn.iocoder.yudao.framework.common.pojo.CommonResult;
-import cn.iocoder.yudao.framework.common.pojo.PageResult;
-import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
-import cn.iocoder.yudao.framework.dict.core.DictFrameworkUtils;
-import cn.iocoder.yudao.module.pay.api.transfer.PayTransferApi;
-import cn.iocoder.yudao.module.pay.api.transfer.dto.PayTransferRespDTO;
-import cn.iocoder.yudao.module.trade.controller.admin.brokerage.vo.withdraw.BrokerageWithdrawPageReqVO;
+import javax.annotation.Resource;
+import cn.iocoder.yudao.module.trade.enums.DictTypeConstants;
+import cn.iocoder.yudao.module.trade.service.brokerage.BrokerageWithdrawService;
 import cn.iocoder.yudao.module.trade.controller.app.brokerage.vo.withdraw.AppBrokerageWithdrawCreateReqVO;
+import cn.iocoder.yudao.framework.dict.core.DictFrameworkUtils;
+import cn.iocoder.yudao.module.trade.controller.admin.brokerage.vo.withdraw.BrokerageWithdrawPageReqVO;
+import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.validation.annotation.Validated;
+import cn.iocoder.yudao.framework.common.pojo.CommonResult;
+import jakarta.annotation.Resource;
 import cn.iocoder.yudao.module.trade.controller.app.brokerage.vo.withdraw.AppBrokerageWithdrawPageReqVO;
+import org.springframework.web.bind.annotation.*;
+import static cn.iocoder.yudao.framework.common.pojo.CommonResult.success;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import cn.iocoder.yudao.module.pay.api.transfer.dto.PayTransferRespDTO;
+import cn.hutool.core.util.ObjUtil;
+import io.swagger.v3.oas.annotations.Parameter;
+import jakarta.validation.Valid;
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import javax.validation.Valid;
+import cn.iocoder.yudao.module.pay.api.transfer.PayTransferApi;
+import static cn.iocoder.yudao.framework.web.core.util.WebFrameworkUtils.getLoginUserId;
+import cn.iocoder.yudao.module.trade.enums.brokerage.BrokerageWithdrawStatusEnum;
+import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
+import java.util.Objects;
 import cn.iocoder.yudao.module.trade.controller.app.brokerage.vo.withdraw.AppBrokerageWithdrawRespVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.brokerage.BrokerageWithdrawDO;
-import cn.iocoder.yudao.module.trade.enums.DictTypeConstants;
-import cn.iocoder.yudao.module.trade.enums.brokerage.BrokerageWithdrawStatusEnum;
-import cn.iocoder.yudao.module.trade.enums.brokerage.BrokerageWithdrawTypeEnum;
-import cn.iocoder.yudao.module.trade.service.brokerage.BrokerageWithdrawService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.annotation.Resource;
-import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Objects;
-
-import static cn.iocoder.yudao.framework.common.pojo.CommonResult.success;
-import static cn.iocoder.yudao.framework.web.core.util.WebFrameworkUtils.getLoginUserId;
+import cn.iocoder.yudao.module.trade.enums.brokerage.BrokerageWithdrawTypeEnum;
 
 @Tag(name = "用户 APP - 分销提现")
 @RestController
