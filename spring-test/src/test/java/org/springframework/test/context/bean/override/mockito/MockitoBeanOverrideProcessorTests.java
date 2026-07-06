@@ -71,11 +71,13 @@ class MockitoBeanOverrideProcessorTests {
 						field.getName());
 	}
 
+
 	static class TestCase {
 
+		
 		@MockitoBean
 		@MockitoSpyBean
-		public @Nullable Integer number;
+		Integer number;
 	}
 
 }
