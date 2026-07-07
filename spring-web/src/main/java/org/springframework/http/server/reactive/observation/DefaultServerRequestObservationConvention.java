@@ -28,6 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.server.reactive.observation.ServerHttpObservationDocumentation.HighCardinalityKeyNames;
 import org.springframework.http.server.reactive.observation.ServerHttpObservationDocumentation.LowCardinalityKeyNames;
+import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 /**
@@ -88,6 +89,7 @@ public class DefaultServerRequestObservationConvention implements ServerRequestO
 	}
 
 	@Override
+	@Nullable
 	public @Nullable String getContextualName(ServerRequestObservationContext context) {
 		if (context.getCarrier() != null) {
 			String httpMethod = context.getCarrier().getMethod().name().toLowerCase(Locale.ROOT);
