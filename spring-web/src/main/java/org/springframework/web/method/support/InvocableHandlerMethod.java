@@ -298,7 +298,6 @@ public class InvocableHandlerMethod extends HandlerMethod {
 		@SuppressWarnings("DataFlowIssue")
 		public static @Nullable Object invokeFunction(Method method, Object target, @Nullable Object[] args) throws
 				InvocationTargetException, IllegalAccessException, NoSuchMethodException {
-
 			KFunction<?> function = ReflectJvmMapping.getKotlinFunction(method);
 			// For property accessors
 			if (function == null) {
