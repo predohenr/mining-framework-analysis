@@ -66,7 +66,6 @@ public class JettyWebSocketSession extends AbstractWebSocketSession<Session> {
 
 	private final Sinks.@Nullable Empty<Void> handlerCompletionSink;
 
-
 	public JettyWebSocketSession(Session session, HandshakeInfo info, DataBufferFactory factory) {
 		this(session, info, factory, null);
 	}
@@ -105,7 +104,6 @@ public class JettyWebSocketSession extends AbstractWebSocketSession<Session> {
 			});
 		});
 	}
-
 
 	void handleMessage(WebSocketMessage message) {
 		Assert.state(this.sink != null, "No sink available");
@@ -189,6 +187,7 @@ public class JettyWebSocketSession extends AbstractWebSocketSession<Session> {
 	}
 
 	protected Mono<Void> sendMessage(WebSocketMessage message) {
+
 		Callback.Completable completable = new Callback.Completable();
 		DataBuffer dataBuffer = message.getPayload();
 		Session session = getDelegate();
@@ -244,5 +243,4 @@ public class JettyWebSocketSession extends AbstractWebSocketSession<Session> {
 		}
 		return Mono.fromFuture(completable);
 	}
-
 }
