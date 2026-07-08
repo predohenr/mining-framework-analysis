@@ -25,6 +25,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 
+import org.springframework.lang.Contract;
+
 import org.jspecify.annotations.Nullable;
 
 /**
