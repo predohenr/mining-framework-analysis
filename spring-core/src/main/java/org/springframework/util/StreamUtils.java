@@ -27,6 +27,8 @@ import java.nio.charset.Charset;
 
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.lang.Contract;
+
 /**
  * Simple utility methods for dealing with streams.
  *
