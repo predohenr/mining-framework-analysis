@@ -135,8 +135,59 @@ class ReactiveTypeHandler {
 	 * @return an emitter for streaming, or {@code null} if handled internally
 	 * with a {@link DeferredResult}
 	 */
-	public @Nullable ResponseBodyEmitter handleValue(
+	@Nullable
+	public ResponseBodyEmitter handleValue(
 			Object returnValue, MethodParameter returnType, @Nullable MediaType presetContentType,
+			ModelAndViewContainer mav, NativeWebRequest request) throws Exception {
+
+		Assert.notNull(returnValue, "Expected return value");
+		Class<?> clazz = returnValue.getClass();
+		ReactiveAdapter adapter = this.adapterRegistry.getAdapter(clazz);
+		Assert.state(adapter != null, () -> "Unexpected return value type: " + clazz);
+
+		TaskDecorator taskDecorator = null;
+		if (isContextPropagationPresent) {
+			ContextSnapshotHelper helper = (ContextSnapshotHelper) this.contextSnapshotHelper;
+			Assert.notNull(helper, "No ContextSnapshotHelper");
+			returnValue = helper.writeReactorContext(returnValue);
+			taskDecorator = helper.getTaskDecorator();
+		}
+
+		ResolvableType elementType = ResolvableType.forMethodParameter(returnType).getGeneric();
+		Class<?> elementClass = elementType.toClass();
+
+		Collection<MediaType> mediaTypes = getMediaTypes(request, presetContentType);
+		Optional<MediaType> mediaType = mediaTypes.stream().filter(MimeType::isConcrete).findFirst();
+
+		if (adapter.isMultiValue()) {
+			if (mediaTypes.stream().anyMatch(MediaType.TEXT_EVENT_STREAM::includes) ||
+					ServerSentEvent.class.isAssignableFrom(elementClass)) {
+				SseEmitter emitter = new SseEmitter(STREAMING_TIMEOUT_VALUE);
+				new SseEmitterSubscriber(emitter, this.taskExecutor, taskDecorator).connect(adapter, returnValue);
+				return emitter;
+			}
+			if (CharSequence.class.isAssignableFrom(elementClass)) {
+				ResponseBodyEmitter emitter = getEmitter(mediaType.orElse(MediaType.TEXT_PLAIN));
+				new TextEmitterSubscriber(emitter, this.taskExecutor).connect(adapter, returnValue);
+				return emitter;
+			}
+			MediaType streamingResponseType = findConcreteJsonStreamMediaType(mediaTypes);
+			if (streamingResponseType != null) {
+				ResponseBodyEmitter emitter = getEmitter(streamingResponseType);
+				new JsonEmitterSubscriber(emitter, this.taskExecutor).connect(adapter, returnValue);
+				return emitter;
+			}
+		}
+
+		// Not streaming...
+		DeferredResult<Object> result = new DeferredResult<>();
+		new DeferredResultSubscriber(result, adapter, elementType).connect(adapter, returnValue);
+		WebAsyncUtils.getAsyncManager(request).startDeferredResultProcessing(result, mav);
+
+		return null;
+	}
+
+	public @Nullable ResponseBodyEmitter handleValue(Object returnValue, MethodParameter returnType,
 			ModelAndViewContainer mav, NativeWebRequest request) throws Exception {
 
 		Assert.notNull(returnValue, "Expected return value");
