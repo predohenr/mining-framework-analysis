@@ -16,9 +16,9 @@
 
 package org.springframework.web.service.invoker;
 
+import org.jspecify.annotations.Nullable;
 import java.net.URI;
 
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.web.bind.annotation.PathVariable;
