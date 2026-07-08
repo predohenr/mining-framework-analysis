@@ -435,7 +435,6 @@ final class DefaultRestClientBuilder implements RestClient.Builder {
 	private List<HttpMessageConverter<?>> initMessageConverters() {
 		if (this.messageConverters == null) {
 			this.messageConverters = new ArrayList<>();
-
 			this.messageConverters.add(new ByteArrayHttpMessageConverter());
 			this.messageConverters.add(new StringHttpMessageConverter());
 			this.messageConverters.add(new ResourceHttpMessageConverter(false));
@@ -469,21 +468,19 @@ final class DefaultRestClientBuilder implements RestClient.Builder {
 			else if (kotlinSerializationJsonPresent) {
 				this.messageConverters.add(new KotlinSerializationJsonHttpMessageConverter());
 			}
-
 			if (jackson2SmilePresent) {
 				this.messageConverters.add(new MappingJackson2SmileHttpMessageConverter());
 			}
-
 			if (jackson2CborPresent) {
 				this.messageConverters.add(new MappingJackson2CborHttpMessageConverter());
 			}
 			else if (kotlinSerializationCborPresent) {
 				this.messageConverters.add(new KotlinSerializationCborHttpMessageConverter());
 			}
-
 			if (jackson2YamlPresent) {
 				this.messageConverters.add(new MappingJackson2YamlHttpMessageConverter());
 			}
+
 		}
 		return this.messageConverters;
 	}
