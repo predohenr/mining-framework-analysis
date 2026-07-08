@@ -25,6 +25,7 @@ import org.apache.commons.logging.LogFactory;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.core.log.LogFormatUtils;
@@ -53,12 +54,11 @@ public abstract class ResourceHandlerUtils {
 	/**
 	 * Assert the given location is not null, and its path ends on slash.
 	 */
-	@SuppressWarnings("removal")
 	public static void assertResourceLocation(@Nullable Resource location) {
 		Assert.notNull(location, "Resource location must not be null");
 		try {
 			String path;
-			if (location instanceof org.springframework.core.io.PathResource) {
+			if (location instanceof PathResource) {
 				return;
 			}
 			else if (location instanceof UrlResource) {
