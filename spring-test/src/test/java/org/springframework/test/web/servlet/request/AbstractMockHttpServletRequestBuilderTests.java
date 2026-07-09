@@ -108,15 +108,12 @@ class AbstractMockHttpServletRequestBuilderTests {
 		assertThat(request.getRequestURI()).isEqualTo("/1.1/test");
 	}
 
-	@Test
-	void insertVersionInHeader() {
-		MockHttpServletRequest request = buildRequest(
-				new TestRequestBuilder(HttpMethod.GET).uri("/test")
-						.apiVersion(1.1)
-						.apiVersionInserter(ApiVersionInserter.useHeader("API-Version")));
-
-		assertThat(request.getRequestURI()).isEqualTo("/test");
-		assertThat(request.getHeader("API-Version")).isEqualTo("1.1");
+	@Test // gh-35493
+	void pathInfoIsNotMutatedByBuildMethod() {
+		TestRequestBuilder builder = new TestRequestBuilder(HttpMethod.GET).uri("/b");
+		assertThat(buildRequest(builder).getPathInfo()).isEqualTo("/b");
+		builder.uri("/a");
+		assertThat(buildRequest(builder).getPathInfo()).isEqualTo("/a");
 	}
 
 	@Test
@@ -129,12 +126,15 @@ class AbstractMockHttpServletRequestBuilderTests {
 		assertThat(buildRequest(builder).getHeader("API-Version")).isEqualTo("1.1");
 	}
 
-	@Test // gh-35493
-	void pathInfoIsNotMutatedByBuildMethod() {
-		TestRequestBuilder builder = new TestRequestBuilder(HttpMethod.GET).uri("/b");
-		assertThat(buildRequest(builder).getPathInfo()).isEqualTo("/b");
-		builder.uri("/a");
-		assertThat(buildRequest(builder).getPathInfo()).isEqualTo("/a");
+	@Test
+	void insertVersionInHeader() {
+		MockHttpServletRequest request = buildRequest(
+				new TestRequestBuilder(HttpMethod.GET).uri("/test")
+						.apiVersion(1.1)
+						.apiVersionInserter(ApiVersionInserter.useHeader("API-Version")));
+
+		assertThat(request.getRequestURI()).isEqualTo("/test");
+		assertThat(request.getHeader("API-Version")).isEqualTo("1.1");
 	}
 
 	private MockHttpServletRequest buildRequest(AbstractMockHttpServletRequestBuilder<?> builder) {
