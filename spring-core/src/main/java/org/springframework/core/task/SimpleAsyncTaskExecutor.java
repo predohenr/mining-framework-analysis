@@ -85,9 +85,9 @@ public class SimpleAsyncTaskExecutor extends CustomizableThreadCreator
 
 	private long taskTerminationTimeout;
 
-	private @Nullable Set<Thread> activeThreads;
-
 	private boolean rejectTasksWhenLimitReached = false;
+
+	private @Nullable Set<Thread> activeThreads;
 
 	private volatile boolean active = true;
 
