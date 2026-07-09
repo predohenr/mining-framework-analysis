@@ -180,6 +180,8 @@ class RegisterReflectionReflectiveProcessorTests {
 	@RegisterReflection(memberCategories = MemberCategory.INVOKE_DECLARED_CONSTRUCTORS)
 	static class AnnotatedSimplePojo {
 
+		String test;
+
 		AnnotatedSimplePojo(String test) {
 		}
 	}
