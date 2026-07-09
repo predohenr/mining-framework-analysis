@@ -113,9 +113,7 @@ class MockitoBeanOverrideHandler extends AbstractMockitoBeanOverrideHandler {
 	}
 
 	@Override
-	protected Object createOverrideInstance(String beanName,
-			@Nullable BeanDefinition existingBeanDefinition, @Nullable Object existingBeanInstance) {
-
+	protected Object createOverrideInstance(String beanName, @Nullable BeanDefinition existingBeanDefinition, @Nullable Object existingBeanInstance) {
 		return createMock(beanName);
 	}
 
