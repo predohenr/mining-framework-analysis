@@ -278,8 +278,8 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 						argType == ProceedingJoinPoint.class ||
 						argType == JoinPoint.StaticPart.class) {
 					@Nullable String[] oldNames = this.argumentNames;
-				this.argumentNames = new String[oldNames.length + 1];
-				System.arraycopy(oldNames, 0, this.argumentNames, 0, i);
+					this.argumentNames = new String[oldNames.length + 1];
+					System.arraycopy(oldNames, 0, this.argumentNames, 0, i);
 					this.argumentNames[i] = "THIS_JOIN_POINT";
 					System.arraycopy(oldNames, i, this.argumentNames, i + 1, oldNames.length - i);
 					break;
