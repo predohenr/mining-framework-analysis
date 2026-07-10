@@ -53,6 +53,13 @@ public @interface CacheConfig {
 	String[] value() default {};
 
 	/**
+	 * Alias for {@link #cacheNames}.
+	 * @since 7.0
+	 */
+	@AliasFor("cacheNames")
+	String[] value() default {};
+
+	/**
 	 * Names of the default caches to consider for caching operations defined
 	 * in the annotated class.
 	 * <p>If none is set at the operation level, these are used instead of the default.
